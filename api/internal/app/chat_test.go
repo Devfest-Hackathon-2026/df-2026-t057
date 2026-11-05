@@ -7,8 +7,8 @@ import (
 )
 
 func TestWorkspaceChatMessageContract(t *testing.T) {
-	// Workspace add-ons nest messages under chat.messagePayload, unlike legacy Chat apps.
-	raw := `{"commonEventObject":{"hostApp":"CHAT"},"chat":{"user":{"name":"users/123"},"messagePayload":{"message":{"name":"spaces/one/messages/two","text":"明日18時までにレポート、必要時間30分"}}}}`
+	// Live add-on events serialize unused membership counts as 1.0, unlike the REST SDK's int64.
+	raw := `{"commonEventObject":{"hostApp":"CHAT"},"chat":{"user":{"name":"users/123"},"messagePayload":{"message":{"name":"spaces/one/messages/two","text":"明日18時までにレポート、必要時間30分","space":{"membershipCount":{"joinedDirectHumanUserCount":1.0}}}}}}`
 	var event chatEvent
 	if err := json.Unmarshal([]byte(raw), &event); err != nil {
 		t.Fatal(err)

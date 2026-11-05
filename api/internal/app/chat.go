@@ -6,12 +6,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	chatapi "google.golang.org/api/chat/v1"
 	"google.golang.org/api/idtoken"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -19,9 +19,15 @@ import (
 
 type chatEvent struct {
 	Chat struct {
-		User           chatapi.User `json:"user"`
+		User struct {
+			Name string `json:"name"`
+		} `json:"user"`
 		MessagePayload *struct {
-			Message chatapi.Message `json:"message"`
+			Message struct {
+				Name         string `json:"name"`
+				Text         string `json:"text"`
+				ArgumentText string `json:"argumentText"`
+			} `json:"message"`
 		} `json:"messagePayload"`
 		AddedToSpacePayload *struct{} `json:"addedToSpacePayload"`
 	} `json:"chat"`
@@ -55,6 +61,7 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	}
 	var event chatEvent
 	if err = json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&event); err != nil {
+		slog.Warn("invalid Chat event", "error", err)
 		w.WriteHeader(400)
 		return
 	}
@@ -68,6 +75,7 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	}
 	message := event.Chat.MessagePayload.Message
 	if message.Name == "" || event.Chat.User.Name == "" {
+		slog.Warn("incomplete Chat event", "hasMessageName", message.Name != "", "hasUserName", event.Chat.User.Name != "")
 		w.WriteHeader(400)
 		return
 	}

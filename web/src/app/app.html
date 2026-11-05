@@ -156,7 +156,8 @@
                 <h2>{{ task.title }}</h2>
                 <div class="next-bottom">
                   <span>
-                    {{ task.minutes }}分の作業 · 締切 {{ task.deadline | date: 'M/d HH:mm' }}
+                    {{ plannedMinutes(task) }}分の作業 · 締切
+                    {{ task.deadline | date: 'M/d HH:mm' }}
                   </span>
                   <button
                     mat-icon-button
@@ -199,7 +200,10 @@
                     <span aria-hidden="true" class="material-symbols-rounded">schedule</span>
                     {{ task.plan.start | date: 'M/d HH:mm' }}–{{ task.plan.end | date: 'HH:mm' }}
                     <span class="separator">/</span>
-                    {{ task.minutes }}分
+                    予定 {{ plannedMinutes(task) }}分
+                    @if (plannedMinutes(task) !== task.minutes) {
+                      <span>（見積もり {{ task.minutes }}分）</span>
+                    }
                     <span class="separator">/</span>
                     締切 {{ task.deadline | date: 'M/d HH:mm' }}
                   </p>
