@@ -121,7 +121,7 @@ APP_URL=https://<管理画面のオリジン> npm run build:extension
 | Cloud Run | 東京リージョンで公開。`/api/health` は200、未ログインの `/api/state` は401 |
 | Firebase / Firestore | Googleログイン、初回60分、再読み込み後の予定・残高・一時停止タイマーの復元 |
 | Vertex AI | Cloud Runの実行アカウントから課題抽出、具体的な手順作成、指示による時間割調整 |
-| Google Calendar | 専用カレンダーの作成、Secret Managerへのトークン保存、詳細欄への手順反映、変更通知からの自動取り込みと登録報酬 |
+| Google Calendar | 専用カレンダーの作成、Secret Managerへのトークン保存、詳細欄への手順反映、変更通知からの自動取り込みと登録報酬。既存予定の更新では報酬が増えないことも確認 |
 | Geminiアプリ | 専用DOPAGAKIカレンダーへの予定作成。その後の自動取り込みと詳細欄への反映も確認 |
 | Google Chat | 実際の個人用Chatアプリへ送信し、課題1件の登録・返信・詳細欄の反映・登録報酬を確認 |
 | Chrome拡張 | 実際のYouTube Shortsの前面再生で50秒消費。一時停止中は残高が変わらないことを確認 |
@@ -130,7 +130,7 @@ APP_URL=https://<管理画面のオリジン> npm run build:extension
 
 カレンダー側の新規予定は、専用カレンダーを指定したCalendar APIから投入して検証しました。Googleカレンダーの一般画面での手入力操作は検証していません。ローカルの拡張E2Eは合成Shorts DOMを使用し、上表の実YouTubeでの確認とは区別しています。
 
-配信コードは `d523947`、Cloud Runリビジョンは `dopagaki-00005-wt2` です。1 CPU / 512MiB、最小0・最大2インスタンス。Firestoreの直接クライアントアクセスは拒否し、API実行アカウントで読み書きします。課金・予算設定は変更していません。
+配信コードは `a25837c`、Cloud Runリビジョンは `dopagaki-00006-btr` です。1 CPU / 512MiB、最小0・最大2インスタンス。Firestoreの直接クライアントアクセスは拒否し、API実行アカウントで読み書きします。課金・予算設定は変更していません。
 
 ## 検証
 
