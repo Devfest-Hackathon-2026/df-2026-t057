@@ -13,6 +13,9 @@ credentials*.json
 google-services.json
 GoogleService-Info.plist
 
+# 公的機関から取得した原資料（再配布の条件を確かめていないため）
+docs/sources/
+
 # 依存関係とビルドの成果物
 node_modules/
 dist/
