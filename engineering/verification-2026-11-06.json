@@ -1,0 +1,18 @@
+{
+  "recordedOn": "2026-11-06",
+  "timeZone": "Asia/Tokyo",
+  "scenario": "synthetic tasks; after successful Google Chat registration",
+  "cloudRunRevision": "dopagaki-00005-wt2",
+  "initialCreditSeconds": 3600,
+  "observedShortsConsumptionSeconds": 50,
+  "observed": {
+    "chatEventInDedicatedCalendar": true,
+    "detailedPlanWritten": true,
+    "balanceSeconds": 7150,
+    "completionCredits": 1200,
+    "registrationCredits": 2400,
+    "completedTasks": 1,
+    "totalTasks": 4,
+    "calendarSync": "synced"
+  }
+}
