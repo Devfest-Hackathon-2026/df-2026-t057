@@ -110,7 +110,7 @@ Google ChatアプリはHTTPエンドポイントを `https://<管理画面>/api/
 APP_URL=https://<管理画面のオリジン> npm run build:extension
 ```
 
-Google Cloudへの配信、実アカウントでのOAuth / Calendar / Chat / Vertex AI、Firestoreの実サービスとの結合試験は、この変更時点では未実施です。ローカルデモと合成のShorts DOMを使った拡張試験を、実サービスでの確認と区別してください。
+Google Cloudへの配信、実アカウントでのOAuth / Calendar / Chat、Firestoreの実サービスとの結合試験は未実施です。2026年11月6日に、操作アカウントからVertex AIへ接続し、Goの公式SDKで課題抽出と30分の具体的な時間割作成が成功しました。Cloud Runの実行アカウント経由ではまだ確認していません。ローカルデモと合成のShorts DOMを使った拡張試験を、実サービスでの確認と区別してください。
 
 ## 検証
 
@@ -123,6 +123,13 @@ npm run test:e2e
 ```
 
 Goのテストでは、並行再送時の報酬、スヌーズ候補、競合の拒否、時間の重複、他ユーザーとの分離を確認します。Gemini SDKはローカルHTTP応答を使い、本人情報が渡ることと不正な時間割を拒否することを確認します。Playwrightは画面操作と、パッケージ化していない拡張の接続・計測・通知・タイマーを検証します。有料の外部APIは呼びません。
+
+Vertex AIの実接続テストは明示した場合だけ実行します。`gcloud` のログイン済みアカウントで、指定プロジェクトのGeminiへ架空の課題を送信します。このテストはAPI利用料金が発生し、通常のテストやCIではスキップされます。
+
+```bash
+cd api
+DOPAGAKI_LIVE_GCP=1 go test ./internal/app -run TestLiveGeminiPlanning -v -count=1
+```
 
 ## 提出に向けて
 
