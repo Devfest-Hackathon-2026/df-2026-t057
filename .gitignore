@@ -32,3 +32,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+# Claude Code の作業ファイル
+.claude/.cc-writes/
