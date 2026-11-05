@@ -2,6 +2,8 @@
 
 YouTube Shortsから、いま始める課題へ戻るためのChrome拡張と管理画面です。締切から逆算した作業予定を通知し、完了した分だけ視聴できる時間が増えます。
 
+公開環境：[DOPAGAKI](https://dopagaki-1032251723022.asia-northeast1.run.app/)。Googleログインして使います。Chrome拡張は、この公開先を指定してビルドしてください。
+
 実装の仕様は、この会話の確定事項と[指定のSlack投稿]([内部リンク削除])を基にしています。`docs/` は別案の資料であり、このアプリの仕様ではありません。
 
 ## ローカルで試す
@@ -102,7 +104,7 @@ Cloud Runは `min-instances=0`、`max-instances=2`、1 CPU / 512MiB、リクエ�
 
 Calendarの変更通知チャンネルは6日で期限が切れます。Cloud Schedulerから1日1回 `POST /api/calendar/renew` を呼び、`Authorization: Bearer <SCHEDULER_SECRET>` を設定してください。この更新ジョブを設定しないと継続して同期できません。
 
-Google ChatアプリはHTTPエンドポイントを `https://<管理画面>/api/chat`、認証Audienceを `CHAT_AUDIENCE` と一致させます。同じGoogleアカウントでカレンダーを連携した利用者だけ受け付けます。例：「明日18時までにレポート、必要時間60分」。
+Google ChatアプリはWorkspaceアドオン形式で、共通HTTPエンドポイントを `https://<管理画面>/api/chat` に設定します。`CHAT_AUDIENCE` をこのURL、`GOOGLE_CLOUD_PROJECT_NUMBER` をプロジェクト番号に合わせます。Googleの署名・Audience・プロジェクト専用の送信元サービスアカウントを検証し、同じGoogleアカウントでカレンダーを連携した利用者だけ受け付けます。例：「明日18時までにレポート、必要時間60分」。現在のChatアプリは個人用の未公開アプリです。
 
 公開先が決まったら、そのオリジンに固定して拡張を再ビルドします。
 
@@ -110,7 +112,25 @@ Google ChatアプリはHTTPエンドポイントを `https://<管理画面>/api/
 APP_URL=https://<管理画面のオリジン> npm run build:extension
 ```
 
-Google Cloudへの配信、実アカウントでのOAuth / Calendar / Chat、Firestoreの実サービスとの結合試験は未実施です。2026年11月6日に、操作アカウントからVertex AIへ接続し、Goの公式SDKで課題抽出と30分の具体的な時間割作成が成功しました。Cloud Runの実行アカウント経由ではまだ確認していません。ローカルデモと合成のShorts DOMを使った拡張試験を、実サービスでの確認と区別してください。
+## 実サービスでの確認
+
+2026年11月6日、架空の確認用課題を使って以下を確認しました。課題・報酬の確認履歴はテスト用です。
+
+| 対象 | 確認した動作 |
+|---|---|
+| Cloud Run | 東京リージョンで公開。`/api/health` は200、未ログインの `/api/state` は401 |
+| Firebase / Firestore | Googleログイン、初回60分、再読み込み後の予定・残高・一時停止タイマーの復元 |
+| Vertex AI | Cloud Runの実行アカウントから課題抽出、具体的な手順作成、指示による時間割調整 |
+| Google Calendar | 専用カレンダーの作成、Secret Managerへのトークン保存、詳細欄への手順反映、変更通知からの自動取り込みと登録報酬 |
+| Geminiアプリ | 専用DOPAGAKIカレンダーへの予定作成。その後の自動取り込みと詳細欄への反映も確認 |
+| Google Chat | 実際の個人用Chatアプリへ送信し、課題1件の登録・返信・詳細欄の反映・登録報酬を確認 |
+| Chrome拡張 | 実際のYouTube Shortsの前面再生で50秒消費。一時停止中は残高が変わらないことを確認 |
+| 通知・作業 | 実時刻の全画面通知、事前候補からのスヌーズ確認、手動調整、OK後の保存、上部の作業バー、完了時20分の付与 |
+| Cloud Scheduler | 毎日09:00（日本時間）のCalendar監視更新を設定。手動実行も成功 |
+
+カレンダー側の新規予定は、専用カレンダーを指定したCalendar APIから投入して検証しました。Googleカレンダーの一般画面での手入力操作は検証していません。ローカルの拡張E2Eは合成Shorts DOMを使用し、上表の実YouTubeでの確認とは区別しています。
+
+配信コードは `d523947`、Cloud Runリビジョンは `dopagaki-00005-wt2` です。1 CPU / 512MiB、最小0・最大2インスタンス。Firestoreの直接クライアントアクセスは拒否し、API実行アカウントで読み書きします。課金・予算設定は変更していません。
 
 ## 検証
 
