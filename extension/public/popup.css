@@ -1,0 +1,63 @@
+:root {
+  font-family: Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+  color: #20251f;
+  background: #f7f8f5;
+}
+body {
+  width: 310px;
+  margin: 0;
+  padding: 24px;
+  box-sizing: border-box;
+}
+header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  letter-spacing: 2px;
+  font-size: 12px;
+}
+header img {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+}
+.label {
+  font-size: 11px;
+  color: #7d8675;
+  margin-top: 28px;
+}
+#balance {
+  font-size: 45px;
+  font-weight: 500;
+  letter-spacing: -2px;
+}
+#focus,
+#status {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #737d6b;
+}
+#status {
+  min-height: 35px;
+}
+button {
+  width: 100%;
+  border: 0;
+  border-radius: 99px;
+  padding: 13px 12px;
+  background: #2858eb;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 10px;
+}
+.secondary {
+  background: transparent;
+  border: 1px solid #d1d7c9;
+  color: #526344;
+  font-size: 11px;
+}
+button:focus-visible {
+  outline: 3px solid #8baeff;
+  outline-offset: 3px;
+}
