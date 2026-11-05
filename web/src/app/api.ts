@@ -18,6 +18,7 @@ export class Api {
   readonly busy = signal(false);
   readonly error = signal('');
   readonly signedIn = signal(false);
+  readonly accountEmail = signal('');
   private auth?: Auth;
   private token = '';
 
@@ -30,14 +31,25 @@ export class Api {
         await this.refresh();
       } else if (config.firebase?.['apiKey']) {
         this.auth = getAuth(initializeApp(config.firebase));
-        onIdTokenChanged(this.auth, async (user) => {
-          this.signedIn.set(!!user);
-          this.token = user ? await user.getIdToken() : '';
-          if (user) await this.load();
-          else {
-            this.state.set(null);
-            window.postMessage({ type: 'DOPAGAKI_DISCONNECT' }, location.origin);
-          }
+        await new Promise<void>((resolve) => {
+          onIdTokenChanged(this.auth!, async (user) => {
+            this.signedIn.set(!!user);
+            this.accountEmail.set(user?.email ?? '');
+            this.loading.set(!this.state());
+            try {
+              this.token = user ? await user.getIdToken() : '';
+              if (user) await this.refresh();
+              else {
+                this.state.set(null);
+                window.postMessage({ type: 'DOPAGAKI_DISCONNECT' }, location.origin);
+              }
+            } catch (e) {
+              this.error.set(message(e));
+            } finally {
+              this.loading.set(false);
+              resolve();
+            }
+          });
         });
       }
     } catch (e) {

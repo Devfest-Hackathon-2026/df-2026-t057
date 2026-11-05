@@ -518,6 +518,9 @@
           </section>
           <section class="settings-card">
             <h2>Google連携</h2>
+            @if (api.accountEmail()) {
+              <p>ログイン中：{{ api.accountEmail() }}</p>
+            }
             <p>
               GeminiやGoogle
               Chatからは、DOPAGAKIカレンダーへ課題を登録します。カレンダーに手入力しても取り込まれます。
