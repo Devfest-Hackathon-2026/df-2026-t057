@@ -168,7 +168,7 @@ function initialize() {
         void showDraft(task, true);
       }),
     );
-    actions.append(button('閉じる', dismiss, 'quiet'));
+    actions.append(button('閉じる', dismiss));
     panel.append(actions);
     overlay.append(panel);
     mount().append(overlay);

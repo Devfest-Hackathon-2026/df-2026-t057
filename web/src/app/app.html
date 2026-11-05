@@ -587,8 +587,8 @@
         <button mat-stroked-button (click)="plan(task)">
           {{ api.state()?.settings?.snoozeMinutes }}分スヌーズ・予定を確認
         </button>
-        <button mat-button (click)="plan(task, true)">予定を調整する</button>
-        <button mat-button (click)="preview.set(null)">閉じる</button>
+        <button mat-stroked-button (click)="plan(task, true)">予定を調整する</button>
+        <button mat-stroked-button (click)="preview.set(null)">閉じる</button>
       </div>
     </div>
   </div>
