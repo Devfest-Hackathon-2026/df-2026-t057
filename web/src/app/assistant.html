@@ -82,7 +82,9 @@
           <strong>相談する予定</strong>
           {{ task.title }}
         </span>
-        <button mat-button (click)="clearSelection.emit()">解除</button>
+        @if (!fixedTask()) {
+          <button mat-button (click)="clearSelection.emit()">解除</button>
+        }
       </div>
     }
     <form class="composer" (ngSubmit)="send()">

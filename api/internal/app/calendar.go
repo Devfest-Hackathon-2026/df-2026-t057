@@ -228,11 +228,31 @@ func stripPlan(description string) string {
 	return strings.TrimSpace(description)
 }
 func eventHash(e *calendar.Event) string {
-	raw, _ := json.Marshal([]string{e.Summary, stripPlan(e.Description), e.Start.DateTime, e.End.DateTime})
+	instant := func(value string) string {
+		parsed, err := time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			return value
+		}
+		return parsed.UTC().Format(time.RFC3339Nano)
+	}
+	raw, _ := json.Marshal([]string{e.Summary, stripPlan(e.Description), instant(e.Start.DateTime), instant(e.End.DateTime)})
 	hash := sha256.Sum256(raw)
 	return hex.EncodeToString(hash[:])
 }
 func (c *Calendar) Sync(ctx context.Context, uid string) (State, error) {
+	current, err := c.Store.Read(ctx, uid)
+	if err != nil {
+		return State{}, err
+	}
+	// Flush confirmed edits before importing webhook changes from the same events.
+	for _, task := range current.Tasks {
+		if task.CalendarInputPending {
+			if _, err = c.Export(ctx, uid, current); err != nil {
+				return State{}, err
+			}
+			break
+		}
+	}
 	conn, err := c.connection(ctx, uid)
 	if err != nil {
 		return State{}, err
@@ -270,7 +290,7 @@ func (c *Calendar) Sync(ctx context.Context, uid string) (State, error) {
 		}
 	}
 	now := time.Now()
-	current, err := c.Store.Read(ctx, uid)
+	current, err = c.Store.Read(ctx, uid)
 	if err != nil {
 		return State{}, err
 	}
@@ -411,28 +431,27 @@ func (c *Calendar) Export(ctx context.Context, uid string, state State) (State, 
 		if err != nil {
 			return state, sourceError("予定の確認", err)
 		}
-		if task.CalendarETag != "" && event.Etag != task.CalendarETag && eventHash(event) != task.InputHash && task.InputHash != "" {
-			return state, ErrConflict
+		patch, desiredHash, err := calendarUpdate(task, event, location)
+		if err != nil {
+			return state, err
 		}
-		hashes[task.ID] = eventHash(event)
-		var block strings.Builder
-		block.WriteString("[DOPAGAKI]\n")
-		for _, step := range task.Plan.Steps {
-			fmt.Fprintf(&block, "%s–%s %s\n", step.Start.In(location).Format("15:04"), step.End.In(location).Format("15:04"), step.Title)
-		}
-		fmt.Fprintf(&block, "締切: %s\n%s\n[/DOPAGAKI]", task.Deadline.In(location).Format("01/02 15:04"), task.Plan.Reason)
-		description := strings.TrimSpace(stripPlan(event.Description) + "\n\n" + block.String())
-		if description == event.Description {
+		hashes[task.ID] = desiredHash
+		if eventHash(event) == desiredHash && event.Description == patch.Description {
 			etags[task.ID] = event.Etag
 			continue
 		}
-		call := svc.Events.Patch(conn.CalendarID, task.CalendarEventID, &calendar.Event{Description: description})
+		call := svc.Events.Patch(conn.CalendarID, task.CalendarEventID, patch)
 		call.Header().Set("If-Match", event.Etag)
 		updated, err := call.Context(ctx).Do()
+		var apiErr *googleapi.Error
+		if errors.As(err, &apiErr) && apiErr.Code == 412 {
+			return state, ErrConflict
+		}
 		if err != nil {
 			return state, sourceError("カレンダー保存", err)
 		}
 		etags[task.ID] = updated.Etag
+		hashes[task.ID] = eventHash(updated)
 	}
 	return c.Store.Update(ctx, uid, func(st *State) error {
 		if st.PlanRevision != state.PlanRevision {
@@ -442,12 +461,49 @@ func (c *Calendar) Export(ctx context.Context, uid string, state State) (State, 
 			if tag, ok := etags[st.Tasks[i].ID]; ok {
 				st.Tasks[i].CalendarETag = tag
 				st.Tasks[i].InputHash = hashes[st.Tasks[i].ID]
+				st.Tasks[i].CalendarInputPending = false
 			}
 		}
 		st.CalendarSync = "synced"
 		return nil
 	})
 }
+func calendarUpdate(task Task, event *calendar.Event, location *time.Location) (*calendar.Event, string, error) {
+	patch := calendarPatch(task, event, location)
+	desired := *event
+	desired.Description = patch.Description
+	if task.CalendarInputPending {
+		desired.Summary, desired.Start, desired.End = patch.Summary, patch.Start, patch.End
+	}
+	desiredHash := eventHash(&desired)
+	actualHash := eventHash(event)
+	changed := task.CalendarETag != "" && event.Etag != task.CalendarETag && task.InputHash != "" && actualHash != task.InputHash
+	alreadyApplied := task.CalendarInputPending && actualHash == desiredHash
+	if changed && !alreadyApplied {
+		return nil, "", ErrConflict
+	}
+	return patch, desiredHash, nil
+}
+
+func calendarPatch(task Task, event *calendar.Event, location *time.Location) *calendar.Event {
+	notes := stripPlan(event.Description)
+	patch := &calendar.Event{}
+	if task.CalendarInputPending {
+		notes = task.Notes
+		patch.Summary = task.Title
+		patch.Start = &calendar.EventDateTime{DateTime: task.Deadline.Add(-time.Duration(task.Minutes) * time.Minute).Format(time.RFC3339)}
+		patch.End = &calendar.EventDateTime{DateTime: task.Deadline.Format(time.RFC3339)}
+	}
+	var block strings.Builder
+	block.WriteString("[DOPAGAKI]\n")
+	for _, step := range task.Plan.Steps {
+		fmt.Fprintf(&block, "%s–%s %s\n", step.Start.In(location).Format("15:04"), step.End.In(location).Format("15:04"), step.Title)
+	}
+	fmt.Fprintf(&block, "締切: %s\n%s\n[/DOPAGAKI]", task.Deadline.In(location).Format("01/02 15:04"), task.Plan.Reason)
+	patch.Description = strings.TrimSpace(notes + "\n\n" + block.String())
+	return patch
+}
+
 func (s *Server) connectCalendar(w http.ResponseWriter, r *http.Request) {
 	if s.Calendar == nil {
 		respond(w, nil, errors.New("デモでは実際のカレンダーへ接続しません"))

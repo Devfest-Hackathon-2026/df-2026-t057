@@ -108,6 +108,8 @@ test('conversation cards require confirmation, preserve edits, and update real t
   expect(state.balanceSeconds).toBe(4200);
   expect(state.tasks).toHaveLength(1);
   await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    .toBe(true);
   expect(errors).toEqual([]);
 });

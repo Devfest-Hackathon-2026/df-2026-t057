@@ -42,6 +42,7 @@ export class Assistant implements OnDestroy {
   readonly openSettings = output<void>();
   readonly selectedTask = input<Task | null>(null);
   readonly clearSelection = output<void>();
+  readonly fixedTask = input(false);
   taskTitle(id: string) {
     return this.api.state()?.tasks.find((t) => t.id === id)?.title ?? '削除された課題';
   }

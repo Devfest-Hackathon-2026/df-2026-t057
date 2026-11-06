@@ -53,6 +53,9 @@
         >
           カレンダーで見る
         </a>
+        @if (task.status === 'pending') {
+          <button mat-button (click)="actions.edit(task)">内容を調整・AIに相談</button>
+        }
         @if (task.status !== 'completed') {
           <button mat-icon-button aria-label="予定を調整" (click)="actions.plan(task, true)">
             <span class="material-symbols-rounded">edit_calendar</span>

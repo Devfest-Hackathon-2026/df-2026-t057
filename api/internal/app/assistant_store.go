@@ -22,6 +22,7 @@ type AssistantCard struct {
 	TaskID   string     `json:"taskId,omitempty"`
 	Preview  *Plan      `json:"preview,omitempty"`
 	Revision int        `json:"revision,omitempty"`
+	Change   *TaskEdit  `json:"change,omitempty"`
 	Memory   string     `json:"memory,omitempty"`
 }
 

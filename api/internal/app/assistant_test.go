@@ -286,3 +286,29 @@ func TestAssistantUsesOwnedSelectedTaskAndPreservesContextOnReplay(t *testing.T)
 		t.Fatal("foreign task was sent to Gemini")
 	}
 }
+
+func TestAssistantProposesOwnedContentEditWithoutSaving(t *testing.T) {
+	in := input()
+	in.Title, in.Notes, in.Why, in.Minutes = "レポートの見直し", "考察を追加する", "提出に備える", 45
+	_, c := assistantClient(t, func(raw string) any {
+		if !strings.Contains(raw, "入力JSON") {
+			return map[string]any{"steps": []map[string]any{{"title": "レポートを書く", "minutes": 30}}}
+		}
+		return map[string]any{"reply": "内容の変更案です。確認してください。", "cards": []any{map[string]any{"kind": "update", "taskId": "one", "input": in}}}
+	})
+	before := c.state("POST", "/api/tasks", input())
+	turn := consultation(t, c, "edit-content", "レポートを45分にして考察を追加したい")
+	if turn.Status != "ready" || len(turn.Cards) != 1 || turn.Cards[0].Change == nil || turn.Cards[0].Change.Input.Minutes != 45 || turn.Cards[0].Change.Input.ID != "one" {
+		t.Fatalf("invalid edit proposal: %+v", turn)
+	}
+	after := c.state("GET", "/api/state", nil)
+	if after.PlanRevision != before.PlanRevision || after.Tasks[0].Minutes != 30 || after.BalanceSeconds != before.BalanceSeconds {
+		t.Fatal("AI saved a proposal without confirmation")
+	}
+	other := c
+	other.cookie = &http.Cookie{Name: "dopagaki_demo", Value: "0123456789abcdef0123456789abcdef"}
+	foreign := consultation(t, other, "foreign-content", "この課題を編集して")
+	if foreign.Status != "error" || len(foreign.Cards) != 0 {
+		t.Fatal("model invented a foreign task edit")
+	}
+}

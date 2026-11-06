@@ -119,6 +119,13 @@
         @if (selected(); as task) {
           <app-assistant-card [card]="card()" />
           <div class="selected-actions">
+            <button
+              mat-stroked-button
+              (click)="actions.edit(task)"
+              [disabled]="task.status !== 'pending'"
+            >
+              課題の内容を調整
+            </button>
             <button mat-stroked-button (click)="panel.set('assistant')">
               この予定について相談
             </button>
