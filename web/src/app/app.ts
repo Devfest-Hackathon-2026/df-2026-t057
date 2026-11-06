@@ -7,6 +7,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Api, message } from './api';
@@ -32,6 +33,7 @@ import {
     MatProgressBarModule,
     MatFormFieldModule,
     MatInputModule,
+    MatMenuModule,
     MatSlideToggleModule,
     MatSnackBarModule,
   ],

@@ -84,7 +84,7 @@ export class Api {
     });
   }
   async logout() {
-    if (this.auth) await signOut(this.auth);
+    if (this.auth) await this.run(() => signOut(this.auth!));
   }
   async request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
     const version = this.sessionVersion;
