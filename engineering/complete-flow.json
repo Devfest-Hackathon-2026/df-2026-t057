@@ -1,0 +1,28 @@
+{
+  "createdOn": "2026-11-06",
+  "size": [
+    1920,
+    1080
+  ],
+  "pngSize": [
+    3840,
+    2160
+  ],
+  "description": "Single presentation diagram; 3 intake branches merge into registration, notice, work and completion; optional confirmed snooze.",
+  "sources": [
+    "engineering/assets/intake-flow/gemini-request-result.jpg",
+    "engineering/assets/intake-flow/calendar-manual-input.jpg",
+    "engineering/assets/intake-flow/chat-request-result.jpg",
+    "engineering/assets/screen-flow/03-registered.jpg",
+    "engineering/assets/screen-flow/05-notification-preview.jpg",
+    "engineering/assets/screen-flow/08-working.jpg",
+    "engineering/assets/screen-flow/10-completed.jpg",
+    "engineering/assets/screen-flow/06-snooze-confirm.jpg"
+  ],
+  "notes": [
+    "Original screenshots are embedded unchanged; selected visible regions are shown using SVG clipping and placement.",
+    "Entry routes are independent production examples. Shared flow is a different local-demo task; it is not a single production execution across all screenshots.",
+    "Static presentation composition; no product or cloud setting changes."
+  ],
+  "renderer": "@resvg/resvg-js 2.6.2, Japanese system fonts, 2x PNG export"
+}
