@@ -48,3 +48,16 @@ Chat一般公開を完了するには、公開作業を行うWorkspaceアカウ�
 - Node：古い利用者の応答を保留してアカウントを切り替え、遅れた応答が表示・拡張へ戻らないこと。ログアウト後の課題・通知解除。
 - Go：Google subjectの照合、Firebase UIDとの区別、デモStoreの2ユーザーfixtureで別ユーザーの課題の読み取り・開始・完了・予定確認の拒否、同じ課題IDを使う2ユーザーの報酬分離、DMと共有会話の判定。
 - 既存のビルド・型チェック・時刻テスト・Go race・vetも実行する。実アカウントの同意と一般配布の完了は、自動試験と分けて記録する。
+
+## 配信と実確認
+
+- 製品コード：`a467aec`。Cloud Build `da938383-ef60-4a0e-a710-640dd8e14d76` 成功。
+- イメージ：`asia-northeast1-docker.pkg.dev/devfest-2026-513816/dopagaki/app@sha256:91e7b00897022e94f536c64487c62d12bd6d6d04c789c0c0ff7f3eb8a8cc1949`。
+- Cloud Run `dopagaki-00007-694` へ100%配信。既存のSA・Secret・環境変数・課金設定・インスタンス上限は変更していない。
+- [pushのCI](https://github.com/a-sumikawa/devfest-2026/actions/runs/42220195420)と[PRのCI](https://github.com/a-sumikawa/devfest-2026/actions/runs/42220459831)はいずれも成功。ビルド、型チェック、Node 4件、Go race・vet、既存E2E 5件を含む。
+- 公開済みの設定画面に本人連携と1対1 DM・一般配布準備中の案内を確認。[実画面](assets/public-accounts-settings.jpg)を保存。`/privacy.html` は未認証でHTTP 200。
+- 本番の既存ログインからCalendar連携を開始し、ログイン中のメールをヒントにしたGoogleのアカウント選択画面へ進むことを確認。再同意・トークン交換は行わず戻った。新しいcallbackでの実認可と、異なる実ユーザー2人の連携は未検証。
+- Chromeプロフィール2つはいずれも同じGoogleアカウントでログインしていた。片方でログアウト・再ログイン後も同じ本人データが復元した。これを別ユーザー間の実データ分離の実証とは扱わない。ユーザー間の拒否は上記の2ユーザーfixtureで確認している。
+- 公開URL向けの拡張をビルドし、`.local/dopagaki-extension-public-accounts.zip` を作成した。Chromeへ導入済みの拡張には更新操作が必要で、この時点で新しい拡張の実ブラウザーへの再読み込みは未実施。Chrome Web Store配布も未実施。
+
+Cloud Runの更新と、Chatの一般公開完了は別。Workspaceの運営管理主体・公開作業アカウント・Googleグループは未指定のため、組織移管・IAM付与・Marketplace申請を実行していない。
