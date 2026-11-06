@@ -115,7 +115,11 @@ export class TaskChange {
     this.error.set('');
     const change = this.candidate();
     try {
-      const ok = await this.api.mutate(`/tasks/${change.input.id}`, change, 'PUT');
+      const ok = await this.api.mutate(
+        `/tasks/${change.input.id}`,
+        { input: change.input, baseRevision: change.draft.baseRevision },
+        'PUT',
+      );
       if (ok) this.saved.set(true);
       else {
         const failure = this.api.error();

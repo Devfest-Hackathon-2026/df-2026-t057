@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,10 @@ func editPreview(t *testing.T, c testClient, in TaskInput) TaskEdit {
 		t.Fatal(err)
 	}
 	return change
+}
+
+func taskEditRequest(change TaskEdit) map[string]any {
+	return map[string]any{"input": change.Input, "baseRevision": change.Draft.BaseRevision}
 }
 
 func TestTaskEditPreviewCommitRewardsAndIsolation(t *testing.T) {
@@ -39,10 +44,10 @@ func TestTaskEditPreviewCommitRewardsAndIsolation(t *testing.T) {
 	if code, _ := other.call("POST", "/api/tasks/one/preview", in); code != 404 {
 		t.Fatalf("foreign preview: %d", code)
 	}
-	if code, _ := other.call("PUT", "/api/tasks/one", change); code != 404 {
+	if code, _ := other.call("PUT", "/api/tasks/one", taskEditRequest(change)); code != 404 {
 		t.Fatalf("foreign commit: %d", code)
 	}
-	after := c.state("PUT", "/api/tasks/one", change)
+	after := c.state("PUT", "/api/tasks/one", taskEditRequest(change))
 	task := after.Tasks[0]
 	if len(after.Tasks) != 1 || after.BalanceSeconds != 4200 || len(after.Ledger) != len(before.Ledger) || task.Title != in.Title || task.Notes != in.Notes || task.Why != in.Why || task.URL != in.URL || task.Minutes != in.Minutes || !task.Deadline.Equal(in.Deadline) || !task.CreatedAt.Equal(before.Tasks[0].CreatedAt) {
 		t.Fatal("edit duplicated rewards, lost identity, or did not save content")
@@ -50,7 +55,7 @@ func TestTaskEditPreviewCommitRewardsAndIsolation(t *testing.T) {
 	if len(task.Plan.Steps) != 1 || task.Plan.Steps[0].Title != in.Title {
 		t.Fatal("old steps were retained after changing content")
 	}
-	if code, _ := c.call("PUT", "/api/tasks/one", change); code != 409 {
+	if code, _ := c.call("PUT", "/api/tasks/one", taskEditRequest(change)); code != 409 {
 		t.Fatalf("stale retry: %d", code)
 	}
 	c.state("POST", "/api/tasks/one/start", nil)
@@ -69,7 +74,7 @@ func TestTaskEditRejectsStaleAndInvalidTimetable(t *testing.T) {
 	additional := original
 	additional.ID, additional.Title = "two", "追加の課題"
 	c.state("POST", "/api/tasks", additional)
-	if code, _ := c.call("PUT", "/api/tasks/one", change); code != 409 {
+	if code, _ := c.call("PUT", "/api/tasks/one", taskEditRequest(change)); code != 409 {
 		t.Fatal("concurrent plan overwritten")
 	}
 	impossible := in
@@ -81,7 +86,10 @@ func TestTaskEditRejectsStaleAndInvalidTimetable(t *testing.T) {
 	change = editPreview(t, c, in)
 	change.Draft.Changes[0].TaskID = "someone-else"
 	change.Draft.Changes[0].After.Start = time.Now().Add(-time.Hour)
-	after := c.state("PUT", "/api/tasks/one", change)
+	if code, _ := c.call("PUT", "/api/tasks/one", change); code != 400 {
+		t.Fatal("client supplied timetable accepted")
+	}
+	after := c.state("PUT", "/api/tasks/one", taskEditRequest(change))
 	if after.BalanceSeconds != before.BalanceSeconds || len(after.Tasks) != 2 || after.Tasks[0].Plan.Start.Before(time.Now()) {
 		t.Fatal("client supplied timetable was trusted")
 	}
@@ -102,7 +110,7 @@ func TestTaskEditDoesNotOverwriteChangesDuringModelCall(t *testing.T) {
 	in.Title, in.Minutes = "新しい内容", 45
 	change := editPreview(t, c, in)
 	done := make(chan int, 1)
-	go func() { code, _ := c.call("PUT", "/api/tasks/one", change); done <- code }()
+	go func() { code, _ := c.call("PUT", "/api/tasks/one", taskEditRequest(change)); done <- code }()
 	<-entered
 	_, err := server.Store.Update(t.Context(), "demo-"+c.cookie.Value, func(st *State) error { st.Profile.Context = "作業傾向を更新"; return nil })
 	close(release)
@@ -115,5 +123,34 @@ func TestTaskEditDoesNotOverwriteChangesDuringModelCall(t *testing.T) {
 	after := c.state("GET", "/api/state", nil)
 	if after.Tasks[0].Title != "課題" || after.Profile.Context != "作業傾向を更新" || after.BalanceSeconds != 4200 {
 		t.Fatal("concurrent change overwritten or reward duplicated")
+	}
+}
+
+func TestTaskEditWithTwoHundredTasksKeepsCommitBelowRequestLimit(t *testing.T) {
+	store := NewMemoryStore()
+	c := testClient{handler: (&Server{Mode: "demo", Store: store, Planner: &Planner{}}).Handler(), cookie: &http.Cookie{Name: "dopagaki_demo", Value: "abcdef0123456789abcdef0123456789"}, t: t}
+	_, err := store.Update(t.Context(), "demo-"+c.cookie.Value, func(st *State) error {
+		for i := 0; i < 200; i++ {
+			end := time.Now().Add(time.Duration(i+3) * time.Hour)
+			task := Task{ID: strconv.Itoa(i), Title: strings.Repeat("確認用の課題", 10), Status: "pending", Minutes: 30, Deadline: end, CreatedAt: time.Now()}
+			task.Plan = planAt(task, end.Add(-30*time.Minute), end, "時間割")
+			st.Tasks = append(st.Tasks, task)
+		}
+		st.replan()
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := TaskInput{ID: "0", Title: "変更した課題", Minutes: 45, Deadline: time.Now().Add(3 * time.Hour)}
+	change := editPreview(t, c, in)
+	large, _ := json.Marshal(change)
+	small, _ := json.Marshal(taskEditRequest(change))
+	if len(large) <= 64<<10 || len(small) >= 64<<10 {
+		t.Fatal("fixture did not exercise the request size boundary")
+	}
+	after := c.state("PUT", "/api/tasks/0", taskEditRequest(change))
+	if len(after.Tasks) != 200 || after.Tasks[0].Title != in.Title || after.BalanceSeconds != 3600 {
+		t.Fatal("large task list could not be edited without changing credit")
 	}
 }

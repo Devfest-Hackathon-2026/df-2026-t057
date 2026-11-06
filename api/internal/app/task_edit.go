@@ -68,7 +68,10 @@ func (s *Server) previewTaskEdit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) updateTask(w http.ResponseWriter, r *http.Request) {
-	var change TaskEdit
+	var change struct {
+		Input        TaskInput `json:"input"`
+		BaseRevision int       `json:"baseRevision"`
+	}
 	if !decode(w, r, &change) {
 		return
 	}
@@ -84,7 +87,7 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, err)
 		return
 	}
-	if change.Draft.TaskID != change.Input.ID || change.Draft.BaseRevision != current.PlanRevision {
+	if change.BaseRevision != current.PlanRevision {
 		respond(w, nil, ErrConflict)
 		return
 	}
