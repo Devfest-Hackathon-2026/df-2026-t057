@@ -1,31 +1,77 @@
 name: Check
 on:
   push:
+    branches: [main]
   pull_request:
 permissions:
   contents: read
+  pull-requests: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Keep the check result even for documentation-only PRs.
+      - uses: dorny/paths-filter@v4
+        id: changes
+        with:
+          base: ${{ github.ref }}
+          filters: |
+            frontend: &frontend
+              - 'web/**'
+              - 'extension/**'
+              - 'shared/**'
+              - 'scripts/build-extension.mjs'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'angular.json'
+              - 'tsconfig.json'
+              - '.github/workflows/check.yml'
+            api: &api
+              - 'api/**'
+              - '.github/workflows/check.yml'
+            unit:
+              - *frontend
+              - 'tests/*.test.ts'
+            e2e:
+              - *frontend
+              - *api
+              - 'tests/e2e/**'
+              - 'playwright.config.ts'
       - uses: actions/setup-node@v7
+        if: steps.changes.outputs.unit == 'true' || steps.changes.outputs.e2e == 'true'
         with:
           node-version: '24'
           cache: npm
       - uses: actions/setup-go@v6
+        if: steps.changes.outputs.api == 'true' || steps.changes.outputs.e2e == 'true'
         with:
           go-version-file: api/go.mod
           cache-dependency-path: api/go.sum
       - run: npm ci
+        if: steps.changes.outputs.unit == 'true' || steps.changes.outputs.e2e == 'true'
       - run: npm run build
-      - run: npm test
+        if: steps.changes.outputs.e2e == 'true'
+      - run: npm run typecheck
+        if: steps.changes.outputs.frontend == 'true'
+      - run: npm run test:unit
+        if: steps.changes.outputs.unit == 'true'
+      - run: go test -race ./...
+        if: steps.changes.outputs.api == 'true'
+        working-directory: api
       - run: go vet ./...
+        if: steps.changes.outputs.api == 'true'
         working-directory: api
       - run: npx playwright install --with-deps chromium
+        if: steps.changes.outputs.e2e == 'true'
       - run: npm run test:e2e
+        id: e2e
+        if: steps.changes.outputs.e2e == 'true'
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: failure() && steps.e2e.outcome == 'failure'
         with:
           name: browser-test-results
           path: test-results
