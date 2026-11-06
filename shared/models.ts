@@ -106,6 +106,7 @@ export interface AssistantCard {
   memory?: string;
 }
 export interface AssistantTurn {
+  taskId?: string;
   id: string;
   text: string;
   reply: string;

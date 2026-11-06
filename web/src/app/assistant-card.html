@@ -40,13 +40,23 @@
             card().kind === 'create' && !registered()
               ? '登録前'
               : task()
-                ? '現在の予定'
+                ? task()?.status === 'completed'
+                  ? '完了'
+                  : task()?.status === 'active'
+                    ? '作業中'
+                    : '現在の予定'
                 : '削除済み'
           }}
         </span>
       </div>
       @if (task(); as task) {
         <h3>{{ task.title }}</h3>
+        @if (task.why) {
+          <p class="card-note">なぜ：{{ task.why }}</p>
+        }
+        @if (task.notes) {
+          <p class="memory-text">{{ task.notes }}</p>
+        }
         <p class="event-time">
           {{ task.plan.start | date: 'M/d HH:mm' }} — {{ task.plan.end | date: 'HH:mm' }}
         </p>

@@ -1,0 +1,142 @@
+@if (api.state(); as state) {
+  <div class="workspace-title">
+    <div>
+      <span class="eyebrow">YOUR TIME, TOGETHER</span>
+      <h1>カレンダー</h1>
+      <p>予定を見ながら、次の一歩を相談しよう。</p>
+    </div>
+    <button mat-flat-button (click)="actions.add()">課題を登録</button>
+  </div>
+  <div class="workspace-summary">
+    <div class="workspace-credit">
+      <span>視聴できる時間</span>
+      <strong class="credit-number">
+        {{ (state.balanceSeconds / 60).toFixed(0) }}
+        <small>min</small>
+      </strong>
+    </div>
+    @if (next(); as task) {
+      <button mat-button class="next-task" (click)="select(task)">
+        <span>次の課題</span>
+        <strong>{{ task.title }}</strong>
+        <span>{{ task.plan.start | date: 'M/d HH:mm' }}</span>
+      </button>
+      <button
+        mat-stroked-button
+        aria-label="次の課題を開始"
+        (click)="actions.start(task)"
+        [disabled]="api.busy()"
+      >
+        はじめる
+      </button>
+      <button mat-button class="notice-preview" (click)="actions.preview.set(task)">
+        通知を試す
+      </button>
+    } @else {
+      <span class="muted">予定の登録で＋10分、課題の完了で＋20分。</span>
+    }
+  </div>
+  <mat-button-toggle-group
+    class="mobile-switch"
+    [value]="mobilePart()"
+    (change)="mobilePart.set($event.value)"
+    aria-label="表示する領域"
+  >
+    <mat-button-toggle value="calendar">カレンダー</mat-button-toggle>
+    <mat-button-toggle value="panel">相談・詳細</mat-button-toggle>
+  </mat-button-toggle-group>
+  <div class="workspace-grid" [attr.data-mobile-part]="mobilePart()">
+    <section class="calendar-surface" aria-label="予定カレンダー">
+      <div class="calendar-toolbar">
+        <div class="calendar-navigation">
+          <button mat-stroked-button (click)="move(0)">今日</button>
+          <button mat-icon-button aria-label="前の期間" (click)="move(-1)">
+            <span class="material-symbols-rounded">chevron_left</span>
+          </button>
+          <button mat-icon-button aria-label="次の期間" (click)="move(1)">
+            <span class="material-symbols-rounded">chevron_right</span>
+          </button>
+        </div>
+        <h2 aria-live="polite">{{ title() }}</h2>
+        <mat-button-toggle-group
+          [value]="view()"
+          (change)="changeView($event.value)"
+          aria-label="カレンダーの表示期間"
+        >
+          <mat-button-toggle value="day">日</mat-button-toggle>
+          <mat-button-toggle value="week">週</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+      @if (!ready()) {
+        <div class="skeleton calendar-loading" role="status">カレンダーを準備しています…</div>
+      }
+      <full-calendar [options]="options" [events]="events()">
+        <ng-template #eventContent let-info>
+          <span class="event-name">{{ info.event.title }}</span>
+          <span class="event-clock">{{ info.event.start | date: 'HH:mm' }}</span>
+        </ng-template>
+      </full-calendar>
+      <div class="calendar-caption">
+        <span>{{ timeZone }} · 確定した作業時間を表示</span>
+        <button mat-button (click)="api.load()" [disabled]="api.busy()">
+          {{ api.busy() ? '更新中…' : '予定を更新' }}
+        </button>
+      </div>
+      @if (!state.tasks.length) {
+        <div class="calendar-empty">
+          <h3>最初の予定を入れよう</h3>
+          <p>課題を登録するか、右側のAIに相談できます。</p>
+          @if (api.config()?.mode === 'demo') {
+            <button mat-stroked-button (click)="api.mutate('/demo/sample')" [disabled]="api.busy()">
+              サンプル3件で試す
+            </button>
+          }
+        </div>
+      }
+    </section>
+    <aside class="workspace-panel" aria-label="予定の相談と詳細">
+      <mat-button-toggle-group
+        class="panel-switch"
+        [value]="panel()"
+        (change)="panel.set($event.value)"
+        aria-label="相談パネルの表示"
+      >
+        <mat-button-toggle value="assistant">AIに相談</mat-button-toggle>
+        <mat-button-toggle value="detail" [disabled]="!selected()">課題の詳細</mat-button-toggle>
+      </mat-button-toggle-group>
+      <div [hidden]="panel() !== 'assistant'">
+        <app-assistant
+          [selectedTask]="selected()"
+          (clearSelection)="clearSelection()"
+          (openSettings)="routerSettings()"
+        />
+      </div>
+      <section [hidden]="panel() !== 'detail'" aria-label="選択した課題">
+        @if (selected(); as task) {
+          <app-assistant-card [card]="card()" />
+          <div class="selected-actions">
+            <button mat-stroked-button (click)="panel.set('assistant')">
+              この予定について相談
+            </button>
+            <button
+              mat-flat-button
+              (click)="actions.start(task)"
+              [disabled]="api.busy() || task.status !== 'pending'"
+            >
+              {{
+                task.status === 'active'
+                  ? '作業中'
+                  : task.status === 'completed'
+                    ? '完了済み'
+                    : 'この課題をはじめる'
+              }}
+            </button>
+          </div>
+          <p class="detail-note">時間割を変更すると、専用Googleカレンダーの詳細欄へ反映します。</p>
+        } @else {
+          <p>カレンダーから予定を選んでください。</p>
+        }
+      </section>
+    </aside>
+  </div>
+}

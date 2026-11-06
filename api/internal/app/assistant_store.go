@@ -28,6 +28,7 @@ type AssistantCard struct {
 type AssistantTurn struct {
 	ID           string          `json:"id"`
 	Text         string          `json:"text"`
+	TaskID       string          `json:"taskId,omitempty"`
 	Reply        string          `json:"reply"`
 	Cards        []AssistantCard `json:"cards"`
 	Status       string          `json:"status"`
@@ -38,7 +39,7 @@ type AssistantTurn struct {
 
 type AssistantStore interface {
 	History(context.Context, string) ([]AssistantTurn, error)
-	Begin(context.Context, string, string, string) (AssistantTurn, string, error)
+	Begin(context.Context, string, string, string, string) (AssistantTurn, string, error)
 	Finish(context.Context, string, AssistantTurn, string) error
 }
 
@@ -87,8 +88,8 @@ func (m *MemoryAssistantStore) History(_ context.Context, uid string) ([]Assista
 	}
 	return assistantHistory(turns), nil
 }
-func beginAssistantTurn(previous AssistantTurn, id, text string, lease assistantLease) (AssistantTurn, string, error) {
-	if previous.ID != "" && previous.Text != text {
+func beginAssistantTurn(previous AssistantTurn, id, text, taskID string, lease assistantLease) (AssistantTurn, string, error) {
+	if previous.ID != "" && (previous.Text != text || previous.TaskID != taskID) {
 		return previous, "", ErrConflict
 	}
 	if previous.Status == "ready" {
@@ -102,15 +103,15 @@ func beginAssistantTurn(previous AssistantTurn, id, text string, lease assistant
 	if created.IsZero() {
 		created = time.Now()
 	}
-	return AssistantTurn{ID: id, Text: text, Status: "pending", Cards: []AssistantCard{}, CreatedAt: created, PendingUntil: &until}, newID(), nil
+	return AssistantTurn{ID: id, Text: text, TaskID: taskID, Status: "pending", Cards: []AssistantCard{}, CreatedAt: created, PendingUntil: &until}, newID(), nil
 }
-func (m *MemoryAssistantStore) Begin(_ context.Context, uid, id, text string) (AssistantTurn, string, error) {
+func (m *MemoryAssistantStore) Begin(_ context.Context, uid, id, text, taskID string) (AssistantTurn, string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.turns[uid] == nil {
 		m.turns[uid] = map[string]memoryAssistantRecord{}
 	}
-	turn, runID, err := beginAssistantTurn(m.turns[uid][id].Turn, id, text, m.leases[uid])
+	turn, runID, err := beginAssistantTurn(m.turns[uid][id].Turn, id, text, taskID, m.leases[uid])
 	if err == nil && runID != "" {
 		m.turns[uid][id] = memoryAssistantRecord{Turn: copyAssistantTurn(turn), RunID: runID}
 		m.leases[uid] = assistantLease{RunID: runID, Until: *turn.PendingUntil}
@@ -153,7 +154,7 @@ func (f *FirestoreAssistantStore) History(ctx context.Context, uid string) ([]As
 	}
 	return assistantHistory(turns), nil
 }
-func (f *FirestoreAssistantStore) Begin(ctx context.Context, uid, id, text string) (AssistantTurn, string, error) {
+func (f *FirestoreAssistantStore) Begin(ctx context.Context, uid, id, text, taskID string) (AssistantTurn, string, error) {
 	root := f.DB.Collection("assistantConversations").Doc(uid)
 	ref := root.Collection("turns").Doc(id)
 	var turn AssistantTurn
@@ -176,7 +177,7 @@ func (f *FirestoreAssistantStore) Begin(ctx context.Context, uid, id, text strin
 		} else if status.Code(err) != codes.NotFound {
 			return err
 		}
-		turn, runID, err = beginAssistantTurn(previous, id, text, lease)
+		turn, runID, err = beginAssistantTurn(previous, id, text, taskID, lease)
 		if err != nil || runID == "" {
 			return err
 		}

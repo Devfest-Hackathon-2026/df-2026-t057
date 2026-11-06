@@ -16,7 +16,12 @@
             "tsConfig": "web/tsconfig.app.json",
             "outputPath": "dist/web",
             "assets": [{ "glob": "**/*", "input": "web/public" }],
-            "styles": ["web/src/styles.scss"]
+            "styles": [
+              "@fullcalendar/angular/skeleton.css",
+              "@fullcalendar/angular/themes/classic/theme.css",
+              "@fullcalendar/angular/themes/classic/palette.css",
+              "web/src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
