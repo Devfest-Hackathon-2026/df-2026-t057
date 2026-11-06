@@ -96,6 +96,21 @@ func TestTaskLifecycleRewardsAndTimer(t *testing.T) {
 	}
 }
 
+func TestTaskWhyIsStoredAndLimited(t *testing.T) {
+	c := client(t)
+	in := input()
+	in.Why = "  ゼミで自信をもって発表したいから  "
+	s := c.state("POST", "/api/tasks", in)
+	if s.Tasks[0].Why != "ゼミで自信をもって発表したいから" {
+		t.Fatalf("why not stored: %q", s.Tasks[0].Why)
+	}
+	long := input()
+	long.ID = "two"
+	long.Why = string(make([]rune, 201))
+	if code, _ := c.call("POST", "/api/tasks", long); code != 400 {
+		t.Fatal("too long why accepted")
+	}
+}
 func TestDraftPreviewCancelAndStaleCommit(t *testing.T) {
 	c := client(t)
 	s := c.state("POST", "/api/tasks", input())

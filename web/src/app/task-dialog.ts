@@ -11,6 +11,7 @@ interface Input {
   id: string;
   title: string;
   notes: string;
+  why: string;
   deadline: string;
   minutes: number;
   url: string;
@@ -65,6 +66,16 @@ interface Input {
             </mat-form-field>
           </div>
           <mat-form-field appearance="outline">
+            <mat-label>なぜやる？（任意・一行）</mat-label>
+            <input
+              matInput
+              [(ngModel)]="item.why"
+              maxlength="200"
+              placeholder="来週のゼミで、自信をもって発表したいから"
+            />
+            <mat-hint>通知のときに表示します</mat-hint>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
             <mat-label>作業リンク（任意）</mat-label>
             <input
               matInput
@@ -102,6 +113,7 @@ export class TaskDialog {
       id: crypto.randomUUID(),
       title: '',
       notes: '',
+      why: '',
       deadline: localDate(new Date(Date.now() + 86400_000).toISOString()),
       minutes: 30,
       url: '',
@@ -119,7 +131,11 @@ export class TaskDialog {
       const result = await this.api.request<{ tasks: Input[] }>('/parse', 'POST', {
         text: this.text,
       });
-      this.items = result.tasks.map((t) => ({ ...t, deadline: localDate(t.deadline) }));
+      this.items = result.tasks.map((t) => ({
+        ...t,
+        why: t.why ?? '',
+        deadline: localDate(t.deadline),
+      }));
     } catch (e) {
       this.error.set(message(e));
     } finally {

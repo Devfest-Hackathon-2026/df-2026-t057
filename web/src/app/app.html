@@ -430,11 +430,11 @@
                 mode of [
                   {
                     id: 'pachinko',
-                    title: 'パチンコ',
+                    title: 'ゴールド',
                     sub: '金色の光と、はじまりの合図',
                     icon: 'flare',
                   },
-                  { id: 'mahjong', title: '麻雀', sub: '一手ずつ、着実に', icon: 'casino' },
+                  { id: 'mahjong', title: 'ステップ', sub: '一手ずつ、着実に', icon: 'task_alt' },
                   {
                     id: 'simple',
                     title: 'シンプル',
@@ -569,11 +569,19 @@
     <div class="notification-content">
       <span class="eyebrow">IT'S YOUR TURN</span>
       <h2 id="notice-title">
-        {{ api.state()?.settings?.mode === 'mahjong' ? '作業、ツモ。' : 'そろそろ、やるか。' }}
+        {{ api.state()?.settings?.mode === 'mahjong' ? 'まず、一手。' : 'そろそろ、やるか。' }}
       </h2>
       <div class="notice-task">
         <span aria-hidden="true" class="material-symbols-rounded">assignment</span>
         <h3>{{ task.title }}</h3>
+        @if (task.why) {
+          <p class="why">なぜ：{{ task.why }}</p>
+        }
+        @if (task.plan.steps[0]; as step) {
+          @if (step.title !== task.title) {
+            <p class="first-step">最初の一手：{{ step.title }}</p>
+          }
+        }
         <p>
           {{ task.plan.start | date: 'HH:mm' }}–{{ task.plan.end | date: 'HH:mm' }} ·
           {{ plannedMinutes(task) }}分
@@ -588,7 +596,7 @@
           {{ api.state()?.settings?.snoozeMinutes }}分スヌーズ・予定を確認
         </button>
         <button mat-stroked-button (click)="plan(task, true)">予定を調整する</button>
-        <button mat-stroked-button (click)="preview.set(null)">閉じる</button>
+        <button mat-stroked-button (click)="preview.set(null)">あとで</button>
       </div>
     </div>
   </div>

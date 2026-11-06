@@ -13,6 +13,7 @@ export interface Task {
   id: string;
   title: string;
   notes: string;
+  why?: string;
   deadline: string;
   minutes: number;
   url: string;

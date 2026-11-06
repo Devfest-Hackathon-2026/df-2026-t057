@@ -68,7 +68,7 @@ test('snooze commit, settings and responsive layout', async ({ page }) => {
   await expect(page.getByRole('button', { name: '15分スヌーズ・予定を確認' })).toBeVisible();
   await page
     .locator('.notification-backdrop')
-    .getByRole('button', { name: '閉じる', exact: true })
+    .getByRole('button', { name: 'あとで', exact: true })
     .click();
   await expect(page.locator('.notification-backdrop')).not.toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });

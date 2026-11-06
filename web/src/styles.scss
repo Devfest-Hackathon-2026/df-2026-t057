@@ -1019,6 +1019,16 @@ main {
 .notice-task > strong {
   font-size: 12px;
 }
+.notice-task .why {
+  font-size: 15px;
+  opacity: 1;
+  margin-bottom: 6px;
+}
+.notice-task .first-step {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}
 .simple .notice-task {
   background: #fff;
   border-color: #d4d9cc;
