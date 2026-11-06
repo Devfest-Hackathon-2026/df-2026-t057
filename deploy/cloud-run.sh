@@ -4,7 +4,7 @@ set -euo pipefail
 : "${PROJECT_ID:?}" "${REGION:?}" "${SERVICE:?}" "${SERVICE_URL:?}"
 image=${1:?Pass an immutable image digest}
 [[ "$image" == *@sha256:* ]] || { echo 'An image digest is required.' >&2; exit 1; }
-cloud=(gcloud --project="$PROJECT_ID" --billing-project="$PROJECT_ID" --quiet)
+cloud=(gcloud --project="$PROJECT_ID" --quiet)
 
 smoke() {
   local url=$1 status

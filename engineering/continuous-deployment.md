@@ -56,6 +56,8 @@ event_name          = push
 
 Googleの[Cloud Run配信の権限](https://docs.cloud.google.com/run/docs/deploying)に従い、Cloud Run・Artifact Registry・実行SAの各リソースに限定した。IAM管理・他サービスへの配信・予算変更は配信ワークフローの権限に含めない。既存のallUsers Invokerと、Firebaseによる個人API認証は維持する。
 
+配信コマンドは各リソースの `--project` を必ず指定する。クォータプロジェクトを明示する `--billing-project` は配信SAのコマンドへ付けず、[サービスアカウントの所属プロジェクトを使う標準動作](https://docs.cloud.google.com/docs/quotas/set-quota-project)に従う。明示指定のためだけにプロジェクト全体の `serviceusage.services.use` 権限を追加しない。
+
 初回設定のコマンドは [setup-cd.sh](../deploy/setup-cd.sh)。API有効化、SA・Pool・Providerの作成、限定した4つの権限追加を順に行う。これは一度だけ実行するセットアップで、既存リソースの削除・上書きや、完全なIaCの代わりにはしない。再設定時は現在の状態を確認し、必要なコマンドだけ実行する。
 
 ## ビルドと切替
