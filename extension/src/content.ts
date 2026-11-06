@@ -130,11 +130,16 @@ function initialize() {
     const panel = element('div', '', 'panel');
     panel.append(
       element('p', "IT'S YOUR TURN", 'eyebrow'),
-      element('h1', snapshot.settings.mode === 'mahjong' ? '作業、ツモ。' : 'そろそろ、やるか。'),
+      element('h1', snapshot.settings.mode === 'mahjong' ? 'まず、一手。' : 'そろそろ、やるか。'),
     );
     const card = element('div', '', 'task-card');
+    card.append(element('h2', task.title));
+    if (task.why) card.append(element('p', `なぜ：${task.why}`, 'why'));
+    const first = task.plan.steps[0]?.title;
+    if (first && first !== task.title) {
+      card.append(element('p', `最初の一手：${first}`, 'first-step'));
+    }
     card.append(
-      element('h2', task.title),
       element('p', `${Math.ceil(plannedSeconds(task) / 60)}分の作業`),
       element('strong', '完了で視聴時間 ＋20分'),
     );
@@ -168,7 +173,7 @@ function initialize() {
         void showDraft(task, true);
       }),
     );
-    actions.append(button('閉じる', dismiss));
+    actions.append(button('あとで', dismiss));
     panel.append(actions);
     overlay.append(panel);
     mount().append(overlay);

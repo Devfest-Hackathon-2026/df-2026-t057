@@ -25,6 +25,7 @@ type Task struct {
 	ID              string     `json:"id"`
 	Title           string     `json:"title"`
 	Notes           string     `json:"notes"`
+	Why             string     `json:"why,omitempty"`
 	Deadline        time.Time  `json:"deadline"`
 	Minutes         int        `json:"minutes"`
 	URL             string     `json:"url"`

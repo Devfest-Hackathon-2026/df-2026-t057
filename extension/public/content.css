@@ -91,6 +91,16 @@ h3 {
 .task-card strong {
   font-size: 12px;
 }
+.task-card .why {
+  font-size: 15px;
+  opacity: 1;
+  margin: 10px 0 6px;
+}
+.task-card .first-step {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}
 .simple .task-card {
   background: white;
   border-color: #d4dccb;
