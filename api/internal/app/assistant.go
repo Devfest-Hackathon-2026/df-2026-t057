@@ -152,10 +152,18 @@ func consultationSchema() *genai.Schema {
 	}, Required: []string{"title", "notes", "deadline", "minutes", "url"}}
 	return &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
 		"reply": str(),
-		"cards": {Type: genai.TypeArray, Items: &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
-			"kind":  {Type: genai.TypeString, Enum: []string{"create", "task", "memory"}},
-			"input": input, "taskId": str(), "start": str(), "memory": str(), "proposalId": str(),
-		}, Required: []string{"kind"}}},
+		"cards": {Type: genai.TypeArray, Items: &genai.Schema{AnyOf: []*genai.Schema{
+			{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
+				"kind": {Type: genai.TypeString, Enum: []string{"create"}}, "input": input,
+				"proposalId": {Type: genai.TypeString, Description: "修正する未登録カードのid。修正時もinput全体を必ず返す。新規の場合は省略。"},
+			}, Required: []string{"kind", "input"}},
+			{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
+				"kind": {Type: genai.TypeString, Enum: []string{"task"}}, "taskId": str(), "start": str(),
+			}, Required: []string{"kind", "taskId"}},
+			{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
+				"kind": {Type: genai.TypeString, Enum: []string{"memory"}}, "memory": str(),
+			}, Required: []string{"kind", "memory"}},
+		}}},
 	}, Required: []string{"reply", "cards"}}
 }
 func (p *Planner) Consult(ctx context.Context, text string, history []AssistantTurn, state State) (string, []AssistantCard, error) {
@@ -210,8 +218,11 @@ memory: 本人が明示した作業の好み・得意不得意・時間帯など
 		card := AssistantCard{ID: newID(), Kind: candidate.Kind, Revision: state.PlanRevision}
 		switch candidate.Kind {
 		case "create":
-			if candidate.Input == nil || utf8.RuneCountInString(candidate.Input.Notes) > 1000 {
-				return "", nil, errors.New("予定の内容を確認できませんでした")
+			if candidate.Input == nil {
+				return "", nil, errors.New("予定カードの入力がありません")
+			}
+			if utf8.RuneCountInString(candidate.Input.Notes) > 1000 {
+				return "", nil, errors.New("予定カードのメモが1000文字を超えています")
 			}
 			candidate.Input.ID = card.ID
 			if candidate.ProposalID != "" {

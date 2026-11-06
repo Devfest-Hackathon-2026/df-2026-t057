@@ -199,3 +199,34 @@ func TestAssistantLeaseAndHistoryRetention(t *testing.T) {
 		t.Fatal("display limit deleted older turns")
 	}
 }
+
+func TestAssistantRevisesUnregisteredProposalWithoutDuplicatingTask(t *testing.T) {
+	proposalID := ""
+	_, c := assistantClient(t, func(raw string) any {
+		if proposalID == "" {
+			return map[string]any{"reply": "30分の候補です", "cards": []any{
+				map[string]any{"kind": "create", "input": TaskInput{Title: "確認用", Minutes: 30, Deadline: time.Now().Add(4 * time.Hour)}},
+			}}
+		}
+		if !strings.Contains(raw, proposalID) {
+			t.Fatal("the revision did not receive the previous proposal")
+		}
+		return map[string]any{"reply": "40分の候補です", "cards": []any{
+			map[string]any{"kind": "create", "proposalId": proposalID, "input": TaskInput{Title: "確認用", Minutes: 40, Deadline: time.Now().Add(4 * time.Hour)}},
+		}}
+	})
+	first := consultation(t, c, "original", "確認用を30分で")
+	proposalID = first.Cards[0].ID
+	second := consultation(t, c, "revised", "さっきの候補を40分に")
+	if second.Status != "ready" || len(second.Cards) != 1 {
+		t.Fatalf("revision failed: %+v", second)
+	}
+	card := second.Cards[0]
+	if card.ID == proposalID || card.Input.ID != first.Cards[0].Input.ID || card.Input.Minutes != 40 {
+		t.Fatal("the revision lost the stable task ID or the updated duration")
+	}
+	state := c.state("GET", "/api/state", nil)
+	if len(state.Tasks) != 0 || state.BalanceSeconds != 3600 {
+		t.Fatal("revising a proposal registered a task")
+	}
+}
