@@ -2,7 +2,7 @@
 
 記録日：2026-11-06。以下のクラウド設定は配信時に確認した値。秘密情報の実値は含めない。
 
-最新配信はChrome風プロフィールメニューを追加した Cloud Run `dopagaki-00011-zj7`（100%）。[変更・配信・実確認の範囲](chrome-account-menu.md)を参照。Goバイナリーは一般ユーザー対応の `a467aec` と同じものを使用した。本人のGoogleアカウント照合とアカウント切替は[一般ユーザー対応の記録](public-accounts.md#配信と実確認)を参照。下記の「初期配信時の環境」と旧digestの配信例は、最初の実サービス確認時点の記録として保持する。
+最新配信は管理画面のAI相談を追加した Cloud Run `dopagaki-00013-vtd`（100%）、コード `7b77026`。[変更と実確認の範囲](assistant.md)を参照。Google Chatアプリは無効化し、旧受付APIと専用環境変数を削除した。本人のGoogleアカウント照合とアカウント切替は[一般ユーザー対応の記録](public-accounts.md#配信と実確認)を参照。下記の「初期配信時の環境」と旧digestの配信例は、最初の実サービス確認時点の記録として保持する。
 
 ## 整備状況
 
@@ -89,7 +89,7 @@ resource.name.startsWith('projects/1032251723022/secrets/dopagaki-')
 
 接頭辞の条件は作成権限そのものを限定するものではない。この違いを「すべてのSecret操作を接頭辞で制限した」と説明しない。
 
-## OAuth・Chat・Scheduler
+## OAuth・AI相談・Scheduler
 
 | 設定 | 扱い |
 |---|---|
@@ -97,10 +97,8 @@ resource.name.startsWith('projects/1032251723022/secrets/dopagaki-')
 | Calendarコールバック | 公開URLの `/api/calendar/callback` |
 | OAuth client secret | `dopagaki-calendar-oauth` をSecret参照で注入 |
 | ユーザー別OAuthトークン | `dopagaki-calendar-` で始まるSecret。実値は記録しない |
-| Chat形式 | Workspaceアドオンのイベント・応答形式 |
-| Chat Audience | 公開URLの `/api/chat` と一致 |
-| Chat送信元 | `service-1032251723022@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`。署名・Audience・メール確認済みclaimを検証 |
-| Chatの利用対象 | 現在は指定された個人アカウント用の未公開アプリ。一般公開・Marketplace配布は未実施 |
+| AI相談 | Firebase認証済みの `/api/assistant`。会話はFirestoreの `assistantConversations/{uid}/turns` |
+| 旧Google Chat | アプリのステータスを「無効」に保存。`POST /api/chat` は404。既存の旧記録・APIサービスは削除していない |
 | Scheduler | `POST /api/calendar/renew`。`dopagaki-scheduler` の値をBearerとして使う |
 
 Firebaseログインと、Calendarの継続アクセスへのOAuth同意は別の操作。ログイン済みでも、Calendarの連携・トークン保存・専用カレンダー作成まで終わったとは限らない。

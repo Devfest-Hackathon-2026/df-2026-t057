@@ -83,4 +83,41 @@ GeminiアプリからのCalendar連携と、Googleカレンダーへの手入力
 
 Playwrightでは、AI待機中の入力保持・二重送信防止、新規カードの編集・取消・登録、記憶候補の編集・保存、既存の予定確認、再読み込み、記憶削除、390px幅でのはみ出し、ブラウザー例外を確認する。課題の確定とプロフィールの保存は実デモAPIを使い、Gemini応答のみ模擬する。
 
-公開環境の配信・実Geminiの確認は、実施後にここへ追記する。
+配信コードは `69d0e9d`。Cloud Build `6c83c635-9ffd-464a-a9cc-3e3fd0002312` が成功し、`dopagaki-00012-dh5` へ100%配信した。イメージは `asia-northeast1-docker.pkg.dev/devfest-2026-513816/dopagaki/app@sha256:d82c232fa5eb9c8c60cce190007c381a9f18b4be8bf5afff264c0e72d113b437`。既存の実行・ビルドSA、IAM、Secret、予算は変更せず、Chat専用環境変数だけ取り除いた。
+
+ローカルでは `npm run build`、`npm test`（TypeScript単体4件とGo race）、`cd api && go vet ./...`、`npm run test:e2e`（6件）が成功。公開先ではhealth 200、未認証のassistant 401、旧Chat受付404を確認。
+
+ログイン済みの公開画面から架空課題を相談し、実Geminiが新規予定カードと記憶候補を返した。必要時間を30分から40分へ手動編集すると、開始案が11/7 17:30から17:20へ変わることを確認した。登録・記憶の確定ボタンは押していない。
+
+
+### 実サービスで見つかったカード生成の失敗
+
+初回の新規カード生成と手動編集は成功したが、追加相談で新規カードの内容検証が失敗した。旧ログは「予定の内容を確認できませんでした」で、入力の欠落とメモ長超過を区別していなかったため、この1回の失敗がどちらだったかは確定できない。予定や記憶は変更されず、入力と同じ依頼IDでの再試行操作が残った。
+
+応答スキーマでは `kind` だけが必須で、種類ごとの必須項目が制約されていなかった。`anyOf` で新規・既存・記憶の3形式を分け、それぞれ `input`、`taskId`、`memory` を必須にした。修正候補でも完全な入力を返す旨をスキーマに明記した。入力欠落とメモ長超過のエラーも分け、個人の相談内容をログへ追加しなくても原因を判別できるようにした。
+
+Googleの[構造化出力の対応フィールド](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/capabilities/control-generated-output)で `anyOf` と `required` の対応を確認した。既存の未登録候補を40分へ変えても課題IDが維持され、確認前には予定・報酬が変わらない回帰テストを追加。Go raceとvetは成功した。プロンプトで不足項目をお願いするだけでは、種類ごとの構造を十分に制約できないという知見。
+
+
+### 修正後の公開確認
+
+最終APIコード `7b77026`、Cloud Build `7fdbc9be-205e-4ad6-b69d-e537204fd900`、Cloud Run `dopagaki-00013-vtd`（100%）。イメージは `asia-northeast1-docker.pkg.dev/devfest-2026-513816/dopagaki/app@sha256:df086efcac3269f6ff19a7bc57a72c97c3e7b121313ba3d8a59877cd36992f85`。フロントエンドは最初のAI相談ビルドと同一。
+
+失敗した同じ依頼を画面の「同じ相談を再試行」から再送すると、実Geminiが40分の修正カードを返した。再読み込みしても最初の会話・30分の候補・40分の修正候補が復元された。確定前のため、残高189分、未完了1件、完了4件、作業傾向が空である状態を維持していた。公開環境で確認したのはGeminiとの会話、Firestoreへの履歴保存・復元、未確定カードの手動編集と再計算、失敗後の同一依頼の再試行。新規登録・記憶の確定・予定変更は、今回の公開確認では行わず、前述の実デモAPIと回帰テストで確認した。
+
+機能コミット `69d0e9d` の[GitHub Actions](https://github.com/a-sumikawa/devfest-2026/actions/runs/42234647079)もbuild・test・vet・E2Eすべて成功。後続のスキーマ修正ではGo race/vetを再実行し成功。最終HEADのCI結果はPRのChecksを参照。
+
+## 実画面
+
+架空の課題と作業上の好みを使った公開環境の画面。カレンダー・記憶の確定はしていない。
+
+| 画面 | 証跡 |
+|---|---|
+| AI待機中、送信内容を保持 | [loading.png](assets/assistant/loading.png) |
+| 会話から40分の修正カードを表示 | [calendar-card.png](assets/assistant/calendar-card.png) |
+| 課題名・締切・必要時間・メモ・URLを編集 | [edit-card.png](assets/assistant/edit-card.png) |
+| 確認してから覚える候補 | [memory-candidate.png](assets/assistant/memory-candidate.png) |
+| 失敗時の同じ相談の再試行 | [retry.png](assets/assistant/retry.png) |
+| 旧Google Chatアプリの無効化 | [chat-disabled.png](assets/assistant/chat-disabled.png) |
+
+![AI相談から表示した予定カード](assets/assistant/calendar-card.png)
