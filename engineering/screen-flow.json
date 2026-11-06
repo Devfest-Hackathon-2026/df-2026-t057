@@ -1,0 +1,30 @@
+{
+  "capturedOn": "2026-11-06",
+  "timezone": "Asia/Tokyo",
+  "code": "a25837c",
+  "environment": "local demo, actual built Angular UI and Go demo backend",
+  "viewport": [1445, 737],
+  "notification": "Web management preview opened manually; not a scheduled Shorts notification",
+  "screens": [
+    {"id": 1, "file": "01-home-empty.jpg", "title": "初回ホーム", "cue": "持ち時間60分・課題なし", "actions": [["課題を登録", 2]], "focus": [225, 0, 1220, 737]},
+    {"id": 2, "file": "02-task-input.jpg", "title": "課題を入力", "cue": "レポート・見積もり30分", "actions": [["保存成功", 3]], "focus": [330, 35, 790, 660]},
+    {"id": 3, "file": "03-registered.jpg", "title": "登録完了", "cue": "+10分 → 残高70分", "actions": [["予定を見る", 4], ["はじめる", 8]], "focus": [225, 0, 1220, 737]},
+    {"id": 4, "file": "04-schedule.jpg", "title": "逆算した予定", "cue": "09:59–10:29・30分", "actions": [["通知を試す ※撮影操作", 5]], "focus": [225, 0, 1220, 737]},
+    {"id": 5, "file": "05-notification-preview.jpg", "title": "開始通知", "cue": "金色の演出・下部に操作", "actions": [["スヌーズ10分", 6], ["今すぐはじめる", 8], ["閉じる → ホーム", 3]], "focus": [350, 80, 760, 620]},
+    {"id": 6, "file": "06-snooze-confirm.jpg", "title": "変更予定を確認", "cue": "OK前は予定を変えない", "actions": [["OK・この予定に変更", 7], ["キャンセル → ホーム", 3]], "focus": [372, 128, 702, 482]},
+    {"id": 7, "file": "07-plan-updated.jpg", "title": "予定を更新", "cue": "10:09–10:29・20分", "actions": [["はじめる", 8]], "focus": [225, 0, 1220, 737]},
+    {"id": 8, "file": "08-working.jpg", "title": "作業中", "cue": "上部の細いバー＋タイマー", "actions": [["一時停止", 9], ["完了", 10]], "focus": [225, 0, 1220, 450]},
+    {"id": 9, "file": "09-paused.jpg", "title": "一時停止", "cue": "00:30で停止・再開可能", "actions": [["再開 → 作業中", 8], ["完了", 10]], "focus": [225, 0, 1220, 450]},
+    {"id": 10, "file": "10-completed.jpg", "title": "課題完了", "cue": "+20分 → 残高90分", "actions": [["記録を見る", 11]], "focus": [225, 0, 1220, 737]},
+    {"id": 11, "file": "11-record.jpg", "title": "積み上げの記録", "cue": "完了1件・報酬の履歴", "actions": [["設定を開く", 12]], "focus": [225, 0, 1220, 737]},
+    {"id": 12, "file": "12-settings.jpg", "title": "設定", "cue": "スヌーズ10分・演出を変更", "actions": [["ホームへ", 10]], "focus": [225, 0, 1220, 737]}
+  ],
+  "notes": [
+    "All 12 images use the same fictional task and one local demo session. No production user data was changed.",
+    "The fixed deadline compresses this snooze example from 30 to 20 minutes. This is a proposal requiring confirmation, not an unchanged 30-minute plan.",
+    "Screen 8 follows confirmed snooze. Starting directly from screen 3 or 5 uses the current plan, originally 30 minutes.",
+    "Cancel in this web preview returns to the home screen; the existing plan is retained.",
+    "Google Calendar is unconnected and Gemini is disabled in this demo. Production integration evidence is recorded separately in verification-2026-11-06.md.",
+    "Records and settings are optional navigation, not mandatory steps after completion."
+  ]
+}
