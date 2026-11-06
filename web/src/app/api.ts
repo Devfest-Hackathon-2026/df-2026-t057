@@ -19,6 +19,9 @@ export class Api {
   readonly error = signal('');
   readonly signedIn = signal(false);
   readonly accountEmail = signal('');
+  readonly accountName = signal('');
+  readonly accountPhoto = signal('');
+  readonly authPending = signal(false);
   private auth?: Auth;
   private token = '';
   private accountId = '';
@@ -46,6 +49,8 @@ export class Api {
             const version = this.sessionVersion;
             this.signedIn.set(!!user);
             this.accountEmail.set(user?.email ?? '');
+            this.accountName.set(user?.displayName ?? '');
+            this.accountPhoto.set(user?.photoURL ?? '');
             this.loading.set(!this.state());
             try {
               const token = user ? await user.getIdToken() : '';
@@ -73,15 +78,21 @@ export class Api {
   }
 
   async login() {
+    if (this.busy()) return false;
     if (!this.auth) {
       this.error.set('FirebaseのGoogleログイン設定が必要です。');
-      return;
+      return false;
     }
-    await this.run(async () => {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(this.auth!, provider);
-    });
+    this.authPending.set(true);
+    try {
+      return await this.run(async () => {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await signInWithPopup(this.auth!, provider);
+      });
+    } finally {
+      this.authPending.set(false);
+    }
   }
   async logout() {
     if (this.auth) await this.run(() => signOut(this.auth!));
@@ -152,6 +163,13 @@ export class Api {
   }
 }
 export function message(error: unknown): string {
+  if (error && typeof error === 'object' && 'code' in error) {
+    if (error.code === 'auth/popup-closed-by-user') return 'ログインをキャンセルしました。';
+    if (error.code === 'auth/popup-blocked')
+      return 'ポップアップを許可して、もう一度ログインしてください。';
+    if (error.code === 'auth/network-request-failed')
+      return '接続できませんでした。通信状態を確認して再試行してください。';
+  }
   if (error instanceof TypeError)
     return '接続できませんでした。通信状態を確認して再試行してください。';
   return error instanceof Error ? error.message : '操作に失敗しました。再試行してください。';

@@ -247,27 +247,19 @@ nav button.selected .nav-dot {
   place-items: center;
   font-size: 11px;
 }
-.account-button .mdc-button__label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.account-email {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.account-menu-summary {
-  display: grid;
-  gap: 4px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-.account-menu-summary > span {
-  color: #777c72;
+.account-panel.mat-mdc-menu-panel {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  margin-top: 10px;
+  @include mat.menu-overrides(
+    (
+      container-color: #f8fafd,
+      container-shape: 24px,
+      container-elevation-shadow: 0 8px 28px rgb(31 31 31 / 18%),
+      item-label-text-color: #1f1f1f,
+      item-label-text-size: 14px,
+    )
+  );
 }
 .demo-badge {
   border: 1px solid #d8ddce;
@@ -1208,9 +1200,6 @@ mat-dialog-content {
   }
 }
 @media (max-width: 550px) {
-  .account-email {
-    display: none;
-  }
   main {
     padding: 27px 18px 0;
   }

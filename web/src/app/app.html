@@ -66,39 +66,8 @@
         <span class="today-date">{{ now() | date: 'M月d日 EEEE' : '' : 'ja' }}</span>
         @if (api.config()?.mode === 'demo') {
           <span class="avatar">{{ api.state()?.profile?.name?.slice(0, 1) || 'D' }}</span>
-        } @else if (api.signedIn()) {
-          <button
-            mat-button
-            class="account-button"
-            [matMenuTriggerFor]="accountMenu"
-            [attr.aria-label]="'アカウントメニュー: ' + api.accountEmail()"
-            [disabled]="api.loading() || api.busy()"
-          >
-            <span class="avatar" aria-hidden="true">
-              {{ api.state()?.profile?.name?.slice(0, 1) || api.accountEmail().slice(0, 1) || 'D' }}
-            </span>
-            <span class="account-email">{{ api.accountEmail() }}</span>
-            <span class="material-symbols-rounded" aria-hidden="true">expand_more</span>
-          </button>
-          <mat-menu #accountMenu="matMenu">
-            <div class="account-menu-summary">
-              <span>ログイン中</span>
-              <strong>{{ api.accountEmail() }}</strong>
-            </div>
-            <button mat-menu-item (click)="navigate('settings')">
-              <span class="material-symbols-rounded" aria-hidden="true">settings</span>
-              設定
-            </button>
-            <button mat-menu-item (click)="api.logout()">
-              <span class="material-symbols-rounded" aria-hidden="true">logout</span>
-              ログアウト
-            </button>
-          </mat-menu>
         } @else {
-          <button mat-flat-button (click)="api.login()" [disabled]="api.loading() || api.busy()">
-            <span class="material-symbols-rounded" aria-hidden="true">login</span>
-            {{ api.loading() ? '読み込み中…' : api.busy() ? 'ログイン中…' : 'Googleでログイン' }}
-          </button>
+          <app-account-menu (openSettings)="navigate('settings')" />
         }
       </div>
     </header>
@@ -133,9 +102,6 @@
             完了したら、YouTube Shortsの視聴時間が増えます。
           </p>
           <p>課題・予定・視聴時間は、ログインしたアカウントごとに保存します。</p>
-          <button mat-flat-button (click)="api.login()" [disabled]="api.busy()">
-            Googleでログイン
-          </button>
           <p><a href="/privacy.html" target="_blank" rel="noopener">データの取り扱い</a></p>
         </section>
       } @else if (api.state(); as state) {

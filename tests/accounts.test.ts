@@ -5,8 +5,12 @@ import { build } from 'esbuild';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => (resolve = done));
-  return { promise, resolve };
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
 }
 const json = (body: unknown) => ({
   ok: true,
@@ -15,7 +19,12 @@ const json = (body: unknown) => ({
 });
 
 test('account switch discards an older state response and clears the signed-out view', async () => {
-  const auth = { changed: undefined as unknown as (user: unknown) => Promise<void> };
+  const auth = {
+    changed: undefined as unknown as (user: unknown) => Promise<void>,
+    popup: deferred<void>(),
+    loginCalls: 0,
+    parameters: {} as Record<string, string>,
+  };
   const messages: { type: string; accountId?: string }[] = [];
   const oldRequest = deferred<ReturnType<typeof json>>();
   const started = deferred<void>();
@@ -39,7 +48,11 @@ test('account switch discards an older state response and clears the signed-out 
                 ? 'exports.Injectable=()=>x=>x; exports.signal=v=>Object.assign(()=>v,{set:n=>{v=n}});'
                 : path === 'firebase/app'
                   ? 'exports.initializeApp=x=>x;'
-                  : 'exports.getAuth=()=>({}); exports.onIdTokenChanged=(_,cb)=>{fixture.changed=cb; queueMicrotask(()=>cb(null))};',
+                  : `exports.getAuth=()=>({});
+                     exports.onIdTokenChanged=(_,cb)=>{fixture.changed=cb; queueMicrotask(()=>cb(null))};
+                     exports.GoogleAuthProvider=class {setCustomParameters(p){fixture.parameters=p}};
+                     exports.signInWithPopup=()=>{fixture.loginCalls++;return fixture.popup.promise};
+                     exports.signOut=()=>fixture.changed(null);`,
           }));
         },
       },
@@ -66,17 +79,47 @@ test('account switch discards an older state response and clears the signed-out 
   await api.init();
   const a = auth.changed({ uid: 'a', email: 'a@example.com', getIdToken: async () => 'a' });
   await started.promise;
-  await auth.changed({ uid: 'b', email: 'b@example.com', getIdToken: async () => 'b' });
+  await auth.changed({
+    uid: 'b',
+    email: 'b@example.com',
+    displayName: 'B',
+    photoURL: 'https://example.com/b.png',
+    getIdToken: async () => 'b',
+  });
   oldRequest.resolve(json({ balanceSeconds: 9999, tasks: [], owner: 'a' }));
   await a;
   assert.equal(api.state().owner, 'b');
   assert.equal(api.accountEmail(), 'b@example.com');
+  assert.equal(api.accountName(), 'B');
+  assert.equal(api.accountPhoto(), 'https://example.com/b.png');
   assert.equal(api.loading(), false);
   assert.equal(messages.filter((m) => m.type === 'DOPAGAKI_CONNECT').length, 1);
   assert.equal(messages.find((m) => m.type === 'DOPAGAKI_CONNECT')?.accountId, 'b');
-  await auth.changed(null);
+  const login = api.login();
+  assert.equal(api.authPending(), true);
+  assert.equal(api.busy(), true);
+  await api.login();
+  assert.equal(auth.loginCalls, 1);
+  assert.equal(auth.parameters.prompt, 'select_account');
+  auth.popup.resolve();
+  await login;
+  assert.equal(api.authPending(), false);
+  assert.equal(api.busy(), false);
+
+  auth.popup = deferred<void>();
+  const cancelled = api.login();
+  auth.popup.reject({ code: 'auth/popup-closed-by-user' });
+  assert.equal(await cancelled, false);
+  assert.equal(api.authPending(), false);
+  assert.equal(api.busy(), false);
+  assert.match(api.error(), /キャンセル/);
+  assert.equal(api.state().owner, 'b');
+
+  await api.logout();
   assert.equal(api.state(), null);
   assert.equal(api.accountEmail(), '');
+  assert.equal(api.accountName(), '');
+  assert.equal(api.accountPhoto(), '');
   assert.equal(messages.at(-1)?.type, 'DOPAGAKI_DISCONNECT');
 });
 
