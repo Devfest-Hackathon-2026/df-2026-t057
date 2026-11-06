@@ -1,0 +1,14 @@
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!angular.json
+!tsconfig.json
+!web/
+!web/**
+!shared/
+!shared/**
+!api/
+!api/**
+api/server
+api/**/*_test.go

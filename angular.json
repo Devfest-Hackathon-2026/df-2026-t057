@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": { "analytics": false },
+  "projects": {
+    "dopagaki": {
+      "projectType": "application",
+      "root": "web",
+      "sourceRoot": "web/src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "web/src/main.ts",
+            "index": "web/src/index.html",
+            "tsConfig": "web/tsconfig.app.json",
+            "outputPath": "dist/web",
+            "assets": [{ "glob": "**/*", "input": "web/public" }],
+            "styles": ["web/src/styles.scss"]
+          },
+          "configurations": {
+            "production": {
+              "outputHashing": "all",
+              "budgets": [{ "type": "initial", "maximumWarning": "1.5MB", "maximumError": "2MB" }]
+            },
+            "development": { "optimization": false, "sourceMap": true }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": { "buildTarget": "dopagaki:build:production" },
+            "development": { "buildTarget": "dopagaki:build:development" }
+          },
+          "defaultConfiguration": "development"
+        }
+      }
+    }
+  }
+}

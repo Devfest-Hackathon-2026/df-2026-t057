@@ -38,3 +38,11 @@ Thumbs.db
 
 # Claude Code の作業ファイル
 .claude/.cc-writes/
+
+# DOPAGAKI local development
+.angular/
+playwright-report/
+test-results/
+api/server
+.local/
+coverage/
