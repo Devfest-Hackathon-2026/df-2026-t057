@@ -1,0 +1,136 @@
+{
+  "capturedOn": "2026-11-06",
+  "timezone": "Asia/Tokyo",
+  "environment": "production Google Gemini, Google Calendar, Google Chat and DOPAGAKI Cloud Run",
+  "code": "a25837c",
+  "routes": [
+    {
+      "id": "gemini",
+      "title": "Gemini",
+      "task": "動作確認用・Geminiからの登録",
+      "when": "12:00–12:10・10分",
+      "mechanism": "GeminiのGoogle Calendar連携 → 専用Calendarの変更通知 → DOPAGAKIが取り込み・具体化",
+      "captureNote": "以前に作成済みの架空課題を開いて再撮影。今回はGeminiへ再送していない。",
+      "steps": [
+        {
+          "id": "g1",
+          "file": "gemini-request-result.jpg",
+          "title": "指示と予定作成カード",
+          "cue": "DOPAGAKIカレンダーを指定",
+          "size": [
+            740,
+            470
+          ]
+        },
+        {
+          "id": "g2",
+          "file": "gemini-calendar-detail.jpg",
+          "title": "カレンダーの詳細",
+          "cue": "元のメモ＋具体的な手順",
+          "size": [
+            496,
+            405
+          ]
+        },
+        {
+          "id": "g3",
+          "file": "gemini-registered.jpg",
+          "title": "管理画面に登録済み",
+          "cue": "開始12:00・締切12:10",
+          "size": [
+            1124,
+            380
+          ]
+        }
+      ]
+    },
+    {
+      "id": "calendar",
+      "title": "カレンダーへ手入力",
+      "task": "動作確認用・カレンダー手入力",
+      "when": "14:00–14:20・20分",
+      "mechanism": "Googleカレンダー画面で保存 → 専用Calendarの変更通知 → DOPAGAKIが取り込み・具体化",
+      "captureNote": "今回Google Calendarの一般画面で新規作成・保存。手動同期を押さずに管理画面への反映と詳細欄への書き戻し、09:20の登録報酬+10分を確認。",
+      "steps": [
+        {
+          "id": "c1",
+          "file": "calendar-manual-input.jpg",
+          "title": "タイトル・日時・メモ",
+          "cue": "保存先をDOPAGAKIにする",
+          "size": [
+            1060,
+            670
+          ]
+        },
+        {
+          "id": "c2",
+          "file": "calendar-manual-detail.jpg",
+          "title": "保存後の詳細欄",
+          "cue": "AIが20分を5つの手順に",
+          "size": [
+            496,
+            445
+          ]
+        },
+        {
+          "id": "c3",
+          "file": "calendar-manual-registered.jpg",
+          "title": "自動で課題登録",
+          "cue": "開始14:00・締切14:20",
+          "size": [
+            1124,
+            419
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chat",
+      "title": "Google Chat",
+      "task": "動作確認用・Chatからの登録",
+      "when": "10:50–11:00・10分",
+      "mechanism": "DOPAGAKIアプリに送信 → Go APIが課題を抽出・具体化・登録 → 専用Calendarへ書き出し・返信",
+      "captureNote": "以前の成功した送信と実返信を開いて再撮影。今回はChatへ新しいメッセージを送っていない。",
+      "steps": [
+        {
+          "id": "h1",
+          "file": "chat-request-result.jpg",
+          "title": "課題を送信・登録返信",
+          "cue": "締切11:00・必要時間10分",
+          "size": [
+            840,
+            215
+          ]
+        },
+        {
+          "id": "h2",
+          "file": "chat-calendar-detail.jpg",
+          "title": "カレンダーにも保存",
+          "cue": "具体的な手順を詳細欄へ",
+          "size": [
+            496,
+            425
+          ]
+        },
+        {
+          "id": "h3",
+          "file": "chat-registered.jpg",
+          "title": "管理画面に登録済み",
+          "cue": "締切から逆算し10:50開始",
+          "size": [
+            1124,
+            419
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Three independent fictional tasks. Do not imply that the same task was registered three times.",
+    "Gemini's Calendar integration and DOPAGAKI's Vertex Gemini planning are different stages; no custom Gemini plugin was distributed.",
+    "Calendar detail and management view show the same saved plan; their screenshot order does not imply a serial database transaction.",
+    "Screenshots contain selected visible UI regions only. Unrelated conversations, calendars, account controls and identifiers were excluded when capturing; content was not redrawn.",
+    "The generated manual-input example includes a calendar-entry step inferred from the test title. It is actual model output, not proof that all generated steps are suitable. Users can edit the plan.",
+    "These production examples are separate from the 60→70→90 minute local-demo walkthrough in screen-flow.json."
+  ]
+}
