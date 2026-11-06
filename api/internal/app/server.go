@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -19,14 +20,15 @@ import (
 )
 
 type Server struct {
-	Store    Store
-	Planner  *Planner
-	Calendar *Calendar
-	Auth     *firebaseauth.Client
-	Mode     string
-	Project  string
-	AppURL   string
-	Firebase map[string]string
+	Store     Store
+	Planner   *Planner
+	Calendar  *Calendar
+	Auth      *firebaseauth.Client
+	Mode      string
+	Project   string
+	AppURL    string
+	Firebase  map[string]string
+	Assistant AssistantStore
 }
 
 func newID() string {
@@ -42,6 +44,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("POST /api/extension/token", s.protected(s.extensionToken))
 	mux.HandleFunc("GET /api/state", s.protected(s.state))
+	mux.HandleFunc("GET /api/assistant", s.protected(s.assistantHistory))
+	mux.HandleFunc("POST /api/assistant/messages", s.protected(s.assistantMessage))
+	mux.HandleFunc("POST /api/assistant/memory", s.protected(s.remember))
+	mux.HandleFunc("POST /api/assistant/preview", s.protected(s.assistantPreview))
 	mux.HandleFunc("POST /api/tasks", s.protected(s.addTask))
 	mux.HandleFunc("DELETE /api/tasks/{id}", s.protected(s.deleteTask))
 	mux.HandleFunc("POST /api/parse", s.protected(s.parse))
@@ -60,7 +66,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/calendar/sync", s.protected(s.syncCalendar))
 	mux.HandleFunc("POST /api/calendar/webhook", s.calendarWebhook)
 	mux.HandleFunc("POST /api/calendar/renew", s.renewCalendar)
-	mux.HandleFunc("POST /api/chat", s.chat)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -215,6 +220,9 @@ func (s *Server) createTask(ctx context.Context, id string, input TaskInput) (St
 		}
 		return current, nil
 	}
+	if input.BaseRevision != nil && *input.BaseRevision != current.PlanRevision {
+		return State{}, ErrConflict
+	}
 	if len(current.Tasks) >= 200 {
 		return State{}, errors.New("課題は200件までです。完了済みの課題を整理してください")
 	}
@@ -239,6 +247,9 @@ func (s *Server) createTask(ctx context.Context, id string, input TaskInput) (St
 	state, err := s.Store.Update(ctx, id, func(st *State) error {
 		if _, err := st.task(input.ID); err == nil {
 			return nil
+		}
+		if input.BaseRevision != nil && *input.BaseRevision != st.PlanRevision {
+			return ErrConflict
 		}
 		if len(st.Tasks) >= 200 {
 			return errors.New("課題は200件までです。完了済みの課題を整理してください")
@@ -347,7 +358,14 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, errors.New("タイムゾーンを確認してください"))
 		return
 	}
-	st, err := s.Store.Update(r.Context(), uid(r), func(st *State) error { st.Profile = in; return nil })
+	st, err := s.Store.Update(r.Context(), uid(r), func(st *State) error {
+		if st.Profile.Context != in.Context {
+			now := time.Now()
+			st.AssistantContextSince = &now
+		}
+		st.Profile = in
+		return nil
+	})
 	respond(w, st, err)
 }
 func (s *Server) start(w http.ResponseWriter, r *http.Request) {
@@ -484,6 +502,18 @@ func (s *Server) draft(w http.ResponseWriter, r *http.Request) {
 		start = t.Plan.Start
 		if start.Before(time.Now()) {
 			start = time.Now().Add(time.Minute)
+		}
+	}
+	if requested := r.URL.Query().Get("start"); requested != "" {
+		start, err = time.Parse(time.RFC3339, requested)
+		if err != nil {
+			respond(w, nil, errors.New("開始時刻を確認してください"))
+			return
+		}
+		revision, err := strconv.Atoi(r.URL.Query().Get("revision"))
+		if err != nil || revision != st.PlanRevision {
+			respond(w, nil, ErrConflict)
+			return
 		}
 	}
 	draft, err := MakeDraft(st, t.ID, start, time.Now())

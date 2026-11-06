@@ -62,20 +62,22 @@ type LedgerEntry struct {
 	At      time.Time `json:"at"`
 }
 type State struct {
-	Revision          int             `json:"revision"`
-	PlanRevision      int             `json:"planRevision"`
-	Profile           Profile         `json:"profile"`
-	Settings          Settings        `json:"settings"`
-	BalanceSeconds    int             `json:"balanceSeconds"`
-	Tasks             []Task          `json:"tasks"`
-	Session           *Session        `json:"session,omitempty"`
-	Ledger            []LedgerEntry   `json:"ledger"`
-	CalendarConnected bool            `json:"calendarConnected"`
-	CalendarSync      string          `json:"calendarSync"`
-	LastSync          *time.Time      `json:"lastSync,omitempty"`
-	NextDraft         *Draft          `json:"nextDraft,omitempty"`
-	LastViewingAt     *time.Time      `json:"lastViewingAt,omitempty"`
-	ViewingReceipts   map[string]bool `json:"viewingReceipts,omitempty"`
+	Revision              int             `json:"revision"`
+	PlanRevision          int             `json:"planRevision"`
+	Profile               Profile         `json:"profile"`
+	Settings              Settings        `json:"settings"`
+	BalanceSeconds        int             `json:"balanceSeconds"`
+	Tasks                 []Task          `json:"tasks"`
+	Session               *Session        `json:"session,omitempty"`
+	Ledger                []LedgerEntry   `json:"ledger"`
+	CalendarConnected     bool            `json:"calendarConnected"`
+	CalendarSync          string          `json:"calendarSync"`
+	LastSync              *time.Time      `json:"lastSync,omitempty"`
+	NextDraft             *Draft          `json:"nextDraft,omitempty"`
+	LastViewingAt         *time.Time      `json:"lastViewingAt,omitempty"`
+	ViewingReceipts       map[string]bool `json:"viewingReceipts,omitempty"`
+	MemoryReceipts        map[string]bool `json:"memoryReceipts,omitempty"`
+	AssistantContextSince *time.Time      `json:"assistantContextSince,omitempty"`
 }
 type PlanChange struct {
 	TaskID          string  `json:"taskId"`

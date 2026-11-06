@@ -38,6 +38,7 @@ func main() {
 	}
 	if mode == "demo" {
 		server.Store = app.NewMemoryStore()
+		server.Assistant = app.NewMemoryAssistantStore()
 	} else {
 		db, err := firestore.NewClient(ctx, project)
 		if err != nil {
@@ -46,6 +47,7 @@ func main() {
 		defer db.Close()
 		store := &app.FirestoreStore{DB: db}
 		server.Store = store
+		server.Assistant = &app.FirestoreAssistantStore{DB: db}
 		firebaseApp, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: project})
 		if err != nil {
 			fatal(err)

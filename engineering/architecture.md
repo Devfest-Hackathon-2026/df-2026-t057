@@ -1,6 +1,6 @@
 # 構成と設計判断
 
-記録日：2026-11-06。対象コード：`a25837c`。実装の入口は [README](../README.md)。
+記録日：2026-11-06。現行構成へ更新。AI相談の詳細は[assistant.md](assistant.md)。実装の入口は [README](../README.md)。
 
 ## 要件の核
 
@@ -8,7 +8,7 @@ YouTube Shortsを見ている利用者が、締切から逆算した開始時刻
 
 | 要件 | 実装上の扱い |
 |---|---|
-| Gemini、カレンダーへの手入力、Google Chatの3入口 | 専用DOPAGAKIカレンダーとGo APIへ集約。管理画面からの登録も用意 |
+| Gemini、カレンダーへの手入力、管理画面のAI相談 | 専用DOPAGAKIカレンダーとGo APIへ集約。Google Chat連携は廃止 |
 | 本人に合わせた具体的な予定 | 本人が管理画面へ入力した作業傾向と課題のメモをGeminiへ渡す |
 | カレンダーの詳細欄で確認・管理画面で修正 | 詳細欄の専用ブロックへ手順を書き戻し、管理画面でも確認・調整できる |
 | 初回の持ち時間約1時間 | 初期値60分。新規課題の登録で10分、本人が完了を押すと20分 |
@@ -31,7 +31,7 @@ YouTube Shortsを見ている利用者が、締切から逆算した開始時刻
 | 認証 | Firebase Authentication | Googleログイン。APIはFirebase ID tokenを検証 |
 | 永続化 | Firestore Native | 利用者ごとの予定・状態。トランザクションで競合を扱う |
 | カレンダー | Google Calendar API、OAuth | アプリが作る専用カレンダーの入出力と変更通知 |
-| Chat | Google Workspaceアドオン形式のChatアプリ | メッセージから課題を受け付け、登録結果を返す |
+| AI相談 | Geminiの構造化出力、Angular Materialカード | 会話から予定・記憶候補を提案し、本人の確認後に既存APIで確定 |
 | 秘密情報 | Secret Manager | OAuth client secret、ユーザー別OAuthトークン、Scheduler用Secret |
 | 配信 | Cloud Run、Artifact Registry、Cloud Build | 管理画面とAPIを同一オリジンで配信。現状の配信操作は手動 |
 
@@ -41,8 +41,11 @@ Cloud RunとFirestoreは東京、Vertex AIの設定は `global`。Cloud Runが�
 flowchart TD
   Gemini[GeminiアプリのCalendar連携] --> Cal[専用DOPAGAKIカレンダー]
   Manual[Googleカレンダーへの手入力] --> Cal
-  Chat[Google Chat] --> API[Go API]
-  Web[Angular管理画面] --> API
+  Web[Angular管理画面でAI相談] --> Consult[Go API: 本人の会話と作業傾向]
+  Consult --> Cards[Gemini: 予定カードと記憶候補]
+  Cards --> ConfirmCard[本人が編集・確認]
+  ConfirmCard --> API[Go API]
+  ManualWeb[管理画面へ手入力] --> API
   API --> Cal
   Cal -->|変更通知と差分取得| API
   API -->|課題と本人の作業傾向| AI[Vertex AI / Gemini]
@@ -111,7 +114,7 @@ GoogleのGeminiアプリからの入口と、アプリ内部のVertex AI呼び�
 
 ## 境界
 
-他のカレンダー、YouTubeの動画内容や閲覧履歴をAIへ送る設計ではない。Google Chatは、同じGoogleアカウントのカレンダー接続時に保存する対応関係を使って利用者を特定する。
+他のカレンダー、YouTubeの動画内容や閲覧履歴をAIへ送る設計ではない。AI相談はFirebaseの本人IDで会話・予定・記憶を分離する。Google Chatの受付とユーザー対応表の作成は廃止した。
 
 Firestoreのクライアント用ルールは全拒否。管理画面や拡張から直接Firestoreへ書かず、認証したAPI経由で操作する。拡張の認証接続は `chrome.storage.session`、表示用の状態等は `chrome.storage.local` に保存する。
 

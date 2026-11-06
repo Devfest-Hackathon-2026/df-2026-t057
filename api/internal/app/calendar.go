@@ -151,10 +151,6 @@ func (c *Calendar) callback(ctx context.Context, state, code string) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.DB.Collection("googleUsers").Doc(identity.Subject).Set(ctx, map[string]string{"uid": uid})
-	if err != nil {
-		return err
-	}
 	_, err = c.Store.Update(ctx, uid, func(s *State) error { s.CalendarConnected = true; s.CalendarSync = "synced"; return nil })
 	if err != nil {
 		return err

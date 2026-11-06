@@ -1,5 +1,7 @@
 # 3つの入口から課題登録まで
 
+> Google Chat連携当時の記録を含む旧版です。現在は管理画面のAI相談へ移行しました。現行仕様と確認結果は[管理画面のAI相談](assistant.md)を参照してください。
+
 2026-11-06、Google Gemini・Google Calendar・Google Chatと公開DOPAGAKIで撮影。各行は別の架空課題であり、同じ課題を3回登録した図ではない。画像は実画面の必要な範囲を撮影し、内容を描き直していない。
 
 ![3つの入口から課題登録までの実画面フロー](assets/intake-flow-overview.jpg)

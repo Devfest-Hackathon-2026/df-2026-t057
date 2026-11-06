@@ -1,0 +1,96 @@
+.suggestion-card {
+  overflow: hidden;
+  background: #fff;
+}
+mat-card-content {
+  padding: 20px;
+}
+.card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4a6352;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+.card-status {
+  margin-left: auto;
+  color: #72796f;
+  font-size: 11px;
+}
+h3 {
+  font-size: 17px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+.event-time {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 4px;
+}
+.card-note {
+  color: #687165;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0 0 16px;
+}
+.memory-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-bottom: 16px;
+}
+.event-step {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  padding: 5px 0;
+}
+.event-step > span:first-child {
+  color: #687165;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.event-step:last-of-type {
+  margin-bottom: 16px;
+}
+.proposed-time {
+  background: #edf3ff;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+mat-form-field {
+  width: 100%;
+}
+.edit-fields {
+  display: grid;
+  gap: 8px;
+}
+.time-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.card-error {
+  color: #a22d2d;
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+@media (max-width: 550px) {
+  mat-card-content {
+    padding: 16px;
+  }
+  .time-fields {
+    grid-template-columns: 1fr;
+  }
+}
+.task-link {
+  overflow-wrap: anywhere;
+}

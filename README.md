@@ -4,7 +4,7 @@ YouTube Shortsから、いま始める課題へ戻るためのChrome拡張と管
 
 公開環境：[DOPAGAKI](https://dopagaki-1032251723022.asia-northeast1.run.app/)。Googleログインして使います。Chrome拡張は、この公開先を指定してビルドしてください。
 
-課題・予定・視聴時間はGoogleアカウントごとに保存します。カレンダー連携もログイン中と同じGoogleアカウントを使い、本人の専用DOPAGAKIカレンダーへ登録します。Google Chatは本人とDOPAGAKIの1対1のDMを使う設計ですが、アプリの一般配布は準備中です。[一般ユーザー対応の現状](engineering/public-accounts.md)を参照してください。
+課題・予定・視聴時間はGoogleアカウントごとに保存します。カレンダー連携もログイン中と同じGoogleアカウントを使い、本人の専用DOPAGAKIカレンダーへ登録します。管理画面の「AIに相談」で会話すると、編集できる予定カードや作業傾向の記憶候補が表示されます。登録・変更・記憶は本人が確認してから確定します。Google Chat連携は廃止しました。[一般ユーザー対応の現状](engineering/public-accounts.md)を参照してください。
 
 実装の仕様は、この会話の確定事項と[指定のSlack投稿]([内部リンク削除])を基にしています。`docs/` は別案の資料であり、このアプリの仕様ではありません。
 
@@ -54,15 +54,20 @@ Chromeが終了・スリープ中の場合は通知できません。Chrome Alar
 | API | Go、標準 `net/http`、Google公式SDK |
 | AI | Vertex AI / Gemini 3.8 Flash。課題を具体的な手順へ分解し、作業傾向を反映 |
 | 認証・永続化 | Firebase Authentication（Googleログイン）、Firestoreのトランザクション |
-| Google連携 | Google Calendar API、Google Chat。OAuthの更新トークンはSecret Managerに保存 |
+| Google連携 | Google Calendar API。OAuthの更新トークンはSecret Managerに保存 |
 | 配信 | Cloud Runが管理画面とAPIを同じオリジンで配信 |
 
 ```mermaid
 flowchart TD
   G[GeminiのGoogle Calendar連携] --> C[専用DOPAGAKIカレンダー]
   M[Googleカレンダーへ手入力] --> C
-  H[Google Chatへ課題を送信] --> A[Go API: 認証・課題の抽出]
-  W[Angular管理画面へ入力] --> A
+  H[管理画面でAIに相談] --> VAI[Vertex AI: 会話と本人情報から提案]
+  VAI --> Card[編集できる予定カード / 記憶候補]
+  Card --> Confirm{本人が確認}
+  Confirm -->|予定を登録| A[Go API: 認証・時刻・版の検証]
+  Confirm -->|記憶する| Memory[Firestore: 本人の作業傾向]
+  Memory --> VAI
+  W[Angular管理画面へ手入力] --> A
   A --> C
   C -->|変更通知 / 差分同期| S[Go API: 課題と本人設定を取得]
   S --> P[Vertex AI / Gemini: 具体的な手順を作成]
@@ -110,7 +115,7 @@ Cloud Runは `min-instances=0`、`max-instances=2`、1 CPU / 512MiB、リクエ�
 
 Calendarの変更通知チャンネルは6日で期限が切れます。Cloud Schedulerから1日1回 `POST /api/calendar/renew` を呼び、`Authorization: Bearer <SCHEDULER_SECRET>` を設定してください。この更新ジョブを設定しないと継続して同期できません。
 
-Google ChatアプリはWorkspaceアドオン形式で、共通HTTPエンドポイントを `https://<管理画面>/api/chat` に設定します。`CHAT_AUDIENCE` をこのURL、`GOOGLE_CLOUD_PROJECT_NUMBER` をプロジェクト番号に合わせます。Googleの署名・Audience・プロジェクト専用の送信元サービスアカウントを検証し、同じGoogleアカウントでカレンダーを連携した利用者だけ受け付けます。例：「明日18時までにレポート、必要時間60分」。現在のChatアプリは個人用の未公開アプリです。
+管理画面のAI相談は既存のFirebase認証・Vertex AI・Firestoreを使います。新しいGoogle OAuthスコープやChatアプリの配布は不要です。会話履歴は `assistantConversations/{uid}/turns` に保存し、拡張向けの状態APIには含めません。カードの登録は既存の課題登録、変更は予定確認画面、記憶は本人の作業傾向へ接続します。[設計と確認範囲](engineering/assistant.md)を参照してください。
 
 公開先が決まったら、そのオリジンに固定して拡張を再ビルドします。
 
@@ -129,14 +134,14 @@ APP_URL=https://<管理画面のオリジン> npm run build:extension
 | Vertex AI | Cloud Runの実行アカウントから課題抽出、具体的な手順作成、指示による時間割調整 |
 | Google Calendar | 専用カレンダーの作成、Secret Managerへのトークン保存、詳細欄への手順反映、変更通知からの自動取り込みと登録報酬。既存予定の更新では報酬が増えないことも確認 |
 | Geminiアプリ | 専用DOPAGAKIカレンダーへの予定作成。その後の自動取り込みと詳細欄への反映も確認 |
-| Google Chat | 実際の個人用Chatアプリへ送信し、課題1件の登録・返信・詳細欄の反映・登録報酬を確認 |
+| 旧Google Chat | 当時の個人用アプリの検証記録。現在はアプリを無効化し、受付APIを削除 |
 | Chrome拡張 | 実際のYouTube Shortsの前面再生で50秒消費。一時停止中は残高が変わらないことを確認 |
 | 通知・作業 | 実時刻の全画面通知、事前候補からのスヌーズ確認、手動調整、OK後の保存、上部の作業バー、完了時20分の付与 |
 | Cloud Scheduler | 毎日09:00（日本時間）のCalendar監視更新を設定。手動実行も成功 |
 
 カレンダー側の新規予定は、専用Calendar APIからの投入に加え、一般画面での手入力・保存からの自動取り込みも確認しました。[実画面と検証条件](engineering/intake-flow.md)を保存しています。ローカルの拡張E2Eは合成Shorts DOMを使用し、上表の実YouTubeでの確認とは区別しています。
 
-配信コードは `a25837c`、Cloud Runリビジョンは `dopagaki-00006-btr` です。1 CPU / 512MiB、最小0・最大2インスタンス。Firestoreの直接クライアントアクセスは拒否し、API実行アカウントで読み書きします。課金・予算設定は変更していません。
+初期確認時のコードは `a25837c`、リビジョンは `dopagaki-00006-btr` です。最新の配信は[運用記録](engineering/operations.md)を参照してください。1 CPU / 512MiB、最小0・最大2インスタンス。Firestoreの直接クライアントアクセスは拒否し、API実行アカウントで読み書きします。課金・予算設定は変更していません。
 
 ## 検証
 

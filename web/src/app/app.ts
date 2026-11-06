@@ -13,6 +13,7 @@ import { Api, message } from './api';
 import { TaskDialog } from './task-dialog';
 import { PlanDialog } from './plan-dialog';
 import { AccountMenu } from './account-menu';
+import { Assistant } from './assistant';
 import {
   DEFAULT_SETTINGS,
   Profile,
@@ -34,6 +35,7 @@ import {
     MatFormFieldModule,
     MatInputModule,
     AccountMenu,
+    Assistant,
     MatSlideToggleModule,
     MatSnackBarModule,
   ],

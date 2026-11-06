@@ -1,0 +1,167 @@
+<div class="page-title">
+  <div>
+    <span class="eyebrow">LET'S FIGURE IT OUT TOGETHER</span>
+    <h1>
+      AIに相談
+      <span class="title-dot">.</span>
+    </h1>
+    <p>話しながら、無理のない予定を一緒に。</p>
+  </div>
+</div>
+<div class="assistant-layout">
+  <section class="conversation" aria-label="AIとの相談">
+    <div class="thread" #thread aria-label="会話履歴" tabindex="0">
+      @if (loading()) {
+        <div class="chat-loading" role="status">
+          <div class="skeleton"></div>
+          <div class="skeleton"></div>
+          <p>会話を読み込んでいます…</p>
+        </div>
+      } @else if (!turns().length) {
+        <div class="chat-welcome">
+          <span class="material-symbols-rounded" aria-hidden="true">forum</span>
+          <h2>いま、何から始めたいですか？</h2>
+          <p>
+            課題の登録も、予定の見直しも。
+            <br />
+            必要なときに、編集できるカードを出します。
+          </p>
+          <div class="starters">
+            @for (
+              prompt of [
+                '今ある予定を一緒に見直したい',
+                '新しい課題の予定を立てたい',
+                '私の作業の傾向を覚えてほしい',
+              ];
+              track prompt
+            ) {
+              <button mat-stroked-button (click)="text = prompt">{{ prompt }}</button>
+            }
+          </div>
+        </div>
+      }
+      @if (turns().length === 20) {
+        <p class="history-note">直近20件の相談を表示しています。</p>
+      }
+      @for (turn of turns(); track turn.id) {
+        <article class="turn">
+          <div class="user-message">
+            <p>{{ turn.text }}</p>
+            <time>{{ turn.createdAt | date: 'HH:mm' }}</time>
+          </div>
+          <div class="assistant-message">
+            <div class="speaker">
+              <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
+              <span>DOPAGAKI</span>
+            </div>
+            @if (turn.status === 'pending') {
+              <div class="thinking" role="status">
+                <mat-progress-bar mode="indeterminate" aria-label="予定と作業の傾向を確認中" />
+                <p>予定と作業の傾向を確認しています…</p>
+              </div>
+            } @else if (turn.status === 'error') {
+              <p class="chat-error" role="alert">{{ turn.failure }}</p>
+              <button mat-stroked-button (click)="retry(turn)" [disabled]="sending()">
+                同じ相談を再試行
+              </button>
+            } @else {
+              <p class="reply">{{ turn.reply }}</p>
+              <div class="cards">
+                @for (card of turn.cards; track card.id) {
+                  <app-assistant-card [card]="card" />
+                }
+              </div>
+            }
+          </div>
+        </article>
+      }
+      @if (error()) {
+        <div class="chat-error" role="alert">
+          <p>{{ error() }}</p>
+          <button mat-button (click)="load()">会話を再読み込み</button>
+        </div>
+      }
+    </div>
+    <form class="composer" (ngSubmit)="send()">
+      <mat-form-field appearance="outline">
+        <mat-label>相談する</mat-label>
+        <textarea
+          matInput
+          name="consultation"
+          [(ngModel)]="text"
+          cdkTextareaAutosize
+          cdkAutosizeMinRows="2"
+          cdkAutosizeMaxRows="5"
+          maxlength="2000"
+          placeholder="例：明日18時までのレポートに60分必要。短く区切って進めたい"
+          (keydown.control.enter)="send($event)"
+          (keydown.meta.enter)="send($event)"
+        ></textarea>
+      </mat-form-field>
+      <div class="composer-actions">
+        <span>予定・記憶はカードで確認してから保存します。</span>
+        <button
+          mat-flat-button
+          type="submit"
+          [disabled]="sending() || !text.trim() || !api.config()?.aiEnabled"
+        >
+          <span class="material-symbols-rounded" aria-hidden="true">send</span>
+          {{ sending() ? '相談中…' : '送信' }}
+        </button>
+      </div>
+      @if (!api.config()?.aiEnabled) {
+        <p class="chat-note">この環境ではAI相談は未設定です。課題の手入力と編集は利用できます。</p>
+      }
+    </form>
+  </section>
+  <aside class="memory-panel" aria-label="作業の傾向とカレンダー">
+    <div class="memory-heading">
+      <span class="material-symbols-rounded" aria-hidden="true">psychology</span>
+      <h2>覚えていること</h2>
+    </div>
+    <p class="chat-note">あなたが確認した作業の傾向を、次の相談や予定作成に使います。</p>
+    @if (editingMemory()) {
+      <p class="chat-note">
+        編集後は、変更前の会話を次の相談の文脈から外します。会話履歴自体は残ります。
+      </p>
+      <mat-form-field appearance="outline">
+        <mat-label>作業の傾向</mat-label>
+        <textarea
+          matInput
+          [(ngModel)]="memoryText"
+          rows="6"
+          maxlength="2000"
+          [disabled]="api.busy()"
+        ></textarea>
+      </mat-form-field>
+      <div class="memory-actions">
+        <button mat-button (click)="editingMemory.set(false)" [disabled]="api.busy()">
+          キャンセル
+        </button>
+        <button mat-stroked-button (click)="saveMemory()" [disabled]="api.busy()">保存</button>
+      </div>
+    } @else {
+      <p class="known-context">
+        {{
+          api.state()?.profile.context ||
+            'まだ登録されていません。好きな時間帯や進め方を教えてください。'
+        }}
+      </p>
+      <button mat-button (click)="editMemory()">編集・忘れる内容を選ぶ</button>
+    }
+    <div class="calendar-status">
+      <span class="material-symbols-rounded" aria-hidden="true">calendar_month</span>
+      <div>
+        <strong>Googleカレンダー</strong>
+        <p>
+          {{
+            api.state()?.calendarConnected
+              ? 'DOPAGAKIカレンダーと連携済み'
+              : '連携するとカードから登録できます'
+          }}
+        </p>
+      </div>
+    </div>
+    <button mat-stroked-button (click)="openSettings.emit()">連携の設定</button>
+  </aside>
+</div>

@@ -1,5 +1,7 @@
 # 発表用：3つの入口から課題完了まで
 
+> Google Chat連携当時の記録を含む旧版です。現在は管理画面のAI相談へ移行しました。現行仕様と確認結果は[管理画面のAI相談](assistant.md)を参照してください。
+
 ![3つの入口から課題完了までをつないだ実画面フロー](assets/complete-flow.png)
 
 - [PNG：3840×2160、16:9](assets/complete-flow.png)：Google SlidesやPowerPointへ画像として貼る。スライド全体に合わせれば縦横比を変えずに使える。
