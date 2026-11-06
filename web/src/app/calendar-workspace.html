@@ -78,8 +78,12 @@
       </full-calendar>
       <div class="calendar-caption">
         <span>{{ timeZone }} · 確定した作業時間を表示</span>
-        <button mat-button (click)="api.load()" [disabled]="api.busy()">
-          {{ api.busy() ? '更新中…' : '予定を更新' }}
+        <button
+          mat-button
+          (click)="state.calendarConnected ? api.mutate('/calendar/sync') : api.load()"
+          [disabled]="api.busy()"
+        >
+          {{ api.busy() ? '更新中…' : state.calendarConnected ? 'Googleと同期' : '予定を更新' }}
         </button>
       </div>
       @if (!state.tasks.length) {

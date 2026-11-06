@@ -125,3 +125,44 @@ test('mobile switches between calendar and consultation without losing text', as
   });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('manual Google sync waits for confirmation and preserves events on failure', async ({
+  page,
+}) => {
+  await page.request.get('/api/state');
+  await page.request.post('/api/tasks', {
+    data: {
+      id: 'sync-task',
+      title: '同期を確認する課題',
+      notes: '',
+      minutes: 30,
+      deadline: new Date(Date.now() + 7200000).toISOString(),
+      url: '',
+    },
+  });
+  await page.route('**/api/state', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ json: { ...(await response.json()), calendarConnected: true } });
+  });
+  let release!: () => void;
+  const wait = new Promise<void>((resolve) => (release = resolve));
+  let calls = 0;
+  await page.route('**/api/calendar/sync', async (route) => {
+    expect(route.request().method()).toBe('POST');
+    calls++;
+    await wait;
+    await route.fulfill({
+      status: 503,
+      json: { error: '同期を確認できませんでした。再試行してください。' },
+    });
+  });
+  await page.goto('/calendar');
+  await page.getByRole('button', { name: 'Googleと同期', exact: true }).click();
+  await expect(page.getByRole('button', { name: '更新中…', exact: true })).toBeDisabled();
+  await expect(page.locator('.next-task')).toContainText('同期を確認する課題');
+  release();
+  await expect(page.getByRole('alert')).toContainText('同期を確認できませんでした');
+  await expect(page.locator('.next-task')).toContainText('同期を確認する課題');
+  await expect(page.locator('.credit-number')).toContainText('70');
+  expect(calls).toBe(1);
+});
