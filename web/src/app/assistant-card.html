@@ -1,0 +1,195 @@
+<mat-card appearance="outlined" class="suggestion-card">
+  @if (busy()) {
+    <mat-progress-bar mode="indeterminate" aria-label="カードを処理中" />
+  }
+  <mat-card-content>
+    @if (card().kind === 'memory') {
+      <div class="card-heading">
+        <span class="material-symbols-rounded" aria-hidden="true">psychology</span>
+        <span>覚えておくこと</span>
+        <span class="card-status">{{ remembered() ? '確認済み' : '提案' }}</span>
+      </div>
+      @if (remembered()) {
+        <p class="memory-text">確認した内容を作業の傾向に追加しました。</p>
+        <p class="card-note">覚えている内容は「作業の傾向」からいつでも編集できます。</p>
+      } @else {
+        <mat-form-field appearance="outline">
+          <mat-label>覚える内容を確認・編集</mat-label>
+          <textarea
+            matInput
+            [(ngModel)]="memoryText"
+            maxlength="500"
+            rows="2"
+            [disabled]="busy()"
+          ></textarea>
+        </mat-form-field>
+        <button
+          mat-stroked-button
+          (click)="remember()"
+          [disabled]="busy() || api.busy() || !memoryText.trim()"
+        >
+          この内容を覚える
+        </button>
+      }
+    } @else {
+      <div class="card-heading">
+        <span class="material-symbols-rounded" aria-hidden="true">calendar_month</span>
+        <span>{{ api.config()?.mode === 'demo' ? '予定カード（デモ）' : 'Googleカレンダー' }}</span>
+        <span class="card-status">
+          {{
+            card().kind === 'create' && !registered()
+              ? '登録前'
+              : task()
+                ? '現在の予定'
+                : '削除済み'
+          }}
+        </span>
+      </div>
+      @if (task(); as task) {
+        <h3>{{ task.title }}</h3>
+        <p class="event-time">
+          {{ task.plan.start | date: 'M/d HH:mm' }} — {{ task.plan.end | date: 'HH:mm' }}
+        </p>
+        <p class="card-note">
+          締切 {{ task.deadline | date: 'M/d HH:mm' }} · 見積もり {{ task.minutes }}分
+        </p>
+        @if (task.url) {
+          <p class="task-link">
+            <a [href]="task.url" target="_blank" rel="noopener">{{ task.url }}</a>
+          </p>
+        }
+        @if (
+          card().kind === 'task' && card().preview && card().revision === api.state()?.planRevision
+        ) {
+          <div class="proposed-time">
+            変更案 {{ card().preview!.start | date: 'M/d HH:mm' }} —
+            {{ card().preview!.end | date: 'HH:mm' }}
+          </div>
+        }
+        @for (step of task.plan.steps; track $index) {
+          <div class="event-step">
+            <span>{{ step.start | date: 'HH:mm' }}</span>
+            <span>{{ step.title }}</span>
+          </div>
+        }
+        @if (api.state()?.calendarSync === 'pending') {
+          <p class="card-note">
+            Googleカレンダーへの同期待ちです。設定・スケジュールから再同期できます。
+          </p>
+        }
+        <button
+          mat-stroked-button
+          (click)="adjust()"
+          [disabled]="busy() || api.busy() || task.status !== 'pending'"
+        >
+          予定・手順を調整
+        </button>
+      } @else if (card().kind === 'create' && !registered()) {
+        @if (editing()) {
+          <div class="edit-fields">
+            <mat-form-field appearance="outline">
+              <mat-label>課題名</mat-label>
+              <input matInput [(ngModel)]="form.title" maxlength="200" [disabled]="busy()" />
+            </mat-form-field>
+            <div class="time-fields">
+              <mat-form-field appearance="outline">
+                <mat-label>締切</mat-label>
+                <input
+                  matInput
+                  type="datetime-local"
+                  [ngModel]="local(form.deadline)"
+                  (ngModelChange)="deadline($event)"
+                  [disabled]="busy()"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>必要時間（分）</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  min="1"
+                  max="720"
+                  [(ngModel)]="form.minutes"
+                  [disabled]="busy()"
+                />
+              </mat-form-field>
+            </div>
+            <mat-form-field appearance="outline">
+              <mat-label>やること・メモ</mat-label>
+              <textarea
+                matInput
+                [(ngModel)]="form.notes"
+                maxlength="4000"
+                rows="2"
+                [disabled]="busy()"
+              ></textarea>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>課題のURL（任意）</mat-label>
+              <input matInput type="url" [(ngModel)]="form.url" [disabled]="busy()" />
+            </mat-form-field>
+            <div class="card-actions">
+              <button mat-button (click)="cancelEdit()" [disabled]="busy()">キャンセル</button>
+              <button
+                mat-stroked-button
+                (click)="check()"
+                [disabled]="busy() || !form.title.trim() || !form.deadline"
+              >
+                変更内容を確認
+              </button>
+            </div>
+          </div>
+        } @else {
+          <h3>{{ form.title }}</h3>
+          @if (preview(); as preview) {
+            <p class="event-time">
+              {{ preview.plan.start | date: 'M/d HH:mm' }} — {{ preview.plan.end | date: 'HH:mm' }}
+            </p>
+          }
+          <p class="card-note">
+            締切 {{ form.deadline | date: 'M/d HH:mm' }} · {{ form.minutes }}分
+          </p>
+          @if (form.notes) {
+            <p class="memory-text">{{ form.notes }}</p>
+          }
+          @if (form.url) {
+            <p class="task-link">
+              <a [href]="form.url" target="_blank" rel="noopener">{{ form.url }}</a>
+            </p>
+          }
+          <p class="card-note">
+            登録すると未完了の予定を締切から再計算します。手順は保存時に具体化します。
+          </p>
+          @if (api.config()?.mode !== 'demo' && !api.state()?.calendarConnected) {
+            <p class="card-note">先に右上の設定からGoogleカレンダーを連携してください。</p>
+          }
+          <div class="card-actions">
+            <button mat-button (click)="edit()" [disabled]="busy()">編集</button>
+            @if (stale()) {
+              <button mat-stroked-button (click)="check()" [disabled]="busy()">
+                最新の予定で再確認
+              </button>
+            } @else {
+              <button
+                mat-flat-button
+                (click)="register()"
+                [disabled]="
+                  busy() ||
+                  api.busy() ||
+                  (api.config()?.mode !== 'demo' && !api.state()?.calendarConnected)
+                "
+              >
+                カレンダーに登録 ＋10分
+              </button>
+            }
+          </div>
+        }
+      } @else {
+        <p class="card-note">この予定は削除されているため、カードから再登録しません。</p>
+      }
+    }
+    @if (error()) {
+      <p class="card-error" role="alert">{{ error() }}</p>
+    }
+  </mat-card-content>
+</mat-card>

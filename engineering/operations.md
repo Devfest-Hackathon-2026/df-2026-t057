@@ -2,6 +2,8 @@
 
 記録日：2026-11-06。以下のクラウド設定は配信時に確認した値。秘密情報の実値は含めない。
 
+最新配信は管理画面のAI相談を追加した Cloud Run `dopagaki-00013-vtd`（100%）、コード `7b77026`。[変更と実確認の範囲](assistant.md)を参照。Google Chatアプリは無効化し、旧受付APIと専用環境変数を削除した。本人のGoogleアカウント照合とアカウント切替は[一般ユーザー対応の記録](public-accounts.md#配信と実確認)を参照。下記の「初期配信時の環境」と旧digestの配信例は、最初の実サービス確認時点の記録として保持する。
+
 ## 整備状況
 
 | 項目 | 状態 | 根拠・範囲 |
@@ -41,7 +43,7 @@ PRと `main` へのpushで `check` を実行する。作業ブランチへのpus
 
 複数の範囲を変更した場合は、該当するチェックをすべて実行する。資料だけのPRでも `check` の結果を残すため、ワークフロー全体をパス条件で除外せず、各ステップを条件付きで実行する。配信設定の変更検証や自動デプロイは含まない。この実行選択の追加後のGitHub Actions実行結果は未確認。
 
-## 配信時の環境
+## 初期配信時の環境
 
 | 項目 | 値 |
 |---|---|
@@ -59,7 +61,7 @@ PRと `main` へのpushで `check` を実行する。作業ブランチへのpus
 | 同時実行数 / リクエスト上限時間 | 40 / 60秒 |
 | Calendar監視更新 | `dopagaki-calendar-renew`、毎日09:00、`Asia/Tokyo` |
 
-最終配信イメージ：
+初期確認時の配信イメージ：
 
 ```text
 asia-northeast1-docker.pkg.dev/devfest-2026-513816/dopagaki/app@sha256:96a02db958e38e38cc56c97510c0f5f020fe75c9cb63d4b446186be1241bce25
@@ -102,7 +104,7 @@ resource.name.startsWith('projects/1032251723022/secrets/dopagaki-')
 
 接頭辞の条件は作成権限そのものを限定するものではない。この違いを「すべてのSecret操作を接頭辞で制限した」と説明しない。
 
-## OAuth・Chat・Scheduler
+## OAuth・AI相談・Scheduler
 
 | 設定 | 扱い |
 |---|---|
@@ -110,10 +112,8 @@ resource.name.startsWith('projects/1032251723022/secrets/dopagaki-')
 | Calendarコールバック | 公開URLの `/api/calendar/callback` |
 | OAuth client secret | `dopagaki-calendar-oauth` をSecret参照で注入 |
 | ユーザー別OAuthトークン | `dopagaki-calendar-` で始まるSecret。実値は記録しない |
-| Chat形式 | Workspaceアドオンのイベント・応答形式 |
-| Chat Audience | 公開URLの `/api/chat` と一致 |
-| Chat送信元 | `service-1032251723022@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`。署名・Audience・メール確認済みclaimを検証 |
-| Chatの利用対象 | 現在は指定された個人アカウント用の未公開アプリ。一般公開・Marketplace配布は未実施 |
+| AI相談 | Firebase認証済みの `/api/assistant`。会話はFirestoreの `assistantConversations/{uid}/turns` |
+| 旧Google Chat | アプリのステータスを「無効」に保存。`POST /api/chat` は404。既存の旧記録・APIサービスは削除していない |
 | Scheduler | `POST /api/calendar/renew`。`dopagaki-scheduler` の値をBearerとして使う |
 
 Firebaseログインと、Calendarの継続アクセスへのOAuth同意は別の操作。ログイン済みでも、Calendarの連携・トークン保存・専用カレンダー作成まで終わったとは限らない。
@@ -155,7 +155,7 @@ gcloud builds submit . \
 
 本番更新では、完成したイメージのdigestを確認して固定する。`gcloud run deploy` へ、実行用SA、環境変数ファイル、Secret参照、リソース上限を明示する。OAuthとSchedulerのSecretバージョンは、使用するものを確認して指定する。手動配信後は [検証記録](verification-2026-11-06.md) の範囲で確認する。
 
-次は2026-11-06の最終配信値で、既存イメージを再配信するコマンド例。新しいビルドを配信する場合は、その結果のdigestへ置き換える。Secretの `:1` も配信時点の値である。
+次は2026-11-06の初期確認時の配信値で、旧イメージを再配信するコマンド例。新しいビルドを配信する場合は、その結果のdigestへ置き換える。Secretの `:1` も配信時点の値である。
 
 ```bash
 gcloud run deploy dopagaki \

@@ -9,6 +9,7 @@
       @for (
         nav of [
           { id: 'today', icon: 'space_dashboard', text: '今日の課題' },
+          { id: 'assistant', icon: 'forum', text: 'AIに相談' },
           { id: 'schedule', icon: 'calendar_month', text: 'スケジュール' },
           { id: 'record', icon: 'grass', text: '積み上げの記録' },
           { id: 'settings', icon: 'tune', text: '設定' },
@@ -64,7 +65,11 @@
           <span class="demo-badge">LOCAL DEMO</span>
         }
         <span class="today-date">{{ now() | date: 'M月d日 EEEE' : '' : 'ja' }}</span>
-        <span class="avatar">{{ api.state()?.profile?.name?.slice(0, 1) || 'D' }}</span>
+        @if (api.config()?.mode === 'demo') {
+          <span class="avatar">{{ api.state()?.profile?.name?.slice(0, 1) || 'D' }}</span>
+        } @else {
+          <app-account-menu (openSettings)="navigate('settings')" />
+        }
       </div>
     </header>
 
@@ -97,9 +102,8 @@
             <br />
             完了したら、YouTube Shortsの視聴時間が増えます。
           </p>
-          <button mat-flat-button (click)="api.login()" [disabled]="api.busy()">
-            Googleでログイン
-          </button>
+          <p>課題・予定・視聴時間は、ログインしたアカウントごとに保存します。</p>
+          <p><a href="/privacy.html" target="_blank" rel="noopener">データの取り扱い</a></p>
         </section>
       } @else if (api.state(); as state) {
         @if (state.calendarConnected && state.calendarSync === 'pending') {
@@ -110,7 +114,9 @@
             </button>
           </div>
         }
-        @if (page() === 'today') {
+        @if (page() === 'assistant') {
+          <app-assistant (openSettings)="navigate('settings')" />
+        } @else if (page() === 'today') {
           <div class="page-title">
             <div>
               <span class="eyebrow">LET'S MAKE IT A GOOD DAY</span>
@@ -120,10 +126,16 @@
               </h1>
               <p>ひとつずつ、次の楽しみに変えていこう。</p>
             </div>
-            <button mat-flat-button class="add-button" (click)="addTask()">
-              <span aria-hidden="true" class="material-symbols-rounded">add</span>
-              課題を登録
-            </button>
+            <div class="page-actions">
+              <button mat-stroked-button (click)="navigate('assistant')">
+                <span class="material-symbols-rounded" aria-hidden="true">forum</span>
+                AIに相談
+              </button>
+              <button mat-flat-button class="add-button" (click)="addTask()">
+                <span aria-hidden="true" class="material-symbols-rounded">add</span>
+                課題を登録
+              </button>
+            </div>
           </div>
           <div class="dashboard-grid">
             <section class="credit-card">
@@ -526,8 +538,12 @@
               <p>ログイン中：{{ api.accountEmail() }}</p>
             }
             <p>
-              GeminiやGoogle
-              Chatからは、DOPAGAKIカレンダーへ課題を登録します。カレンダーに手入力しても取り込まれます。
+              ログイン中と同じGoogleアカウントのカレンダーを使います。
+              連携すると、そのアカウントに専用のDOPAGAKIカレンダーを作成します。
+              Geminiには「DOPAGAKIカレンダーに」と指定してください。
+            </p>
+            <p class="muted">
+              「AIに相談」から予定の作成・調整を相談できます。会話と作業の傾向はアカウントごとに保存します。
             </p>
             <button
               mat-stroked-button
@@ -542,6 +558,11 @@
             @if (api.config()?.mode === 'live') {
               <button mat-button (click)="api.logout()">ログアウト</button>
             }
+            <p>
+              <a href="/privacy.html" target="_blank" rel="noopener">
+                データの取り扱い・削除の依頼
+              </a>
+            </p>
           </section>
         }
       }

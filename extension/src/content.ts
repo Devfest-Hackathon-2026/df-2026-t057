@@ -45,7 +45,11 @@ function initialize() {
       if (event.data?.type !== 'DOPAGAKI_CONNECT') return;
       void send({
         type: 'CONNECT',
-        connection: { apiBase: event.data.apiBase, auth: event.data.auth },
+        connection: {
+          apiBase: event.data.apiBase,
+          auth: event.data.auth,
+          accountId: event.data.accountId,
+        },
       });
     });
   }
@@ -391,6 +395,12 @@ function initialize() {
       respond({ shown: showNotice(message.task, message.state) });
     }
     if (message.type === 'STATE_UPDATED') {
+      if (!message.state) {
+        dismiss();
+        consumed = 0;
+        receipt = undefined;
+        previousPlaying = false;
+      }
       state = message.state;
       renderTimer();
     }

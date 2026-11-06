@@ -1,10 +1,18 @@
 # 実画面で見る操作フロー
 
+> Google Chat連携当時の記録を含む旧版です。現在は管理画面のAI相談へ移行しました。現行仕様と確認結果は[管理画面のAI相談](assistant.md)を参照してください。
+
 2026-11-06撮影。入口のGoogle実サービス9枚と、登録後のローカルデモ12枚で操作を説明する。画面の内容は画像生成や描き直しではない。
+
+## 発表用の1枚図
+
+![3つの入口から課題完了までの実画面フロー](assets/complete-flow.png)
+
+[PNG・SVGと発表用の説明](complete-flow.md)。主要な8画面を選び、3つの入口から共通の操作へ合流する1枚にまとめた。以下は個々の画面の操作と撮影条件。
 
 ## 3つの入口から課題登録
 
-![Gemini、カレンダーへの手入力、Google Chatから課題登録へ](assets/intake-flow-overview.jpg)
+[入口だけを拡大した図](assets/intake-flow-overview.jpg)
 
 各行を左から右へ読む。[入口ごとの操作と元画像](intake-flow.md)も保存している。Gemini・Chatは以前の成功した登録を開き直し、手入力は今回Googleカレンダーの一般画面から新規登録・自動同期を確認した。
 
@@ -14,7 +22,7 @@
 
 実装済みのAngular画面とGoのデモ用バックエンドを使い、同じ架空課題「レポートを仕上げる」を操作した。
 
-![DOPAGAKIの実画面による操作フロー](assets/screen-flow-overview.jpg)
+[登録後の12画面の詳細図](assets/screen-flow-overview.jpg)
 
 図は01から矢印順に読む。2・4行目は右から左。番号は説明用であり、製品の画面IDではない。
 

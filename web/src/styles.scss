@@ -4,7 +4,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: block;
-  src: url('/material-symbols-rounded.woff2') format('woff2');
+  src: url('../public/material-symbols-rounded.woff2') format('woff2');
 }
 
 html {
@@ -247,6 +247,20 @@ nav button.selected .nav-dot {
   place-items: center;
   font-size: 11px;
 }
+.account-panel.mat-mdc-menu-panel {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  margin-top: 10px;
+  @include mat.menu-overrides(
+    (
+      container-color: #f8fafd,
+      container-shape: 24px,
+      container-elevation-shadow: 0 8px 28px rgb(31 31 31 / 18%),
+      item-label-text-color: #1f1f1f,
+      item-label-text-size: 14px,
+    )
+  );
+}
 .demo-badge {
   border: 1px solid #d8ddce;
   border-radius: 5px;
@@ -274,6 +288,15 @@ main {
 }
 .add-button {
   min-height: 43px;
+}
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.page-actions .material-symbols-rounded {
+  margin-right: 6px;
+  font-size: 18px;
 }
 .add-button .material-symbols-rounded {
   margin-right: 6px;

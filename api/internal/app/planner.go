@@ -13,13 +13,14 @@ import (
 )
 
 type TaskInput struct {
-	ID       string    `json:"id"`
-	Title    string    `json:"title"`
-	Notes    string    `json:"notes"`
-	Why      string    `json:"why"`
-	Deadline time.Time `json:"deadline"`
-	Minutes  int       `json:"minutes"`
-	URL      string    `json:"url"`
+	ID           string    `json:"id"`
+	Title        string    `json:"title"`
+	Notes        string    `json:"notes"`
+	Why          string    `json:"why"`
+	Deadline     time.Time `json:"deadline"`
+	Minutes      int       `json:"minutes"`
+	URL          string    `json:"url"`
+	BaseRevision *int      `json:"baseRevision,omitempty"`
 }
 type Planner struct {
 	Client *genai.Client

@@ -61,6 +61,7 @@ export interface State {
   calendarSync: string;
   lastSync?: string;
   nextDraft?: Draft;
+  memoryReceipts?: Record<string, boolean>;
 }
 export interface PlanChange {
   taskId: string;
@@ -85,6 +86,34 @@ export interface Config {
   calendarEnabled: boolean;
   projectId: string;
   firebase?: Record<string, string>;
+}
+export interface TaskInput {
+  id: string;
+  title: string;
+  notes: string;
+  deadline: string;
+  minutes: number;
+  url: string;
+  baseRevision?: number;
+}
+export interface AssistantCard {
+  id: string;
+  kind: 'create' | 'task' | 'memory';
+  input?: TaskInput;
+  taskId?: string;
+  preview?: Plan;
+  revision?: number;
+  memory?: string;
+}
+export interface AssistantTurn {
+  id: string;
+  text: string;
+  reply: string;
+  cards: AssistantCard[];
+  status: 'pending' | 'ready' | 'error';
+  failure?: string;
+  createdAt: string;
+  pendingUntil?: string;
 }
 export const DEFAULT_SETTINGS: Settings = {
   snoozeMinutes: 10,
