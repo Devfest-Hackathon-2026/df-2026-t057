@@ -182,6 +182,9 @@ func validateInput(t TaskInput, now time.Time) error {
 	if utf8.RuneCountInString(t.Notes) > 4000 {
 		return errors.New("メモは4000文字以内にしてください")
 	}
+	if utf8.RuneCountInString(t.Why) > 200 {
+		return errors.New("やる理由は200文字以内にしてください")
+	}
 	if t.URL != "" {
 		u, err := url.Parse(t.URL)
 		if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
@@ -229,7 +232,7 @@ func (s *Server) createTask(ctx context.Context, id string, input TaskInput) (St
 	if s.Calendar != nil && !current.CalendarConnected {
 		return State{}, errors.New("先にGoogleカレンダーを連携してください")
 	}
-	task := Task{ID: input.ID, Title: strings.TrimSpace(input.Title), Notes: input.Notes, Deadline: input.Deadline, Minutes: input.Minutes, URL: input.URL, Status: "pending", CreatedAt: time.Now()}
+	task := Task{ID: input.ID, Title: strings.TrimSpace(input.Title), Notes: input.Notes, Why: strings.TrimSpace(input.Why), Deadline: input.Deadline, Minutes: input.Minutes, URL: input.URL, Status: "pending", CreatedAt: time.Now()}
 	task.Plan, err = s.Planner.Detail(ctx, task, current.Profile)
 	if err != nil {
 		return State{}, err

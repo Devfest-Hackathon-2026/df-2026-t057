@@ -8,7 +8,7 @@
 
 | 項目 | 状態 | 根拠・範囲 |
 |---|---|---|
-| CI | 整備済み・成功確認済み | [.github/workflows/check.yml](../.github/workflows/check.yml)。pushとPRで実行 |
+| CI | 整備済み（変更範囲による実行選択を追加） | [.github/workflows/check.yml](../.github/workflows/check.yml)。PRとmainへのpushで実行。下記の範囲に応じてチェックを選択 |
 | Cloud Runへの配信 | 手動で実施済み | Cloud Buildでイメージ作成後、CLIでCloud Runを更新 |
 | CD | 未整備 | この開発でmainへのマージ等を起点にした自動デプロイを設定していない |
 | Terraform / IaC | 未導入 | Terraformコード・state管理・importは用意していない |
@@ -27,6 +27,21 @@ flowchart LR
 ```
 
 CI成功からCloud Run更新へ自動でつながる経路はまだない。
+
+## CIの実行範囲
+
+PRと `main` へのpushで `check` を実行する。作業ブランチへのpushでは起動せず、同じPR・ブランチに新しい変更が来たら古い実行をキャンセルする。PRはPR全体の差分、mainへのpushはpush前からの差分を判定する。
+
+| 変更箇所 | 実行するチェック |
+|---|---|
+| `web/`・`extension/`・`shared/`・拡張ビルドスクリプト・npm依存・Angular/TypeScript設定 | ビルド、拡張の型確認、Node単体テスト、E2E |
+| `api/` | Go raceテスト、vet、ビルドとE2E（APIとWeb・拡張の連携を確認） |
+| `tests/*.test.ts` のみ | Node単体テスト |
+| `tests/e2e/`・`playwright.config.ts` のみ | ビルドとE2E |
+| CIワークフロー | すべて |
+| 資料・画像など上記の対象外のみ | 変更範囲の判定のみ。依存のインストール・ビルド・テストは省略 |
+
+複数の範囲を変更した場合は、該当するチェックをすべて実行する。資料だけのPRでも `check` の結果を残すため、ワークフロー全体をパス条件で除外せず、各ステップを条件付きで実行する。配信設定の変更検証や自動デプロイは含まない。この実行選択の追加後のGitHub Actions実行結果は未確認。
 
 ## 初期配信時の環境
 
