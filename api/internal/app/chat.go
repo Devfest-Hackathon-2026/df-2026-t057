@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -24,13 +25,26 @@ type chatEvent struct {
 		} `json:"user"`
 		MessagePayload *struct {
 			Message struct {
-				Name         string `json:"name"`
-				Text         string `json:"text"`
-				ArgumentText string `json:"argumentText"`
+				Name         string    `json:"name"`
+				Text         string    `json:"text"`
+				ArgumentText string    `json:"argumentText"`
+				Space        chatSpace `json:"space"`
 			} `json:"message"`
 		} `json:"messagePayload"`
 		AddedToSpacePayload *struct{} `json:"addedToSpacePayload"`
 	} `json:"chat"`
+}
+
+type chatSpace struct {
+	SpaceType string `json:"spaceType"`
+	Type      string `json:"type"`
+}
+
+func (s chatSpace) directMessage() bool {
+	if s.SpaceType != "" {
+		return s.SpaceType == "DIRECT_MESSAGE"
+	}
+	return s.Type == "DM"
 }
 
 func chatReply(w http.ResponseWriter, text string) {
@@ -74,6 +88,10 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	message := event.Chat.MessagePayload.Message
+	if !message.Space.directMessage() {
+		chatReply(w, "DOPAGAKIとの1対1のダイレクトメッセージから課題を送ってください。")
+		return
+	}
 	if message.Name == "" || event.Chat.User.Name == "" {
 		slog.Warn("incomplete Chat event", "hasMessageName", message.Name != "", "hasUserName", event.Chat.User.Name != "")
 		w.WriteHeader(400)
@@ -114,6 +132,9 @@ func (s *Server) chatInputs(ctx context.Context, uid, name, text string, profile
 	ref := s.Calendar.DB.Collection("chatRequests").Doc(hex.EncodeToString(hash[:]))
 	doc, err := ref.Get(ctx)
 	if err == nil {
+		if doc.Data()["uid"] != uid {
+			return nil, errors.New("このメッセージの登録先を確認できませんでした")
+		}
 		raw, err := doc.DataAt("inputs")
 		if err != nil {
 			return nil, err

@@ -8,7 +8,45 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	firebaseauth "firebase.google.com/go/v4/auth"
 )
+
+func TestGoogleIdentityUsesVerifiedProviderSubject(t *testing.T) {
+	token := &firebaseauth.Token{UID: "firebase-user", Claims: map[string]interface{}{"email": "user@example.com"}, Firebase: firebaseauth.FirebaseInfo{Identities: map[string]interface{}{"google.com": []interface{}{"google-subject"}}}}
+	account := tokenGoogleAccount(token)
+	if account.Subject != "google-subject" || account.Email != "user@example.com" {
+		t.Fatal("Google identity was confused with the Firebase UID")
+	}
+	if tokenGoogleAccount(&firebaseauth.Token{}).Subject != "" {
+		t.Fatal("missing Google identity was accepted")
+	}
+}
+
+func TestAccountsCannotReadOrCompleteEachOthersTasks(t *testing.T) {
+	a := client(t)
+	b := a
+	b.cookie = &http.Cookie{Name: "dopagaki_demo", Value: "0123456789abcdef0123456789abcdef"}
+	a.state("POST", "/api/tasks", input())
+	if s := b.state("GET", "/api/state", nil); len(s.Tasks) != 0 || s.BalanceSeconds != 3600 {
+		t.Fatal("new account inherited another account's tasks or credit")
+	}
+	for _, path := range []string{"/api/tasks/one/start", "/api/tasks/one/complete"} {
+		if code, _ := b.call("POST", path, nil); code != 404 {
+			t.Fatalf("cross-account operation %s: %d", path, code)
+		}
+	}
+	if code, _ := b.call("GET", "/api/tasks/one/draft", nil); code != 404 {
+		t.Fatalf("cross-account preview: %d", code)
+	}
+	other := input()
+	other.Title = "別の人の課題"
+	b.state("POST", "/api/tasks", other)
+	b.state("POST", "/api/tasks/one/complete", nil)
+	if s := a.state("GET", "/api/state", nil); s.Tasks[0].Status != "pending" || s.BalanceSeconds != 4200 {
+		t.Fatal("same task ID changed another account")
+	}
+}
 
 type testClient struct {
 	handler http.Handler

@@ -59,7 +59,7 @@ test('unpacked extension connects, counts foreground Shorts and presents a due t
       });
       const { token } = await (await fetch('/api/extension/token', { method: 'POST' })).json();
       window.postMessage(
-        { type: 'DOPAGAKI_CONNECT', apiBase: location.origin, auth: token },
+        { type: 'DOPAGAKI_CONNECT', apiBase: location.origin, auth: token, accountId: token },
         location.origin,
       );
     });

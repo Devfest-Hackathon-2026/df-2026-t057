@@ -7,6 +7,22 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+func TestCalendarAccountMustMatchSignedInGoogleAccount(t *testing.T) {
+	for _, tc := range []struct {
+		expected, actual string
+		allowed          bool
+	}{
+		{"google-a", "google-a", true},
+		{"google-a", "google-b", false},
+		{"", "google-a", false},
+		{"google-a", "", false},
+	} {
+		if err := validateCalendarAccount(tc.expected, tc.actual); (err == nil) != tc.allowed {
+			t.Errorf("account %q -> %q: %v", tc.expected, tc.actual, err)
+		}
+	}
+}
+
 func TestCalendarNotesSurvivePlanReplacement(t *testing.T) {
 	description := "本人のメモ\n\n[DOPAGAKI]\n古い予定\n[/DOPAGAKI]\n追加のメモ"
 	if stripPlan(description) != "本人のメモ\n\n\n追加のメモ" {

@@ -97,9 +97,11 @@
             <br />
             完了したら、YouTube Shortsの視聴時間が増えます。
           </p>
+          <p>課題・予定・視聴時間は、ログインしたアカウントごとに保存します。</p>
           <button mat-flat-button (click)="api.login()" [disabled]="api.busy()">
             Googleでログイン
           </button>
+          <p><a href="/privacy.html" target="_blank" rel="noopener">データの取り扱い</a></p>
         </section>
       } @else if (api.state(); as state) {
         @if (state.calendarConnected && state.calendarSync === 'pending') {
@@ -526,8 +528,12 @@
               <p>ログイン中：{{ api.accountEmail() }}</p>
             }
             <p>
-              GeminiやGoogle
-              Chatからは、DOPAGAKIカレンダーへ課題を登録します。カレンダーに手入力しても取り込まれます。
+              ログイン中と同じGoogleアカウントのカレンダーとChatを使います。
+              連携すると、そのアカウントに専用のDOPAGAKIカレンダーを作成します。
+              Geminiには「DOPAGAKIカレンダーに」と指定してください。
+            </p>
+            <p class="muted">
+              Google ChatはDOPAGAKIアプリとの1対1のDMを使います。アプリの一般配布は準備中です。
             </p>
             <button
               mat-stroked-button
@@ -542,6 +548,11 @@
             @if (api.config()?.mode === 'live') {
               <button mat-button (click)="api.logout()">ログアウト</button>
             }
+            <p>
+              <a href="/privacy.html" target="_blank" rel="noopener">
+                データの取り扱い・削除の依頼
+              </a>
+            </p>
           </section>
         }
       }

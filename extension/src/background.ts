@@ -1,11 +1,16 @@
 import { Draft, State } from '../../shared/models';
 import { Connection, MANAGEMENT_ORIGIN, Reply, Request } from './protocol';
 
+let connectionVersion = 0;
+
 async function connection(): Promise<Connection | undefined> {
   return (await chrome.storage.session.get('connection'))['connection'] as Connection | undefined;
 }
 async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  const version = connectionVersion;
+  await connectionChange;
   const config = await connection();
+  if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
   if (!config) throw new Error('管理画面を開いて接続してください。');
   const response = await fetch(`${config.apiBase}/api${path}`, {
     method,
@@ -13,13 +18,17 @@ async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> 
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const result = await response.json();
+  if (version !== connectionVersion)
+    throw new Error('アカウントが切り替わりました。管理画面から再接続してください。');
   if (!response.ok)
     throw new Error(result.error ?? '通信に失敗しました。管理画面から再接続できます。');
   return result as T;
 }
-async function publish(state: State) {
+async function publish(state: State, version = connectionVersion) {
+  if (version !== connectionVersion) return;
   await chrome.storage.local.set({ state, lastError: '' });
   await chrome.alarms.clear('task-start');
+  if (version !== connectionVersion) return;
   const notified = ((await chrome.storage.local.get('notifiedPlans'))['notifiedPlans'] ??
     {}) as Record<string, string>;
   const next = state.tasks
@@ -30,6 +39,7 @@ async function publish(state: State) {
       when: Math.max(Date.now() + 1000, Date.parse(next.plan.start)),
     });
   const tabs = await chrome.tabs.query({});
+  if (version !== connectionVersion) return;
   await Promise.allSettled(
     tabs
       .filter((t) => t.id)
@@ -39,8 +49,9 @@ async function publish(state: State) {
   await chrome.action.setBadgeBackgroundColor({ color: '#2858eb' });
 }
 async function refresh() {
+  const version = connectionVersion;
   const state = await api<State>('/state');
-  await publish(state);
+  await publish(state, version);
   return state;
 }
 async function openApp(path = '') {
@@ -54,6 +65,36 @@ function trustedPage(sender: chrome.runtime.MessageSender): boolean {
   return sender.id === chrome.runtime.id;
 }
 
+async function clearAccount() {
+  await chrome.storage.local.remove(['state', 'notifiedPlans', 'lastError']);
+  await chrome.alarms.clear('task-start');
+  const notifications = await chrome.notifications.getAll();
+  await Promise.all(
+    Object.keys(notifications)
+      .filter((id) => id.startsWith('task:'))
+      .map((id) => chrome.notifications.clear(id)),
+  );
+  const tabs = await chrome.tabs.query({});
+  await Promise.allSettled(
+    tabs.filter((t) => t.id).map((t) => chrome.tabs.sendMessage(t.id!, { type: 'STATE_UPDATED' })),
+  );
+  await chrome.action.setBadgeText({ text: '' });
+}
+
+let connectionChange = Promise.resolve();
+function replaceConnection(next?: Connection): Promise<void> {
+  connectionVersion++;
+  const change = connectionChange.then(async () => {
+    const previous = await connection();
+    await chrome.storage.session.remove('connection');
+    if (!next || next.accountId !== previous?.accountId) await clearAccount();
+    if (next) await chrome.storage.session.set({ connection: next });
+  });
+  // Return failures to the caller while allowing the next connection attempt to run.
+  connectionChange = change.catch(() => {});
+  return change;
+}
+
 chrome.runtime.onMessage.addListener(
   (request: Request, sender, respond: (value: Reply) => void) => {
     if (!trustedPage(sender)) return;
@@ -62,24 +103,17 @@ chrome.runtime.onMessage.addListener(
         if (
           !trustedManagement(sender) ||
           request.connection.apiBase !== MANAGEMENT_ORIGIN ||
+          typeof request.connection.accountId !== 'string' ||
+          !request.connection.accountId ||
           !/^(Bearer |Demo )\S+$/.test(request.connection.auth)
         )
           throw new Error('接続元を確認してください。');
-        await chrome.storage.session.set({ connection: request.connection });
+        await replaceConnection(request.connection);
         return { state: await refresh(), connected: true };
       }
       if (request.type === 'DISCONNECT') {
         if (!trustedManagement(sender)) throw new Error('接続元を確認してください。');
-        await chrome.storage.session.remove('connection');
-        await chrome.storage.local.remove(['state', 'notifiedPlans']);
-        await chrome.alarms.clear('task-start');
-        const tabs = await chrome.tabs.query({});
-        await Promise.allSettled(
-          tabs
-            .filter((t) => t.id)
-            .map((t) => chrome.tabs.sendMessage(t.id!, { type: 'STATE_UPDATED' })),
-        );
-        await chrome.action.setBadgeText({ text: '' });
+        await replaceConnection();
         return { connected: false };
       }
       if (request.type === 'OPEN_APP') {

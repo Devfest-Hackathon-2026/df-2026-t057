@@ -84,6 +84,15 @@ export class App implements OnDestroy {
   }, 30000);
 
   constructor() {
+    effect(() => {
+      if (!this.api.state()) {
+        this.dialog.closeAll();
+        this.preview.set(null);
+        this.page.set('today');
+        this.settings = { ...DEFAULT_SETTINGS };
+        this.profile = { name: '', context: '', timeZone: 'Asia/Tokyo' };
+      }
+    });
     const params = new URLSearchParams(location.search);
     const taskId = params.get('snooze') ?? params.get('notification');
     let notificationOpened = false;
@@ -97,7 +106,9 @@ export class App implements OnDestroy {
     });
     void this.api.init().then(() => {
       if (new URLSearchParams(location.search).get('calendar') === 'error')
-        this.api.error.set('カレンダーを連携できませんでした。設定からもう一度お試しください。');
+        this.api.error.set(
+          'ログイン中と同じGoogleアカウントを選び、設定からカレンダーを連携し直してください。',
+        );
     });
   }
   ngOnDestroy() {

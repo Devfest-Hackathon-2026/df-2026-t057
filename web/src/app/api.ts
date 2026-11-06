@@ -21,6 +21,8 @@ export class Api {
   readonly accountEmail = signal('');
   private auth?: Auth;
   private token = '';
+  private accountId = '';
+  private sessionVersion = 0;
 
   async init() {
     try {
@@ -33,20 +35,31 @@ export class Api {
         this.auth = getAuth(initializeApp(config.firebase));
         await new Promise<void>((resolve) => {
           onIdTokenChanged(this.auth!, async (user) => {
+            if ((user?.uid ?? '') !== this.accountId) {
+              this.accountId = user?.uid ?? '';
+              this.sessionVersion++;
+              this.token = '';
+              this.state.set(null);
+              this.error.set('');
+              window.postMessage({ type: 'DOPAGAKI_DISCONNECT' }, location.origin);
+            }
+            const version = this.sessionVersion;
             this.signedIn.set(!!user);
             this.accountEmail.set(user?.email ?? '');
             this.loading.set(!this.state());
             try {
-              this.token = user ? await user.getIdToken() : '';
+              const token = user ? await user.getIdToken() : '';
+              if (version !== this.sessionVersion) return;
+              this.token = token;
               if (user) await this.refresh();
               else {
                 this.state.set(null);
                 window.postMessage({ type: 'DOPAGAKI_DISCONNECT' }, location.origin);
               }
             } catch (e) {
-              this.error.set(message(e));
+              if (version === this.sessionVersion) this.error.set(message(e));
             } finally {
-              this.loading.set(false);
+              if (version === this.sessionVersion) this.loading.set(false);
               resolve();
             }
           });
@@ -65,13 +78,16 @@ export class Api {
       return;
     }
     await this.run(async () => {
-      await signInWithPopup(this.auth!, new GoogleAuthProvider());
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      await signInWithPopup(this.auth!, provider);
     });
   }
   async logout() {
     if (this.auth) await signOut(this.auth);
   }
   async request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+    const version = this.sessionVersion;
     const response = await fetch(`/api${path}`, {
       method,
       headers: {
@@ -84,6 +100,8 @@ export class Api {
       throw new Error('サーバーへ接続できませんでした。少し待って再試行してください。');
     }
     const data = await response.json();
+    if (version !== this.sessionVersion)
+      throw new Error('アカウントが切り替わりました。操作をやり直してください。');
     if (!response.ok)
       throw new Error(data.error ?? '通信に失敗しました。もう一度お試しください。', {
         cause: response.status,
@@ -123,7 +141,12 @@ export class Api {
         ? (await this.request<{ token: string }>('/extension/token', 'POST')).token
         : `Bearer ${this.token}`;
     window.postMessage(
-      { type: 'DOPAGAKI_CONNECT', apiBase: location.origin, auth },
+      {
+        type: 'DOPAGAKI_CONNECT',
+        apiBase: location.origin,
+        auth,
+        accountId: this.accountId || auth,
+      },
       location.origin,
     );
   }

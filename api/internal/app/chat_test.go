@@ -8,7 +8,7 @@ import (
 
 func TestWorkspaceChatMessageContract(t *testing.T) {
 	// Live add-on events serialize unused membership counts as 1.0, unlike the REST SDK's int64.
-	raw := `{"commonEventObject":{"hostApp":"CHAT"},"chat":{"user":{"name":"users/123"},"messagePayload":{"message":{"name":"spaces/one/messages/two","text":"明日18時までにレポート、必要時間30分","space":{"membershipCount":{"joinedDirectHumanUserCount":1.0}}}}}}`
+	raw := `{"commonEventObject":{"hostApp":"CHAT"},"chat":{"user":{"name":"users/123"},"messagePayload":{"message":{"name":"spaces/one/messages/two","text":"明日18時までにレポート、必要時間30分","space":{"type":"DM","spaceType":"DIRECT_MESSAGE","membershipCount":{"joinedDirectHumanUserCount":1.0}}}}}}`
 	var event chatEvent
 	if err := json.Unmarshal([]byte(raw), &event); err != nil {
 		t.Fatal(err)
@@ -42,5 +42,22 @@ func TestChatRejectsUnauthenticatedRequests(t *testing.T) {
 	s.chat(w, httptest.NewRequest("POST", "/api/chat", nil))
 	if w.Code != 401 {
 		t.Fatalf("unauthenticated Chat request: %d", w.Code)
+	}
+}
+
+func TestChatAcceptsOnlyOneToOneConversations(t *testing.T) {
+	for _, tc := range []struct {
+		space   chatSpace
+		allowed bool
+	}{
+		{chatSpace{SpaceType: "DIRECT_MESSAGE"}, true},
+		{chatSpace{Type: "DM"}, true},
+		{chatSpace{SpaceType: "SPACE", Type: "DM"}, false},
+		{chatSpace{SpaceType: "GROUP_CHAT"}, false},
+		{chatSpace{}, false},
+	} {
+		if tc.space.directMessage() != tc.allowed {
+			t.Errorf("space %+v: expected %v", tc.space, tc.allowed)
+		}
 	}
 }

@@ -79,6 +79,18 @@ func (s *Server) config(w http.ResponseWriter, r *http.Request) {
 }
 
 type userKey struct{}
+type googleAccountKey struct{}
+type googleAccount struct{ Subject, Email string }
+
+func tokenGoogleAccount(token *firebaseauth.Token) googleAccount {
+	identities, _ := token.Firebase.Identities["google.com"].([]interface{})
+	var subject string
+	if len(identities) == 1 {
+		subject, _ = identities[0].(string)
+	}
+	email, _ := token.Claims["email"].(string)
+	return googleAccount{Subject: subject, Email: email}
+}
 
 func uid(r *http.Request) string { return r.Context().Value(userKey{}).(string) }
 func (s *Server) protected(next http.HandlerFunc) http.HandlerFunc {
@@ -107,6 +119,7 @@ func (s *Server) protected(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 			id = verified.UID
+			r = r.WithContext(context.WithValue(r.Context(), googleAccountKey{}, tokenGoogleAccount(verified)))
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), userKey{}, id)))
 	}

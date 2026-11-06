@@ -84,17 +84,18 @@ func (c *Calendar) service(ctx context.Context, uid string) (*calendar.Service, 
 	}
 	return calendar.NewService(ctx, option.WithHTTPClient(c.OAuth.Client(ctx, &token)))
 }
-func (c *Calendar) connect(ctx context.Context, uid string) (string, error) {
+func (c *Calendar) connect(ctx context.Context, uid, googleID, email string) (string, error) {
 	state := newID()
-	_, err := c.DB.Collection("oauthStates").Doc(state).Set(ctx, map[string]any{"uid": uid, "expires": time.Now().Add(10 * time.Minute)})
+	_, err := c.DB.Collection("oauthStates").Doc(state).Set(ctx, map[string]any{"uid": uid, "googleId": googleID, "expires": time.Now().Add(10 * time.Minute)})
 	if err != nil {
 		return "", err
 	}
-	return c.OAuth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent")), nil
+	return c.OAuth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent select_account"), oauth2.SetAuthURLParam("login_hint", email)), nil
 }
 func (c *Calendar) callback(ctx context.Context, state, code string) error {
 	ref := c.DB.Collection("oauthStates").Doc(state)
 	var uid string
+	var googleID string
 	err := c.DB.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		doc, err := tx.Get(ref)
 		if err != nil {
@@ -106,6 +107,7 @@ func (c *Calendar) callback(ctx context.Context, state, code string) error {
 		}
 		value, _ := doc.DataAt("uid")
 		uid = value.(string)
+		googleID, _ = doc.Data()["googleId"].(string)
 		return tx.Delete(ref)
 	})
 	if err != nil {
@@ -118,6 +120,9 @@ func (c *Calendar) callback(ctx context.Context, state, code string) error {
 	rawID, _ := token.Extra("id_token").(string)
 	identity, err := idtoken.Validate(ctx, rawID, c.OAuth.ClientID)
 	if err != nil {
+		return err
+	}
+	if err = validateCalendarAccount(googleID, identity.Subject); err != nil {
 		return err
 	}
 	if token.RefreshToken == "" {
@@ -155,6 +160,13 @@ func (c *Calendar) callback(ctx context.Context, state, code string) error {
 		return err
 	}
 	return c.watch(ctx, &conn, service)
+}
+
+func validateCalendarAccount(expected, actual string) error {
+	if expected == "" || expected != actual {
+		return errors.New("ログイン中と同じGoogleアカウントでカレンダーを連携してください")
+	}
+	return nil
 }
 func (c *Calendar) watch(ctx context.Context, conn *Connection, svc *calendar.Service) error {
 	channel := &calendar.Channel{Id: newID(), Type: "web_hook", Address: c.AppURL + "/api/calendar/webhook", Token: newID(), Expiration: time.Now().Add(6 * 24 * time.Hour).UnixMilli()}
@@ -445,7 +457,12 @@ func (s *Server) connectCalendar(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, errors.New("デモでは実際のカレンダーへ接続しません"))
 		return
 	}
-	location, err := s.Calendar.connect(r.Context(), uid(r))
+	account, _ := r.Context().Value(googleAccountKey{}).(googleAccount)
+	if account.Subject == "" {
+		respond(w, nil, errors.New("Googleアカウントでログインし直してください"))
+		return
+	}
+	location, err := s.Calendar.connect(r.Context(), uid(r), account.Subject, account.Email)
 	respond(w, map[string]string{"url": location}, err)
 }
 func (s *Server) calendarCallback(w http.ResponseWriter, r *http.Request) {

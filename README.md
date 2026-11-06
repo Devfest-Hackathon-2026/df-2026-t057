@@ -4,6 +4,8 @@ YouTube Shortsから、いま始める課題へ戻るためのChrome拡張と管
 
 公開環境：[DOPAGAKI](https://dopagaki-1032251723022.asia-northeast1.run.app/)。Googleログインして使います。Chrome拡張は、この公開先を指定してビルドしてください。
 
+課題・予定・視聴時間はGoogleアカウントごとに保存します。カレンダー連携もログイン中と同じGoogleアカウントを使い、本人の専用DOPAGAKIカレンダーへ登録します。Google Chatは本人とDOPAGAKIの1対1のDMを使う設計ですが、アプリの一般配布は準備中です。[一般ユーザー対応の現状](engineering/public-accounts.md)を参照してください。
+
 実装の仕様は、この会話の確定事項と[指定のSlack投稿]([内部リンク削除])を基にしています。`docs/` は別案の資料であり、このアプリの仕様ではありません。
 
 ## 開発記録と発表用の根拠
@@ -132,7 +134,7 @@ APP_URL=https://<管理画面のオリジン> npm run build:extension
 | 通知・作業 | 実時刻の全画面通知、事前候補からのスヌーズ確認、手動調整、OK後の保存、上部の作業バー、完了時20分の付与 |
 | Cloud Scheduler | 毎日09:00（日本時間）のCalendar監視更新を設定。手動実行も成功 |
 
-カレンダー側の新規予定は、専用カレンダーを指定したCalendar APIから投入して検証しました。Googleカレンダーの一般画面での手入力操作は検証していません。ローカルの拡張E2Eは合成Shorts DOMを使用し、上表の実YouTubeでの確認とは区別しています。
+カレンダー側の新規予定は、専用Calendar APIからの投入に加え、一般画面での手入力・保存からの自動取り込みも確認しました。[実画面と検証条件](engineering/intake-flow.md)を保存しています。ローカルの拡張E2Eは合成Shorts DOMを使用し、上表の実YouTubeでの確認とは区別しています。
 
 配信コードは `a25837c`、Cloud Runリビジョンは `dopagaki-00006-btr` です。1 CPU / 512MiB、最小0・最大2インスタンス。Firestoreの直接クライアントアクセスは拒否し、API実行アカウントで読み書きします。課金・予算設定は変更していません。
 

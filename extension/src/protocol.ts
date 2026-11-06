@@ -3,6 +3,7 @@ import type { Draft, State } from '../../shared/models';
 export interface Connection {
   apiBase: string;
   auth: string;
+  accountId: string;
 }
 export interface Snapshot {
   state?: State;
