@@ -8,6 +8,8 @@
 
 | 文書 | 内容 |
 |---|---|
+| [継続的デプロイ](continuous-deployment.md) | mainの検証後の自動配信、鍵なし認証、候補確認とロールバック |
+| [画面構成の4案](navigation-proposals.md) | 作業・相談・カレンダー・習慣を中心にしたツリーと比較 |
 | [管理画面のAI相談](assistant.md) | 編集できる予定カード、会話の保存、確認して覚える作業傾向、Google Chatの廃止 |
 | [Chrome風プロフィールメニュー](chrome-account-menu.md) | 採用デザイン、実装、認証中とキャンセル、表示確認と本番配信 |
 | [一般ユーザー対応](public-accounts.md) | 本人のGoogleアカウント照合、旧個別DM、アカウント切替、運営者と利用者の区別、配布上の制約 |
