@@ -113,6 +113,12 @@
             使い方を見る
           </span>
         </button>
+        <button mat-menu-item routerLink="/about" (click)="accountTrigger.closeMenu()">
+          <span class="action-content">
+            <span class="material-symbols-rounded" aria-hidden="true">info</span>
+            このアプリについて
+          </span>
+        </button>
         <button mat-menu-item (click)="api.login()" [disabled]="api.busy()">
           <span class="action-content">
             <span class="material-symbols-rounded" aria-hidden="true">person_add</span>

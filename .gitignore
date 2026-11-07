@@ -47,3 +47,6 @@ test-results/
 api/server
 .local/
 coverage/
+
+# 宣伝動画の作成スクリプトと書き出し（コミットしない）
+video/
