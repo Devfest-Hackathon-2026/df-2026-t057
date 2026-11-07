@@ -20,7 +20,13 @@
     @for (entry of state.ledger.slice().reverse(); track entry.id) {
       <div class="ledger-row">
         <span aria-hidden="true" class="material-symbols-rounded">
-          {{ entry.kind === 'completion' ? 'task_alt' : 'add_circle' }}
+          {{
+            entry.kind === 'completion'
+              ? 'task_alt'
+              : entry.kind === 'sleep'
+                ? 'bedtime'
+                : 'add_circle'
+          }}
         </span>
         <div>
           <strong>
@@ -29,12 +35,16 @@
                 ? 'はじめの視聴時間'
                 : entry.kind === 'registration'
                   ? '課題を登録'
-                  : '課題を完了'
+                  : entry.kind === 'sleep'
+                    ? 'ショートを見ずに寝られた朝'
+                    : '課題を完了'
             }}
           </strong>
           <p>{{ entry.at | date: 'M/d HH:mm' }}</p>
         </div>
-        <strong class="ledger-credit">＋{{ entry.seconds / 60 }}分</strong>
+        <strong class="ledger-credit">
+          ＋{{ entry.seconds / 60 }}分{{ entry.deferred ? '（朝に受け取り）' : '' }}
+        </strong>
       </div>
     }
   </section>

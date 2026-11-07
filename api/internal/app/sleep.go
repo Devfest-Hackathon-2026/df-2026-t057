@@ -166,6 +166,11 @@ func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
 		if current.Sleep.Bedtime != in.Bedtime || current.Sleep.Wake != in.Wake {
 			next.Since = time.Now()
 		}
+	} else {
+		// A new bedtime starts tonight; the night already over is not a missed one.
+		preview := current
+		preview.Sleep = &next
+		next.Settled, _, _ = preview.lastNight(time.Now())
 	}
 	if s.Calendar != nil && current.CalendarConnected {
 		if next.EventID, err = s.Calendar.UpsertSleep(ctx, id, next, location(current)); err != nil {
@@ -181,6 +186,16 @@ func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) morning(w http.ResponseWriter, r *http.Request) {
+	current, err := s.Store.Read(r.Context(), uid(r))
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	// Most page loads have nothing to settle; skip the write for them.
+	if preview := clone(current); preview.settleMorning(time.Now()) == nil {
+		respond(w, map[string]any{"state": current, "morning": nil}, nil)
+		return
+	}
 	var morning *Morning
 	st, err := s.Store.Update(r.Context(), uid(r), func(st *State) error {
 		morning = st.settleMorning(time.Now())

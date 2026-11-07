@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -78,8 +79,16 @@ func TestSleepEndpointsInDemo(t *testing.T) {
 	if state.Sleep == nil || state.Sleep.Bedtime != "23:30" {
 		t.Fatalf("bedtime not saved: %+v", state.Sleep)
 	}
-	if code, _ := c.call("POST", "/api/sleep/morning", nil); code != 200 {
-		t.Fatal("morning check-in failed")
+	code, raw := c.call("POST", "/api/sleep/morning", nil)
+	var out struct {
+		State   State    `json:"state"`
+		Morning *Morning `json:"morning"`
+	}
+	if code != 200 || json.Unmarshal(raw, &out) != nil || out.Morning != nil {
+		t.Fatalf("morning check-in: %d %s", code, raw)
+	}
+	if out.State.Revision != state.Revision {
+		t.Fatal("a check-in with nothing to settle wrote the state")
 	}
 	if state := c.state("PUT", "/api/sleep", map[string]string{"bedtime": "", "wake": ""}); state.Sleep != nil {
 		t.Fatal("bedtime not cleared")

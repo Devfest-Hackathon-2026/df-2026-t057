@@ -45,8 +45,15 @@ export class TaskActions {
     }
   }
   async complete(task: Task) {
-    if (await this.api.mutate(`/tasks/${task.id}/complete`))
-      this.snack.open('課題完了！ 視聴時間 ＋20分', '閉じる', { duration: 5000 });
+    if (!(await this.api.mutate(`/tasks/${task.id}/complete`))) return;
+    const deferred = this.api
+      .state()
+      ?.ledger.some((e) => e.id === `completion:${task.id}` && e.deferred);
+    this.snack.open(
+      deferred ? '課題完了！ ＋20分は朝に受け取れます' : '課題完了！ 視聴時間 ＋20分',
+      '閉じる',
+      { duration: 5000 },
+    );
   }
   async connect() {
     await this.api.run(async () => {
