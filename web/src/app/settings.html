@@ -327,6 +327,69 @@
         }
       </div>
     </mat-expansion-panel>
+    <mat-expansion-panel class="settings-expansion" [disabled]="saving()">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <span class="setting-icon material-symbols-rounded" aria-hidden="true">smartphone</span>
+          iPhoneのショートカット
+        </mat-panel-title>
+        <mat-panel-description>
+          {{ api.state()?.shortcut ? '接続キー発行済み' : '未設定' }}
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      <p>
+        iPhoneのYouTubeアプリを開いたときに、次の課題に触れた相棒の一言を通知で出します。止めたりはしません。
+      </p>
+      @if (shortcutKey(); as key) {
+        <p class="settings-hint" role="status">
+          この接続キーは今だけ表示します。ショートカットに貼り付けてください。
+        </p>
+        <mat-form-field appearance="outline">
+          <mat-label>接続キー</mat-label>
+          <input matInput name="shortcutKey" [value]="key" readonly />
+        </mat-form-field>
+        <button mat-stroked-button type="button" (click)="copyShortcutKey()">コピー</button>
+        <details class="disclosure">
+          <summary>ショートカットの作り方</summary>
+          <ol>
+            <li>
+              ショートカットアプリ →「オートメーション」→「App」→ YouTube、「開いている」を選ぶ
+            </li>
+            <li>「すぐに実行」を選び、新規ショートカットを作る</li>
+            <li>
+              「URLの内容を取得」：URL に {{ shortcutURL }}、方法 POST、ヘッダに Authorization
+              ＝「Shortcut 接続キー」
+            </li>
+            <li>「辞書の値を取得」で message を取り出し、「通知を表示」で表示する</li>
+          </ol>
+        </details>
+      } @else if (api.state()?.shortcut; as shortcut) {
+        <p class="settings-hint">
+          {{ shortcut.createdAt | date: 'M/d HH:mm' }}
+          に発行しました。キーをなくしたときは再発行してください（古いキーは使えなくなります）。
+        </p>
+      }
+      <div class="card-actions">
+        <button
+          mat-flat-button
+          type="button"
+          (click)="issueShortcut()"
+          [disabled]="api.busy() || saving()"
+        >
+          {{ api.state()?.shortcut ? '接続キーを再発行' : '接続キーを発行' }}
+        </button>
+        @if (api.state()?.shortcut) {
+          <button
+            mat-button
+            type="button"
+            (click)="revokeShortcut()"
+            [disabled]="api.busy() || saving()"
+          >
+            無効にする
+          </button>
+        }
+      </div>
+    </mat-expansion-panel>
   </mat-accordion>
   <div class="settings-actions">
     <p class="settings-hint" aria-live="polite">

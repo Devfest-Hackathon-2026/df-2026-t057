@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -13,6 +14,7 @@ import { TaskActions } from './task-actions';
 @Component({
   selector: 'app-settings',
   imports: [
+    DatePipe,
     FormsModule,
     MatButtonModule,
     MatFormFieldModule,
@@ -47,6 +49,27 @@ export class Settings {
     if (this.saving() || this.api.busy() || this.api.state()?.session) return;
     if (await this.api.mutate('/time-policy', this.timePolicy, 'PUT'))
       this.snack.open('視聴時間の設定を保存しました', '閉じる', { duration: 3000 });
+  }
+  // The key is shown once after issuing; the server keeps only its hash.
+  readonly shortcutKey = signal('');
+  readonly shortcutURL = `${location.origin}/api/shortcut/open`;
+  async issueShortcut() {
+    const issued = await this.api
+      .request<{ key: string }>('/shortcut/key', 'POST')
+      .catch((e: Error) => (this.api.error.set(e.message), null));
+    if (!issued) return;
+    this.shortcutKey.set(issued.key);
+    await this.api.refresh();
+  }
+  async revokeShortcut() {
+    if (await this.api.mutate('/shortcut/key', undefined, 'DELETE')) {
+      this.shortcutKey.set('');
+      this.snack.open('接続キーを無効にしました', '閉じる', { duration: 3000 });
+    }
+  }
+  async copyShortcutKey() {
+    await navigator.clipboard.writeText(this.shortcutKey());
+    this.snack.open('接続キーをコピーしました', '閉じる', { duration: 3000 });
   }
   readonly sleep = {
     bedtime: this.api.state()!.sleep?.bedtime ?? '23:30',

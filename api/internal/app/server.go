@@ -28,6 +28,8 @@ type Server struct {
 	AppURL    string
 	Firebase  map[string]string
 	Assistant AssistantStore
+	// shortcuts limits the unauthenticated Shortcuts endpoint per account and in total.
+	shortcuts rateLimit
 }
 
 func (s *Server) now() time.Time {
@@ -59,6 +61,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/assistant/preview", s.protected(s.assistantPreview))
 	mux.HandleFunc("POST /api/companion/line", s.protected(s.companionLine))
 	mux.HandleFunc("PUT /api/sleep", s.protected(s.setSleep))
+	mux.HandleFunc("POST /api/shortcut/key", s.protected(s.issueShortcut))
+	mux.HandleFunc("DELETE /api/shortcut/key", s.protected(s.revokeShortcut))
+	mux.HandleFunc("POST /api/shortcut/open", s.shortcutOpen)
 	mux.HandleFunc("POST /api/sleep/morning", s.protected(s.morning))
 	mux.HandleFunc("POST /api/tasks", s.protected(s.addTask))
 	mux.HandleFunc("POST /api/tasks/{id}/preview", s.protected(s.previewTaskEdit))

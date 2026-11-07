@@ -14,6 +14,8 @@ import (
 type Store interface {
 	Read(context.Context, string) (State, error)
 	Update(context.Context, string, func(*State) error) (State, error)
+	// Find reads an existing account without creating one, for requests that are not signed in.
+	Find(context.Context, string) (State, bool, error)
 }
 type MemoryStore struct {
 	mu     sync.Mutex
@@ -41,6 +43,12 @@ func (m *MemoryStore) Read(_ context.Context, uid string) (State, error) {
 	}
 	m.states[uid] = s
 	return clone(s), nil
+}
+func (m *MemoryStore) Find(_ context.Context, uid string) (State, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, ok := m.states[uid]
+	return clone(s), ok, nil
 }
 func (m *MemoryStore) Update(_ context.Context, uid string, fn func(*State) error) (State, error) {
 	m.mu.Lock()
@@ -83,6 +91,17 @@ func (f *FirestoreStore) Read(ctx context.Context, uid string) (State, error) {
 		return f.Update(ctx, uid, func(*State) error { return nil })
 	}
 	return s, err
+}
+func (f *FirestoreStore) Find(ctx context.Context, uid string) (State, bool, error) {
+	doc, err := f.DB.Collection("users").Doc(uid).Get(ctx)
+	if status.Code(err) == codes.NotFound {
+		return State{}, false, nil
+	}
+	if err != nil {
+		return State{}, false, err
+	}
+	s, err := stateFrom(doc)
+	return s, err == nil, err
 }
 func (f *FirestoreStore) Update(ctx context.Context, uid string, fn func(*State) error) (State, error) {
 	ref := f.DB.Collection("users").Doc(uid)
