@@ -18,6 +18,9 @@ test('CSP preserves the calendar and dialogs while blocking injected inline scri
   expect(policy).not.toContain("'unsafe-eval'");
   const nonce = policy.match(/'nonce-([^']+)'/)![1];
   await expect(page.locator('app-calendar-workspace')).toBeVisible();
+  await page.getByRole('button', { name: '視聴時間について', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '視聴時間について' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '課題を登録', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(await violations()).toEqual([]);

@@ -13,13 +13,14 @@ test('collapsed task details preserve drafts and are saved only on confirmation'
   expect(await emptyIcon.evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(
     32,
   );
-  const help = page.locator('.credit-help');
-  await expect(help.getByText('初回10分。', { exact: false })).not.toBeVisible();
-  await help.locator('summary').focus();
+  const help = page.getByRole('button', { name: '視聴時間について', exact: true });
+  await help.focus();
   await page.keyboard.press('Enter');
-  await expect(help).toContainText('作業5分の記録で視聴1分');
-  await page.keyboard.press('Enter');
-  await expect(help.getByText('初回10分。', { exact: false })).not.toBeVisible();
+  const explanation = page.getByRole('dialog', { name: '視聴時間について' });
+  await expect(explanation).toContainText('作業を記録すると、5分につき視聴1分');
+  await page.keyboard.press('Escape');
+  await expect(explanation).not.toBeVisible();
+  await expect(help).toBeFocused();
 
   await page.getByRole('button', { name: '課題を登録', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -32,7 +33,7 @@ test('collapsed task details preserve drafts and are saved only on confirmation'
   await dialog.getByLabel('やること・メモ').fill('構成から書き始める');
   await dialog.getByLabel('目的（任意）').fill('発表に備える');
   await details.locator('summary').click();
-  await dialog.getByRole('radio', { name: '相談', exact: true }).click();
+  await dialog.getByRole('radio', { name: 'AIに相談', exact: true }).click();
   await dialog.getByRole('radio', { name: '手入力', exact: true }).click();
   await details.locator('summary').click();
   await expect(dialog.getByLabel('やること・メモ')).toHaveValue('構成から書き始める');

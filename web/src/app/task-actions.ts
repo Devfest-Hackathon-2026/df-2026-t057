@@ -14,7 +14,11 @@ export class TaskActions {
   readonly preview = signal<Task | null>(null);
 
   add() {
-    this.dialog.open(TaskDialog, { width: '640px', maxWidth: '96vw', disableClose: true });
+    this.dialog.open(TaskDialog, {
+      width: '560px',
+      maxWidth: 'calc(100vw - 32px)',
+      disableClose: true,
+    });
   }
   edit(task: Task) {
     this.dialog.open(TaskDialog, {

@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 :host {
   display: block;
 }
@@ -19,50 +21,223 @@
   flex-shrink: 0;
 }
 .workspace-summary {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.7fr);
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.workspace-credit,
+.workspace-next {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 22px;
+}
+.workspace-credit {
+  background: #edf1e7;
+}
+.workspace-next {
+  background: #fff;
+}
+.summary-label {
+  font-size: 12px;
+  color: #626a5c;
+  margin-bottom: 14px;
+}
+.summary-label span {
+  display: inline-block;
+  font-weight: 400;
+}
+.credit-number {
+  display: block;
+  font-size: 44px;
+  font-weight: 500;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1.5px;
+}
+.credit-number small {
+  font-size: 16px;
+  margin-left: 4px;
+  letter-spacing: 0;
+}
+.credit-number.unlimited {
+  font-size: 28px;
+}
+.credit-help {
+  @include mat.button-overrides(
+    (
+      text-label-text-color: #626a5c,
+    )
+  );
+  margin: 12px 0 -8px -12px;
+  font-size: 12px;
+  color: #626a5c;
+}
+.credit-help-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.credit-help .material-symbols-rounded {
+  font-size: 17px;
+}
+.next-task {
+  @include mat.button-overrides(
+    (
+      text-label-text-color: var(--ink),
+      text-horizontal-padding: 0,
+    )
+  );
+  width: 100%;
+  height: auto;
+  min-height: 36px;
+  padding: 4px 0;
+  text-align: left;
+  justify-content: flex-start;
+  white-space: normal;
+  color: var(--ink);
+}
+.next-task-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.next-task-content strong {
+  font-size: 18px;
+  line-height: 1.6;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.next-task-footer {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 24px;
-  padding: 14px 18px;
-  background: #edf1e7;
-  border-radius: 16px;
+  gap: 8px 16px;
+  margin-top: 14px;
 }
-.workspace-credit {
+.next-task-time {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-right: 18px;
-  border-right: 1px solid #d4ddcb;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  color: #626a5c;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
-.workspace-credit > span {
-  font-size: 11px;
+.next-task-time .material-symbols-rounded {
+  font-size: 18px;
 }
-.workspace-credit .credit-number {
-  font-size: 28px;
-  line-height: 1.4;
-  letter-spacing: -1px;
+.next-task-time > span:last-child {
+  font-size: 12px;
+}
+.next-task-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.next-task-actions .material-symbols-rounded {
+  font-size: 20px;
+}
+.next-task-empty {
+  font-size: 18px;
+  font-weight: 500;
+}
+.summary-note {
+  font-size: 12px;
+  color: #626a5c;
+  margin-bottom: 0;
+}
+.credit-info-panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 14px 50px #20251f26;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.credit-info-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.credit-info-heading h2 {
+  font-size: 17px;
   margin: 0;
 }
-.credit-number small {
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0;
+.credit-info-balance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 20px;
 }
-.next-task {
-  max-width: 360px;
-}
-.next-task span {
+.credit-info-balance p {
+  color: #626a5c;
   font-size: 11px;
-  margin: 0 6px;
+  margin: 0 0 6px;
 }
-.next-task strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.credit-info-balance strong {
+  font-size: 30px;
+  font-weight: 500;
+}
+.credit-rule {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.credit-rule > .material-symbols-rounded {
+  font-size: 20px;
+  color: #626a5c;
+}
+.credit-rule h3 {
+  font-size: 12px;
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+.credit-rule p,
+.credit-info-note,
+.credit-info-panel .disclosure {
+  font-size: 11px;
+  color: #626a5c;
+  margin-bottom: 0;
+}
+.credit-info-note {
+  margin-top: 16px;
+}
+.credit-info-panel .disclosure {
+  margin-top: 10px;
+}
+@media (max-width: 700px) {
+  .workspace-summary {
+    grid-template-columns: 1fr;
+  }
+  .workspace-credit,
+  .workspace-next {
+    padding: 18px;
+  }
+  .credit-number {
+    font-size: 40px;
+  }
+  .workspace-title {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .next-task-content strong {
+    font-size: 17px;
+  }
 }
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 24px;
   align-items: start;
 }
@@ -165,17 +340,6 @@
   .workspace-title h1 {
     font-size: 26px;
   }
-  .workspace-summary {
-    padding: 12px;
-    gap: 8px;
-  }
-  .workspace-credit {
-    border: 0;
-    width: 100%;
-  }
-  .next-task {
-    max-width: 100%;
-  }
   .calendar-surface,
   .workspace-panel {
     padding: 12px;
@@ -208,12 +372,6 @@
   line-height: 1.2;
 }
 
-.credit-help {
-  margin-left: auto;
-}
-.credit-help[open] {
-  flex-basis: 100%;
-}
 .calendar-empty > .material-symbols-rounded {
   font-size: 32px;
   color: #7b8e6b;

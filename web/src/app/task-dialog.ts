@@ -32,6 +32,20 @@ import { Api, localDate, message } from './api';
     .input-panel {
       padding-top: 8px;
     }
+    .registration-reward {
+      font-size: 11px;
+      color: #626a5c;
+      margin: 0 auto 0 0;
+    }
+    mat-dialog-actions {
+      gap: 4px;
+      row-gap: 12px;
+    }
+    @media (max-width: 550px) {
+      .registration-reward {
+        flex-basis: 100%;
+      }
+    }
   `,
   template: `
     <h2 mat-dialog-title>{{ data?.taskId ? '課題の内容を調整' : '課題を登録' }}</h2>
@@ -50,8 +64,8 @@ import { Api, localDate, message } from './api';
         aria-label="課題の入力方法"
         [disabled]="busy() || api.busy() || assistant()?.sending()"
       >
-        <mat-button-toggle value="ai">相談</mat-button-toggle>
         <mat-button-toggle value="manual">手入力</mat-button-toggle>
+        <mat-button-toggle value="ai">AIに相談</mat-button-toggle>
       </mat-button-toggle-group>
       <div [hidden]="mode() !== 'ai' || (data?.taskId && !task())" class="input-panel">
         @if (mode() === 'ai' || aiOpened()) {
@@ -148,6 +162,16 @@ import { Api, localDate, message } from './api';
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
+      @if (!data?.taskId) {
+        <p class="registration-reward">
+          新しい課題の登録で視聴＋5分
+          <br />
+          残高の上限30分まで
+          @if (api.state()?.sleep) {
+            （夜の報酬は翌朝）
+          }
+        </p>
+      }
       <button
         mat-button
         mat-dialog-close
