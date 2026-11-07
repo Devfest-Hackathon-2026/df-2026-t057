@@ -1,230 +1,362 @@
 <div class="page-title">
   <div>
-    <h1>設定</h1>
+    <span class="eyebrow">MAKE IT YOURS</span>
+    <h1>
+      設定
+      <span class="title-dot">.</span>
+    </h1>
+    <p>必要なところだけ、さっと調整。</p>
   </div>
 </div>
-<section class="settings-card">
-  <h2>自分で見る時間を決める</h2>
-  <p>初回10分。毎日、残高を10分まで補充します。受け取りのために開く必要はありません。</p>
-  <p>作業を記録すると5分につき視聴1分、1日最大20分増えます。新しい課題の登録でも5分増えます。</p>
-  <mat-form-field appearance="outline">
-    <mat-label>支援の段階</mat-label>
-    <mat-select [(ngModel)]="timePolicy.mode" [disabled]="api.busy()">
-      <mat-option value="rewards">作業に応じて増やす</mat-option>
-      <mat-option value="fixed">自分で決めた固定枠</mat-option>
-      <mat-option value="reminder">区切りの通知だけ</mat-option>
-      <mat-option value="self">自分で管理する</mat-option>
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field appearance="outline">
-    <mat-label>1日の視聴上限</mat-label>
-    <mat-select
-      [(ngModel)]="timePolicy.dailyLimitSeconds"
-      [disabled]="api.busy() || timePolicy.mode === 'reminder' || timePolicy.mode === 'self'"
-    >
-      <mat-option [value]="600">10分</mat-option>
-      <mat-option [value]="1200">20分</mat-option>
-      <mat-option [value]="1800">30分</mat-option>
-    </mat-select>
-  </mat-form-field>
-  @switch (timePolicy.mode) {
-    @case ('rewards') {
-      <p>作業後の追加と毎日の補充を使います。残高の上限は30分です。</p>
-    }
-    @case ('fixed') {
-      <p>作業報酬を止め、毎日、残高を選んだ固定枠まで補充します。</p>
-    }
-    @case ('reminder') {
-      <p>1日の上限と作業報酬を止め、5分・10分の区切りだけを知らせます。</p>
-    }
-    @case ('self') {
-      <p>視聴枠の制限と区切りの表示を止めます。課題の開始通知と作業タイマーは使えます。</p>
-    }
-  }
-  <p>方式や上限を変更しても、その場で時間は補充しません。翌日の補充から反映します。</p>
-  @if (api.state()?.timePolicy; as policy) {
-    <p>
-      日付の基準：{{ policy.timeZone }}。今日の視聴：{{
-        (policy.viewedSeconds / 60).toFixed(1)
-      }}分。
-    </p>
-  }
-  <button
-    mat-flat-button
-    (click)="saveTimePolicy()"
-    [disabled]="api.busy() || !!api.state()?.session"
-  >
-    視聴ルールを保存
-  </button>
-  @if (api.state()?.session) {
-    <p>作業を記録してから設定を変更できます。</p>
-  }
-</section>
-<section class="settings-card">
-  <h2>通知の演出</h2>
-  <div class="mode-grid">
-    @for (
-      mode of [
-        {
-          id: 'pachinko',
-          title: 'ゴールド',
-          icon: 'flare',
-        },
-        { id: 'mahjong', title: 'ステップ', icon: 'task_alt' },
-        {
-          id: 'simple',
-          title: 'シンプル',
-          icon: 'notifications',
-        },
-      ];
-      track mode.id
-    ) {
+<form #form="ngForm" (ngSubmit)="save(form)" class="settings-list">
+  <h2 class="settings-group-title">視聴と生活リズム</h2>
+  <mat-accordion multi displayMode="flat">
+    <mat-expansion-panel class="settings-expansion" [disabled]="saving()">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <span class="setting-icon material-symbols-rounded" aria-hidden="true">schedule</span>
+          視聴ルール
+        </mat-panel-title>
+        <mat-panel-description>{{ timePolicyTitle() }}</mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <p>初回10分。毎日、残高を10分まで補充します。受け取りのために開く必要はありません。</p>
+      <p>
+        作業を記録すると5分につき視聴1分、1日最大20分増えます。新しい課題の登録でも5分増えます。
+      </p>
+      <mat-form-field appearance="outline">
+        <mat-label>支援の段階</mat-label>
+        <mat-select
+          name="policyMode"
+          [(ngModel)]="timePolicy.mode"
+          [disabled]="saving() || api.busy()"
+        >
+          <mat-option value="rewards">作業に応じて増やす</mat-option>
+          <mat-option value="fixed">自分で決めた固定枠</mat-option>
+          <mat-option value="reminder">区切りの通知だけ</mat-option>
+          <mat-option value="self">自分で管理する</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>1日の視聴上限</mat-label>
+        <mat-select
+          name="dailyLimitSeconds"
+          [(ngModel)]="timePolicy.dailyLimitSeconds"
+          [disabled]="
+            saving() || api.busy() || timePolicy.mode === 'reminder' || timePolicy.mode === 'self'
+          "
+        >
+          <mat-option [value]="600">10分</mat-option>
+          <mat-option [value]="1200">20分</mat-option>
+          <mat-option [value]="1800">30分</mat-option>
+        </mat-select>
+      </mat-form-field>
+      @switch (timePolicy.mode) {
+        @case ('rewards') {
+          <p>作業後の追加と毎日の補充を使います。残高の上限は30分です。</p>
+        }
+        @case ('fixed') {
+          <p>作業報酬を止め、毎日、残高を選んだ固定枠まで補充します。</p>
+        }
+        @case ('reminder') {
+          <p>1日の上限と作業報酬を止め、5分・10分の区切りだけを知らせます。</p>
+        }
+        @case ('self') {
+          <p>視聴枠の制限と区切りの表示を止めます。課題の開始通知と作業タイマーは使えます。</p>
+        }
+      }
+      <p>方式や上限を変更しても、その場で時間は補充しません。翌日の補充から反映します。</p>
+      @if (api.state()?.timePolicy; as policy) {
+        <p>
+          日付の基準：{{ policy.timeZone }}。今日の視聴：{{
+            (policy.viewedSeconds / 60).toFixed(1)
+          }}分。
+        </p>
+      }
       <button
-        [class]="'mode-card ' + mode.id"
-        [class.chosen]="settings.mode === mode.id"
-        (click)="$any(settings).mode = mode.id"
+        type="button"
+        mat-flat-button
+        (click)="saveTimePolicy()"
+        [disabled]="saving() || api.busy() || !!api.state()?.session"
       >
-        <span aria-hidden="true" class="material-symbols-rounded">{{ mode.icon }}</span>
-        <strong>{{ mode.title }}</strong>
+        視聴ルールを保存
       </button>
-    }
-  </div>
+      @if (api.state()?.session) {
+        <p>作業を記録してから設定を変更できます。</p>
+      }
+    </mat-expansion-panel>
+    <mat-expansion-panel class="settings-expansion" [disabled]="saving()">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <span class="setting-icon material-symbols-rounded" aria-hidden="true">bedtime</span>
+          夜の区切り
+        </mat-panel-title>
+        <mat-panel-description>
+          {{ api.state()?.sleep ? sleep.bedtime + '–' + sleep.wake : '未設定' }}
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <p class="muted">
+        就寝1時間前から起床までは、課題の報酬を翌朝に受け取ります。ショートを見ずに寝られた朝は
+        最大15分（残高30分まで）。カレンダー連携中は、DOPAGAKIカレンダーに毎日の就寝予定を入れます。
+      </p>
+      <div class="sleep-fields">
+        <mat-form-field appearance="outline">
+          <mat-label>就寝</mat-label>
+          <input
+            matInput
+            type="time"
+            name="bedtime"
+            [(ngModel)]="sleep.bedtime"
+            [disabled]="api.busy() || saving()"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>起床</mat-label>
+          <input
+            matInput
+            type="time"
+            name="wake"
+            [(ngModel)]="sleep.wake"
+            [disabled]="api.busy() || saving()"
+          />
+        </mat-form-field>
+      </div>
+      @if (api.state()?.sleep; as current) {
+        <p class="muted">
+          現在：{{ current.bedtime }} 就寝・{{ current.wake }} 起床 ・ ショートなしの夜
+          {{ current.keptNights }}日連続
+        </p>
+        @if (current.calendarPending) {
+          <p class="muted" role="status">
+            カレンダーへの登録がまだです。時間をおいて「就寝の予定を保存」を押すと再試行します。
+          </p>
+        }
+      }
+      <div class="card-actions">
+        <button
+          type="button"
+          mat-flat-button
+          (click)="saveSleep()"
+          [disabled]="api.busy() || saving()"
+        >
+          就寝の予定を保存
+        </button>
+        @if (api.state()?.sleep) {
+          <button
+            type="button"
+            mat-button
+            (click)="saveSleep(true)"
+            [disabled]="api.busy() || saving()"
+          >
+            外す
+          </button>
+        }
+      </div>
+    </mat-expansion-panel>
+  </mat-accordion>
+  <h2 class="settings-group-title">通知と演出</h2>
+  <mat-accordion multi displayMode="flat">
+    <mat-expansion-panel class="settings-expansion" [disabled]="saving()">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <span class="setting-icon material-symbols-rounded" aria-hidden="true">palette</span>
+          通知の演出
+        </mat-panel-title>
+        <mat-panel-description>{{ selectedMode().title }}</mat-panel-description>
+      </mat-expansion-panel-header>
+      <div class="mode-grid" role="group" aria-label="通知の演出">
+        @for (mode of modes; track mode.id) {
+          <button
+            mat-stroked-button
+            type="button"
+            [class]="'mode-card ' + mode.id"
+            [class.chosen]="settings.mode === mode.id"
+            [attr.aria-pressed]="settings.mode === mode.id"
+            [disabled]="api.busy() || saving()"
+            (click)="settings.mode = mode.id"
+          >
+            <span class="mode-content">
+              <span class="mode-top">
+                <span class="material-symbols-rounded" aria-hidden="true">{{ mode.icon }}</span>
+                @if (settings.mode === mode.id) {
+                  <span class="mode-check material-symbols-rounded" aria-hidden="true">check</span>
+                }
+              </span>
+              <strong>{{ mode.title }}</strong>
+              <small>{{ mode.sub }}</small>
+            </span>
+          </button>
+        }
+      </div>
+      <p class="settings-hint">作業中のタイマーは、どのモードでもシンプルに表示します。</p>
+    </mat-expansion-panel>
+  </mat-accordion>
   <div class="setting-row">
-    <div>
-      <strong>スヌーズ時間</strong>
+    <div class="setting-label">
+      <span class="setting-icon material-symbols-rounded" aria-hidden="true">snooze</span>
+      <div>
+        <strong>スヌーズ時間</strong>
+        <p>確定前に予定を確認</p>
+      </div>
     </div>
-    <mat-form-field appearance="outline" class="minutes-field">
+    <mat-form-field appearance="outline" class="minutes-field" subscriptSizing="dynamic">
       <mat-label>分</mat-label>
       <input
         matInput
+        name="snoozeMinutes"
         type="number"
         min="1"
         max="120"
+        required
         [(ngModel)]="settings.snoozeMinutes"
-        [disabled]="api.busy()"
+        [disabled]="api.busy() || saving()"
       />
+      <mat-error>1〜120分で入力してください</mat-error>
     </mat-form-field>
   </div>
   <div class="setting-row">
-    <div>
-      <strong>通知音</strong>
-    </div>
-    <mat-slide-toggle [(ngModel)]="settings.sound" [disabled]="api.busy()" aria-label="通知音" />
-  </div>
-  <div class="setting-row">
-    <div>
-      <strong>動きを控える</strong>
+    <div class="setting-label">
+      <span class="setting-icon material-symbols-rounded" aria-hidden="true">volume_up</span>
+      <div>
+        <strong>通知音</strong>
+        <p>通知時に短い音を鳴らす</p>
+      </div>
     </div>
     <mat-slide-toggle
+      name="sound"
+      [(ngModel)]="settings.sound"
+      [disabled]="api.busy() || saving()"
+      aria-label="通知音"
+    />
+  </div>
+  <div class="setting-row">
+    <div class="setting-label">
+      <span class="setting-icon material-symbols-rounded" aria-hidden="true">
+        motion_photos_off
+      </span>
+      <div>
+        <strong>動きを控える</strong>
+        <p>光や拡大のアニメーションを減らす</p>
+      </div>
+    </div>
+    <mat-slide-toggle
+      name="reducedMotion"
       [(ngModel)]="settings.reducedMotion"
-      [disabled]="api.busy()"
+      [disabled]="api.busy() || saving()"
       aria-label="動きを控える"
     />
   </div>
   <div class="setting-row">
-    <div>
-      <strong>継続が途切れたときの演出</strong>
+    <div class="setting-label">
+      <span class="setting-icon material-symbols-rounded" aria-hidden="true">texture</span>
+      <div>
+        <strong>継続が途切れたときの演出</strong>
+        <p>ホーム画面の角を少しずつ暗くする</p>
+      </div>
     </div>
     <mat-slide-toggle
+      name="grime"
       [(ngModel)]="settings.grime"
-      [disabled]="api.busy()"
+      [disabled]="api.busy() || saving()"
       aria-label="継続が途切れたときの演出"
     />
   </div>
-  <details class="disclosure settings-help">
-    <summary>通知について</summary>
-    <p>スヌーズは変更後の予定を確認してから確定します。通知音は通知を開いたときに鳴ります。</p>
-    <p>
-      「動きを控える」で光や拡大を減らせます。「継続が途切れたときの演出」は画面の角を少し暗くします。
-    </p>
-    <p>作業中は、どの演出でもシンプルなタイマーを表示します。</p>
-  </details>
-  <button mat-flat-button (click)="saveSettings()" [disabled]="api.busy()">
-    {{ api.busy() ? '保存中…' : '設定を保存' }}
-  </button>
-</section>
-<section class="settings-card">
-  <h2>夜の区切り</h2>
-  <p class="muted">
-    就寝1時間前から起床までは、課題の報酬を翌朝に受け取ります。ショートを見ずに寝られた朝は
-    最大15分（残高30分まで）。カレンダー連携中は、DOPAGAKIカレンダーに毎日の就寝予定を入れます。
-  </p>
-  <div class="sleep-fields">
-    <mat-form-field appearance="outline">
-      <mat-label>就寝</mat-label>
-      <input matInput type="time" [(ngModel)]="sleep.bedtime" />
-    </mat-form-field>
-    <mat-form-field appearance="outline">
-      <mat-label>起床</mat-label>
-      <input matInput type="time" [(ngModel)]="sleep.wake" />
-    </mat-form-field>
-  </div>
-  @if (api.state()?.sleep; as current) {
-    <p class="muted">
-      現在：{{ current.bedtime }} 就寝・{{ current.wake }} 起床 ・ ショートなしの夜
-      {{ current.keptNights }}日連続
-    </p>
-    @if (current.calendarPending) {
-      <p class="muted" role="status">
-        カレンダーへの登録がまだです。時間をおいて「就寝の予定を保存」を押すと再試行します。
+  <h2 class="settings-group-title">あなたについて</h2>
+  <mat-accordion multi displayMode="flat">
+    <mat-expansion-panel class="settings-expansion" [disabled]="saving()">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <span class="setting-icon material-symbols-rounded" aria-hidden="true">person</span>
+          作業の傾向
+        </mat-panel-title>
+        <mat-panel-description>{{ profile.name || '未設定' }}</mat-panel-description>
+      </mat-expansion-panel-header>
+      <p class="settings-hint">Geminiが予定を具体的にするときの参考にします。</p>
+      <mat-form-field appearance="outline">
+        <mat-label>表示名</mat-label>
+        <input
+          matInput
+          name="name"
+          [(ngModel)]="profile.name"
+          [disabled]="api.busy() || saving()"
+          maxlength="100"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>得意・苦手、作業の進め方</mat-label>
+        <textarea
+          matInput
+          name="context"
+          [(ngModel)]="profile.context"
+          [disabled]="api.busy() || saving()"
+          rows="3"
+          maxlength="2000"
+          placeholder="文章の書き出しが苦手。最初に構成を10分考えたい。"
+        ></textarea>
+      </mat-form-field>
+    </mat-expansion-panel>
+    <mat-expansion-panel class="settings-expansion" [disabled]="saving()">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <span class="setting-icon material-symbols-rounded" aria-hidden="true">link</span>
+          Google連携
+        </mat-panel-title>
+        <mat-panel-description [class.connected]="api.state()?.calendarConnected">
+          {{ api.state()?.calendarConnected ? '連携済み' : '未連携' }}
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      @if (api.accountEmail()) {
+        <p class="account-email">ログイン中：{{ api.accountEmail() }}</p>
+      }
+      <p>
+        ログイン中と同じGoogleアカウントのカレンダーを使います。連携すると、専用の「DOPAGAKI」カレンダーを作成します。Geminiには「DOPAGAKIカレンダーに」と指定してください。
       </p>
-    }
-  }
-  <div class="card-actions">
-    <button mat-flat-button (click)="saveSleep()" [disabled]="api.busy()">就寝の予定を保存</button>
-    @if (api.state()?.sleep) {
-      <button mat-button (click)="saveSleep(true)" [disabled]="api.busy()">外す</button>
-    }
+      <p class="settings-hint">
+        「AIに相談」から予定の作成・調整を相談できます。会話と作業の傾向はアカウントごとに保存します。
+      </p>
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="actions.connect()"
+        [disabled]="!api.config()?.calendarEnabled || api.busy() || saving()"
+      >
+        Googleカレンダーを連携
+      </button>
+      @if (!api.config()?.calendarEnabled) {
+        <p class="settings-hint">現在の環境ではGoogle連携は未設定です。</p>
+      }
+      <div class="account-links">
+        <a href="/privacy.html" target="_blank" rel="noopener">データの取り扱い・削除の依頼</a>
+        @if (api.config()?.mode === 'live') {
+          <button
+            mat-button
+            type="button"
+            (click)="api.logout()"
+            [disabled]="api.busy() || saving()"
+          >
+            ログアウト
+          </button>
+        }
+      </div>
+    </mat-expansion-panel>
+  </mat-accordion>
+  <div class="settings-actions">
+    <p class="settings-hint" aria-live="polite">
+      {{
+        saving()
+          ? '変更を保存しています…'
+          : changed()
+            ? '変更内容はまだ保存されていません'
+            : '変更後に保存してください'
+      }}
+    </p>
+    <button
+      mat-flat-button
+      type="submit"
+      [disabled]="api.busy() || saving() || form.invalid || !changed()"
+    >
+      {{ saving() ? '保存中…' : '変更を保存' }}
+    </button>
   </div>
-</section>
-<section class="settings-card">
-  <h2>あなたの作業の傾向</h2>
-  <details class="disclosure settings-help">
-    <summary>作業の傾向について</summary>
-    <p>相談や予定を作るときの参考にします。</p>
-  </details>
-  <mat-form-field appearance="outline">
-    <mat-label>表示名</mat-label>
-    <input matInput [(ngModel)]="profile.name" [disabled]="api.busy()" maxlength="100" />
-  </mat-form-field>
-  <mat-form-field appearance="outline">
-    <mat-label>得意・苦手、作業の進め方</mat-label>
-    <textarea
-      matInput
-      [(ngModel)]="profile.context"
-      [disabled]="api.busy()"
-      rows="3"
-      maxlength="2000"
-      placeholder="文章の書き出しが苦手。最初に構成を10分考えたい。"
-    ></textarea>
-  </mat-form-field>
-  <button mat-flat-button (click)="saveProfile()" [disabled]="api.busy()">作業の傾向を保存</button>
-</section>
-<section class="settings-card">
-  <h2>Google連携</h2>
-  @if (api.accountEmail()) {
-    <p>ログイン中：{{ api.accountEmail() }}</p>
-  }
-  <details class="disclosure settings-help">
-    <summary>連携について</summary>
-    <p>ログイン中と同じGoogleアカウントに、専用カレンダーを作成します。</p>
-    <p>Geminiから登録するときは「DOPAGAKIカレンダーに」と指定してください。</p>
-    <p>会話と作業の傾向はアカウントごとに保存します。</p>
-  </details>
-  <button
-    mat-stroked-button
-    (click)="actions.connect()"
-    [disabled]="!api.config()?.calendarEnabled || api.busy()"
-  >
-    Googleカレンダーを連携
-  </button>
-  @if (!api.config()?.calendarEnabled) {
-    <p class="muted">現在の環境ではGoogle連携は未設定です。</p>
-  }
-  @if (api.config()?.mode === 'live') {
-    <button mat-button (click)="api.logout()">ログアウト</button>
-  }
-  <p>
-    <a href="/privacy.html" target="_blank" rel="noopener">データの取り扱い・削除の依頼</a>
-  </p>
-</section>
+</form>

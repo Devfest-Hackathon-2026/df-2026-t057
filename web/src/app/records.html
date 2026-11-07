@@ -1,75 +1,142 @@
-@if (api.state(); as state) {
-  <div class="page-title">
+<div class="page-title">
+  <div>
+    <span class="eyebrow">EVERY LITTLE COUNTS</span>
+    <h1>
+      積み上げの記録
+      <span class="title-dot">.</span>
+    </h1>
+    <p>終わらせた分だけ、ちゃんと前に進んでいる。</p>
+  </div>
+</div>
+<section class="records-activity" aria-label="過去12週間の積み上げ">
+  <div class="records-summary">
     <div>
-      <h1>記録</h1>
+      <p>過去12週間に完了した課題</p>
+      <div class="records-count">
+        {{ activity().completed }}
+        <span>件</span>
+      </div>
+    </div>
+    <div class="completion-reward">
+      <p>作業で得た視聴時間</p>
+      <strong>＋{{ durationLabel(activity().earnedSeconds) }}</strong>
     </div>
   </div>
-  @if (state.timePolicy; as policy) {
-    <section class="settings-card">
-      <h2>自分で区切る練習</h2>
-      <p>
-        今日の視聴 {{ (policy.viewedSeconds / 60).toFixed(1) }}分・記録した作業
-        {{ (policy.workSeconds / 60).toFixed(1) }}分
-      </p>
-      <p>過去7日の視聴 {{ viewing().length }}回・終了 {{ ended().length }}回</p>
-      <p>区切りで選んだ延長 {{ extensions() }}回</p>
-      <p>予定から5分以内に開始 {{ onTime() }}件／開始した課題 {{ starts().length }}件</p>
-      <p>予定開始を過ぎた未開始の課題 {{ notStarted() }}件</p>
-      <p>
-        課題の開始時刻・視聴の区切り・作業の確認は本人の操作で記録します。動画の内容は保存しません。記録がない日を成功や視聴ゼロとして数えません。
-      </p>
-      <details class="disclosure">
-        <summary>日ごとの記録</summary>
-        @for (day of policy.history.slice().reverse(); track day.day) {
-          <p>
-            {{ day.day }}：視聴 {{ (day.viewedSeconds / 60).toFixed(1) }}分、確認した作業
-            {{ (day.workSeconds / 60).toFixed(1) }}分
-          </p>
-        } @empty {
-          <p>明日以降、記録のある日がここに並びます。</p>
-        }
-      </details>
-    </section>
-  }
-  <section class="activity-card">
-    <div class="section-heading">
-      <h2>完了した課題 {{ completed().length }}件</h2>
-      <span>過去12週間</span>
+  <div class="activity-heading">
+    <h2>小さな一歩のカレンダー</h2>
+    <span>
+      {{ activity().days[0].date | date: 'M/d' }}–{{ activity().days[83].date | date: 'M/d' }}
+    </span>
+  </div>
+  <div class="records-grass-layout">
+    <div class="weekday-labels" aria-hidden="true">
+      <span>日</span>
+      <span></span>
+      <span>火</span>
+      <span></span>
+      <span>木</span>
+      <span></span>
+      <span>土</span>
     </div>
-    <div class="grass-grid large">
-      @for (cell of cells; track cell) {
-        <span [class.filled]="activity(cell) > 0" [attr.title]="dayLabel(cell)"></span>
+    <div
+      class="records-grass"
+      [style.--activity-weeks]="weeks()"
+      role="group"
+      aria-label="日別の完了記録"
+    >
+      @for (cell of cells(); track $index) {
+        @if (cell) {
+          <button
+            type="button"
+            [class.completed]="cell.completed > 0"
+            [class.multiple]="cell.completed > 1"
+            [attr.aria-label]="dayLabel(cell)"
+            [attr.aria-pressed]="selectedDay().key === cell.key"
+            [matTooltip]="dayLabel(cell)"
+            (click)="selectedKey.set(cell.key)"
+          ></button>
+        } @else {
+          <span aria-hidden="true"></span>
+        }
       }
     </div>
-  </section>
-  <h2 class="section-heading">視聴時間の履歴</h2>
-  <section class="task-list">
-    @for (entry of state.ledger.slice().reverse(); track entry.id) {
-      <div class="ledger-row">
-        <span aria-hidden="true" class="material-symbols-rounded">
-          {{
-            entry.kind === 'completion'
-              ? 'task_alt'
-              : entry.kind === 'sleep'
-                ? 'bedtime'
-                : 'add_circle'
-          }}
-        </span>
-        <div>
-          <strong>
-            {{ entryLabel(entry.kind) }}
-          </strong>
-          <p>{{ entry.at | date: 'M/d HH:mm' }}</p>
-          @if (entry.kind === 'work') {
-            <p>作業 {{ ((entry.workSeconds ?? 0) / 60).toFixed(1) }}分</p>
-          }
-        </div>
-        <strong class="ledger-credit">
-          {{ entry.seconds < 0 ? '−' : '＋'
-          }}{{ durationLabel(entry.seconds < 0 ? -entry.seconds : entry.seconds)
-          }}{{ entry.deferred ? '（朝に受け取り）' : '' }}
-        </strong>
-      </div>
-    }
-  </section>
+  </div>
+  <div class="activity-legend">
+    <span>色の濃さは完了件数</span>
+    <span>
+      少
+      <i></i>
+      <i class="completed"></i>
+      <i class="multiple"></i>
+      多
+    </span>
+  </div>
+  <p class="selected-activity" aria-live="polite">
+    {{ selectedDay().date | date: 'M月d日' }} · {{ selectedDay().completed }}件完了 · 視聴時間 ＋{{
+      durationLabel(selectedDay().earnedSeconds)
+    }}
+  </p>
+  @if (!activity().completed) {
+    <p class="records-empty">
+      まだ完了した課題はありません。ひとつ終えたら、ここに一歩が残ります。
+    </p>
+  }
+</section>
+@if (api.state()?.timePolicy; as policy) {
+  <details class="disclosure records-practice">
+    <summary>自分で区切る練習</summary>
+    <p>
+      今日の視聴 {{ (policy.viewedSeconds / 60).toFixed(1) }}分・記録した作業
+      {{ (policy.workSeconds / 60).toFixed(1) }}分
+    </p>
+    <p>過去7日の視聴 {{ viewing().length }}回・終了 {{ ended().length }}回</p>
+    <p>区切りで選んだ延長 {{ extensions() }}回</p>
+    <p>予定から5分以内に開始 {{ onTime() }}件／開始した課題 {{ starts().length }}件</p>
+    <p>予定開始を過ぎた未開始の課題 {{ notStarted() }}件</p>
+    <p>
+      課題の開始時刻・視聴の区切り・作業の確認は本人の操作で記録します。動画の内容は保存しません。記録がない日を成功や視聴ゼロとして数えません。
+    </p>
+    <details class="disclosure">
+      <summary>日ごとの記録</summary>
+      @for (day of policy.history.slice().reverse(); track day.day) {
+        <p>
+          {{ day.day }}：視聴 {{ (day.viewedSeconds / 60).toFixed(1) }}分、確認した作業
+          {{ (day.workSeconds / 60).toFixed(1) }}分
+        </p>
+      } @empty {
+        <p>明日以降、記録のある日がここに並びます。</p>
+      }
+    </details>
+  </details>
 }
+
+<section class="records-history" aria-label="視聴時間の履歴">
+  <div class="activity-heading">
+    <h2>最近の積み上げ</h2>
+    <span>視聴時間の履歴</span>
+  </div>
+  @for (entry of history(); track entry.id) {
+    <div class="records-ledger-row ledger-row">
+      <span aria-hidden="true" class="material-symbols-rounded">
+        {{ entry.kind === 'completion' || entry.kind === 'work' ? 'task_alt' : 'add_circle' }}
+      </span>
+      <div>
+        <strong>{{ entry.title }}</strong>
+        @if (entry.deferred) {
+          <span class="deferred-reward">朝に受け取り</span>
+        }
+        <p>{{ entry.at | date: 'M/d HH:mm' }} · {{ entry.action }}</p>
+        @if (entry.kind === 'work') {
+          <p>作業 {{ durationLabel(entry.workSeconds ?? 0) }}</p>
+        }
+      </div>
+      <strong class="records-credit ledger-credit" [class.deduction]="entry.seconds < 0">
+        {{ entry.seconds < 0 ? '−' : '＋'
+        }}{{ durationLabel(entry.seconds < 0 ? -entry.seconds : entry.seconds) }}
+      </strong>
+    </div>
+  } @empty {
+    <p class="records-empty">視聴時間の増減がここに残ります。</p>
+  }
+  <p class="records-history-note">視聴による消費は残り時間へ反映されます。</p>
+</section>

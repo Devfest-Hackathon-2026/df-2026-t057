@@ -1,0 +1,249 @@
+:host {
+  display: block;
+  max-width: 1100px;
+}
+.records-activity {
+  padding: 26px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+}
+.records-summary {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 28px;
+  p {
+    color: #626a5c;
+    font-size: 12px;
+    margin: 0 0 12px;
+  }
+}
+.records-count {
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -3px;
+  font-variant-numeric: tabular-nums;
+  span {
+    font-size: 13px;
+    letter-spacing: 0;
+    margin-left: 7px;
+  }
+}
+.completion-reward {
+  text-align: right;
+  strong {
+    font-size: 26px;
+    font-weight: 500;
+    color: #48652c;
+    font-variant-numeric: tabular-nums;
+  }
+  strong span {
+    font-size: 12px;
+  }
+}
+.activity-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 18px;
+  h2 {
+    margin: 0;
+    font-size: 15px;
+  }
+  > span {
+    color: #626a5c;
+    font-size: 11px;
+  }
+}
+.records-grass-layout {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 8px;
+}
+.weekday-labels {
+  display: grid;
+  grid-template-rows: repeat(7, 17px);
+  gap: 5px;
+  align-items: center;
+  color: #626a5c;
+  font-size: 10px;
+}
+.records-grass {
+  display: grid;
+  grid-template-columns: repeat(var(--activity-weeks), minmax(0, 1fr));
+  grid-template-rows: repeat(7, 17px);
+  grid-auto-flow: column;
+  gap: 5px;
+  button {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: #e9ede4;
+  }
+  button.completed {
+    background: #b8cf9d;
+  }
+  button.multiple {
+    background: #86ac51;
+  }
+  button[aria-pressed='true'] {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+}
+.activity-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: #626a5c;
+  font-size: 10px;
+  > span:last-child {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: #e9ede4;
+    border-radius: 2px;
+  }
+  i.completed {
+    background: #b8cf9d;
+  }
+  i.multiple {
+    background: #86ac51;
+  }
+}
+.selected-activity {
+  margin: 18px 0 0;
+  font-size: 12px;
+  color: #626a5c;
+}
+.records-empty {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: #626a5c;
+}
+.records-history {
+  margin-top: 28px;
+}
+.records-ledger-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 19px 0;
+  border-bottom: 1px solid var(--line);
+  > .material-symbols-rounded {
+    color: #54782d;
+  }
+  > div {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  strong {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  p {
+    margin: 5px 0 0;
+    font-size: 11px;
+    color: #626a5c;
+  }
+}
+.records-credit {
+  color: #48652c;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.records-history-note {
+  margin: 18px 0 0;
+  color: #626a5c;
+  font-size: 11px;
+}
+@media (max-width: 550px) {
+  .records-activity {
+    padding: 20px 14px;
+  }
+  .records-summary {
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .records-count {
+    font-size: 52px;
+  }
+  .completion-reward {
+    text-align: left;
+    strong {
+      font-size: 22px;
+    }
+  }
+  .records-grass-layout {
+    grid-template-columns: 10px minmax(0, 1fr);
+    gap: 5px;
+  }
+  .records-grass {
+    gap: 3px;
+    grid-template-rows: repeat(7, 14px);
+  }
+  .weekday-labels {
+    gap: 3px;
+    grid-template-rows: repeat(7, 14px);
+    font-size: 9px;
+  }
+  .activity-legend {
+    flex-wrap: wrap;
+  }
+  .records-ledger-row {
+    gap: 9px;
+    strong {
+      font-size: 12px;
+    }
+  }
+}
+
+.eyebrow {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.title-dot {
+  color: var(--blue);
+}
+.page-title h1 {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+
+.records-practice {
+  margin-top: 20px;
+}
+.records-practice > p {
+  font-size: 12px;
+}
+.records-credit.deduction {
+  color: #626a5c;
+}
+.deferred-reward {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #626a5c;
+}
