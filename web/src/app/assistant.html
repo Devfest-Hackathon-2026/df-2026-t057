@@ -117,11 +117,8 @@
         <span class="material-symbols-rounded" aria-hidden="true">psychology</span>
         <h2>覚えていること</h2>
       </div>
-      <p class="chat-note">あなたが確認した作業の傾向を、次の相談や予定作成に使います。</p>
       @if (editingMemory()) {
-        <p class="chat-note">
-          編集後は、変更前の会話を次の相談の文脈から外します。会話履歴自体は残ります。
-        </p>
+        <p class="chat-note">編集すると、それより前の会話は次の相談に使いません。</p>
         <mat-form-field appearance="outline">
           <mat-label>作業の傾向</mat-label>
           <textarea
