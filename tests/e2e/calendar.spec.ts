@@ -55,7 +55,7 @@ test('calendar selection, routes and chat preserve the chosen task and draft', a
   await page.goto('/tasks');
   await expect(
     page.getByRole('navigation', { name: 'メインメニュー' }).getByRole('link'),
-  ).toHaveCount(3);
+  ).toHaveCount(4);
   await page.locator('.task-row').nth(1).getByRole('link', { name: 'カレンダーで見る' }).click();
   await expect(page).toHaveURL(new RegExp(`task=calendar-b.*date=${day(chosen.plan.start)}`));
   await expect(page.getByRole('region', { name: '選択した課題' })).toContainText(
