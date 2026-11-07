@@ -2,7 +2,7 @@
 
 記録日：2026-11-06。以下のクラウド設定は配信時に確認した値。秘密情報の実値は含めない。
 
-最新配信は2026-11-07の `dopagaki-security-0b05f11`（100%）、アプリコード `0b05f11`。IAM縮小・AI利用上限・CSP・依存とOS更新を反映し、同じ実行SAでSDK操作とAI疎通1回を確認した。[本番反映の記録](security-rollout-2026-11-07.md)を参照。ローカルで監査したコンテナーtarを既存レジストリへpushし、digest固定で手動配信した。GitHubへのpush・マージやCDは行っていない。
+最新の手動配信は2026-11-07の `dopagaki-ui-063109e`（100%）。PR #10のUIを、稼働中のセキュリティ修正版 `0b05f11` を保持して配信し、公開アセットの一致・health 200・未認証state 401を確認した。自動配信の初回結果は[継続的デプロイ](continuous-deployment.md)へ追記する。
 
 直前の配信は `dopagaki-main-b6dffb4`、main `b6dffb4`。[配信と実Shortsの検証](shorts-verification-2026-11-07.md)を参照。以下の初期配信時の設定・権限は当時の記録として保持する。
 
@@ -15,12 +15,12 @@
 | CI | 整備済み（変更範囲による実行選択を追加） | [.github/workflows/check.yml](../.github/workflows/check.yml)。PRとmainへのpushで実行。下記の範囲に応じてチェックを選択 |
 | Chrome拡張の配布 | タグからReleaseを作成するワークフローを追加 | [release-extension.yml](../.github/workflows/release-extension.yml)。`vX.Y.Z` のpushで型チェック・単体テスト・公開先向けビルド・ZIPとチェックサムの公開を実行。導入は[INSTALL.txt](../extension/INSTALL.txt)参照。初回のGitHub上の実行結果はPR・Actionsで確認 |
 | Cloud Runへの配信 | 手動で実施済み | Cloud Buildでイメージ作成後、CLIでCloud Runを更新 |
-| CD | 未整備 | この開発でmainへのマージ等を起点にした自動デプロイを設定していない |
+| CD | ワークフローを準備・GCP認証設定済み | [継続的デプロイ](continuous-deployment.md)。mainへの反映と初回実行は未完了 |
 | Terraform / IaC | 未導入 | Terraformコード・state管理・importは用意していない |
 | 配信設定の共有 | 一部あり | Dockerfile、公開環境変数の例、Firestoreルール、README |
 | 再現可能な一連の運用 | 未完成 | Firebase・OAuth・Chat・IAM等を含む初期設定全体はCLI・画面操作に依存 |
 
-Cloud Buildを使ったことと、CI/CDが整備されていることは同じではない。現状のCIは検証を自動化しており、配信は人が実行する。
+2026-11-07にGitHub ActionsからのCDを追加する変更と、対象リソースに限定した鍵なし認証を用意した。mainへ反映するまでは、既存の手動配信が現行の運用である。以下の図は手動配信の経路として残す。
 
 ```mermaid
 flowchart LR
@@ -31,7 +31,7 @@ flowchart LR
   Deploy --> Smoke[実サービスでの確認]
 ```
 
-CI成功からCloud Run更新へ自動でつながる経路はまだない。Chrome拡張のタグからGitHub Releasesへの自動公開はCloud Run配信とは別のワークフローで、インストール済み拡張の自動更新は行わない。
+自動配信の経路、認証条件、候補の確認・切替・ロールバックは[継続的デプロイ](continuous-deployment.md)を参照。mainへの反映と初回CDを確認後、実行結果を同文書に追記する。Chrome拡張のタグからGitHub Releasesへの自動公開はCloud Run配信とは別のワークフローで、インストール済み拡張の自動更新は行わない。
 
 ## CIの実行範囲
 
@@ -46,7 +46,7 @@ PRと `main` へのpushで `check` を実行する。作業ブランチへのpus
 | CIワークフロー | すべて |
 | 資料・画像など上記の対象外のみ | 変更範囲の判定のみ。依存のインストール・ビルド・テストは省略 |
 
-複数の範囲を変更した場合は、該当するチェックをすべて実行する。資料だけのPRでも `check` の結果を残すため、ワークフロー全体をパス条件で除外せず、各ステップを条件付きで実行する。配信設定の変更検証や自動デプロイは含まない。この実行選択の追加後のGitHub Actions実行結果は未確認。
+複数の範囲を変更した場合は、該当するチェックをすべて実行する。資料だけのPRでも `check` の結果を残すため、ワークフロー全体をパス条件で除外せず、各ステップを条件付きで実行する。配信スクリプトの変更では切替・復旧の単体テスト、Dockerfile等の変更ではPRでコンテナービルドを検証する。この実行選択を含む統合後のCIは[PR #4の実行](https://github.com/a-sumikawa/devfest-2026/actions/runs/42241815393)で成功。CD用の変更ではmainの配信を途中で取り消さないよう、PRの実行だけをキャンセル対象にする。
 
 ## 初期配信時の環境
 
