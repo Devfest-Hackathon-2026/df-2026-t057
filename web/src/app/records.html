@@ -93,9 +93,7 @@
     <p>区切りで選んだ延長 {{ extensions() }}回</p>
     <p>予定から5分以内に開始 {{ onTime() }}件／開始した課題 {{ starts().length }}件</p>
     <p>予定開始を過ぎた未開始の課題 {{ notStarted() }}件</p>
-    <p>
-      課題の開始時刻・視聴の区切り・作業の確認は本人の操作で記録します。動画の内容は保存しません。記録がない日を成功や視聴ゼロとして数えません。
-    </p>
+    <p>動画の内容は保存しません。記録のない日は数えません。</p>
     <details class="disclosure">
       <summary>日ごとの記録</summary>
       @for (day of policy.history.slice().reverse(); track day.day) {
@@ -138,5 +136,4 @@
   } @empty {
     <p class="records-empty">視聴時間の増減がここに残ります。</p>
   }
-  <p class="records-history-note">視聴による消費は残り時間へ反映されます。</p>
 </section>
