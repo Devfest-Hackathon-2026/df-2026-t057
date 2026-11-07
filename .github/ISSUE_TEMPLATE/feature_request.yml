@@ -1,0 +1,32 @@
+name: 改善・機能の提案
+description: 新しい機能や、今の動作の改善を提案する
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 困っていること
+      description: 誰が、どんな場面で困るか。利用者の声があれば引用する
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提案
+      description: どう変えるとよいか。画面の案や手順があれば書く
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 他の案・やらない理由
+      description: 検討した別案や、見送る場合の懸念
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: 影響しそうな範囲
+      options:
+        - label: 視聴時間・報酬のルール
+        - label: Firestoreの保存形式や既存ユーザーのデータ
+        - label: Google連携の権限（OAuthスコープなど）
+        - label: Geminiの利用回数・費用
