@@ -1,5 +1,7 @@
 # 実YouTube Shortsの持ち時間計測 — 2026-11-07
 
+この文書は旧版`b6dffb4`の記録。同日後半に行ったmain `b3fc7b0`の視聴枠選択・途中終了の確認は[新しい視聴ルールの実YouTube確認](shorts-time-policy-verification-2026-11-07.md)を参照。
+
 [PR #7](https://github.com/a-sumikawa/devfest-2026/pull/7)をユーザーの指示でマージし、Cloud Runへ配信した。その後、実際のChromeに導入済みの拡張と実YouTube Shortsを使い、持ち時間が減ることを確認した。今回、計測ロジックの修正は不要だった。
 
 ## 配信
