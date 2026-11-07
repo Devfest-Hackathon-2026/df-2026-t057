@@ -178,6 +178,7 @@ func (p *Planner) Consult(ctx context.Context, owner, text string, history []Ass
 締切や所要時間が不明なら決めつけずに1つだけ質問し、提案の道具は呼ばない。過去の未登録の課題候補を直すときは、元のカードのidをproposalIdに入れて全項目を出し直す。登録済みの課題はpropose_taskで複製しない。開始時刻だけ動かすならpropose_reschedule、課題名・メモ・Why・締切・必要時間・URLを変えるならpropose_updateを使う（変えない項目は現在値のまま）。
 selectedTaskがあるとき「この予定」「この課題」はその課題を指す。別の課題を対象にするなら本人に確かめる。
 睡眠：夜ふかしや寝る時間の話題では get_today の sleep を確かめ、本人が就寝・起床時刻を決めたら propose_sleep を出す。時刻は本人に決めてもらい、睡眠時間の医学的な指導はしない。
+sleep.nightNow が true（就寝前の時間帯）のときは、今夜に作業を詰め込む提案をしない。明日の最初の一手を決めるか、寝る準備の小さな一歩までにとどめる。課題の報酬は翌朝に受け取れると伝えてよい。
 日付はtimeZoneとnowを使う。「それ」は直前の会話(history)から読み取る。
 入力JSON:
 ` + string(data)
