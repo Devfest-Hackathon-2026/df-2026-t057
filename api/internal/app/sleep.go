@@ -113,14 +113,7 @@ func (st *State) settleMorning(now time.Time) *Morning {
 	if st.Sleep.Settled == key {
 		return nil
 	}
-	morning := &Morning{Night: key}
-	for i := range st.Ledger {
-		if st.Ledger[i].Deferred {
-			st.Ledger[i].Deferred = false
-			st.BalanceSeconds += st.Ledger[i].Seconds
-			morning.Released += st.Ledger[i].Seconds
-		}
-	}
+	morning := &Morning{Night: key, Released: st.releaseDeferred()}
 	if st.Sleep.Since.Before(start) && st.Sleep.Watched != key {
 		morning.Kept = true
 		morning.Bonus = sleepBonus
@@ -131,6 +124,19 @@ func (st *State) settleMorning(now time.Time) *Morning {
 	}
 	st.Sleep.Settled = key
 	return morning
+}
+
+// releaseDeferred adds the rewards held overnight to the balance and returns how much was added.
+func (st *State) releaseDeferred() int {
+	released := 0
+	for i := range st.Ledger {
+		if st.Ledger[i].Deferred {
+			st.Ledger[i].Deferred = false
+			st.BalanceSeconds += st.Ledger[i].Seconds
+			released += st.Ledger[i].Seconds
+		}
+	}
+	return released
 }
 
 func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
@@ -153,6 +159,7 @@ func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
 		}
 		st, err := s.Store.Update(ctx, id, func(st *State) error {
 			st.Sleep = nil
+			st.releaseDeferred()
 			return nil
 		})
 		respond(w, st, err)

@@ -107,3 +107,19 @@ func TestCompanionProposesBedtimeAsCard(t *testing.T) {
 		t.Fatal("bedtime saved without confirmation")
 	}
 }
+
+func TestRemovingBedtimeReleasesHeldRewards(t *testing.T) {
+	c := client(t)
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+	bed := time.Now().In(loc).Add(30 * time.Minute)
+	c.state("PUT", "/api/sleep", map[string]string{"bedtime": bed.Format("15:04"), "wake": bed.Add(8 * time.Hour).Format("15:04")})
+	c.state("POST", "/api/tasks", input())
+	held := c.state("POST", "/api/tasks/one/complete", nil)
+	if held.Ledger[len(held.Ledger)-1].Deferred != true {
+		t.Skip("bedtime before noon falls on the next day; the window is not now")
+	}
+	state := c.state("PUT", "/api/sleep", map[string]string{"bedtime": "", "wake": ""})
+	if state.BalanceSeconds != held.BalanceSeconds+600+1200 {
+		t.Fatalf("held reward lost when the bedtime was removed: %d -> %d", held.BalanceSeconds, state.BalanceSeconds)
+	}
+}
