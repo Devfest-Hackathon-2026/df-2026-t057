@@ -89,11 +89,24 @@ CDを継続停止する場合はProvider `github` を無効にして新規認証
 - ローカルの `tests/deploy.test.ts` 6件が成功。候補のhealthまたは認証確認で失敗すると切替がないこと、切替後の確認失敗では元の60%/40%配分まで戻すこと、可変タグの入力を拒否することを確認。外部クラウドや個人データにはアクセスしない。
 - `npm run test:unit` は最新mainの拡張ビルド確認を含む11件が成功。`actionlint` v1.7.12、`bash -n deploy/cloud-run.sh deploy/setup-cd.sh`、`git diff --check` も成功。
 - GCPでSTS APIの有効化、配信SA・Pool・Providerの作成、対象リソースへの限定した権限追加は完了。
-- PR上ではDockerイメージのビルドまで検証し、配信は行わない。mainへの反映とGitHub発の初回CDは、実施後に結果を追記する。
+- PR上ではDockerイメージのビルドまで検証し、配信は行わない。mainへの反映とGitHub発の初回CDは、下記のとおり成功した。
 
 
 ## 最新mainへの統合（2026-11-07）
 
 本番のセキュリティ修正を含むPR #11と、拡張のRelease設定を含むPR #12がmainへ入ったため、既存のCD用PR #6へ最新main `2be9301` を取り込んだ。アプリとDockerfileは最新mainの内容を使う。既存のOIDC Providerと配信SAの権限を読み取り、有効な状態と当該リポジトリ・main・指定ワークフローへの制限を確認した。セットアップスクリプトの再実行や鍵の作成は行っていない。
 
-初回のGitHub発配信は、この更新をmainへ入れた後の実行で確認する。
+PR #6をmainへマージし、そのpushで初回のGitHub発配信が成功した。
+
+
+## 初回CDの実確認（2026-11-07）
+
+[GitHub Actionsの実行](https://github.com/a-sumikawa/devfest-2026/actions/runs/42353060011)で、main `7fabe1f346d405d2978d663a7876f329e7b88929` の `check` と `deploy` が成功した。単体11件、E2E17件、Go race/vet、Dockerfileからの本番イメージ作成を確認した。GoogleのOIDC認証、Artifact Registryへのpush、候補確認と本番切替はすべてGitHub Actions上で実行された。
+
+- 配信リビジョン：`dopagaki-00021-gus`、100%。
+- 配信イメージ：`asia-northeast1-docker.pkg.dev/devfest-2026-513816/dopagaki/app@sha256:ea97b9ca5f8f523efbd2449a04164c668169bb81426a570125854a65871cc5a4`。
+- イメージのコミットタグから引いたdigestが、Cloud Runの配信digestと一致。
+- 実行SA、環境変数・Secret参照、リソース・タイムアウト・同時実行数の設定は配信前と一致。
+- 公開URLのhealthは200、未認証stateは401。新UIのJS・CSS・アイコンフォントは以前検証した成果物とSHA-256が一致し、CSP nonce・HTMLのno-store・privacyの制限も維持されている。
+
+[機械可読な確認記録](evidence/cd-first-deployment-2026-11-07.json)には秘密値や本人のデータを含めない。失敗時の無切替・復旧は模擬テストで確認しており、本番では正常系の配信とHTTP確認を行った。
