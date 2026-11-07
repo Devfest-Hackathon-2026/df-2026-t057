@@ -40,6 +40,7 @@ async function apiState(path: string, method = 'GET', body?: unknown): Promise<E
     session: state.session,
     nextDraft: state.nextDraft,
     sleep: state.sleep && { bedtime: state.sleep.bedtime, wake: state.sleep.wake },
+    timeZone: state.profile.timeZone,
     tasks: state.tasks.map(({ id, title, why, minutes, url, status, plan }) => ({
       id,
       title,
@@ -86,7 +87,7 @@ async function refresh() {
 }
 // Once a night, a quiet bedtime reminder on top of Shorts. Nothing is blocked.
 async function remindBedtime(state: ExtensionState) {
-  const night = state.sleep && nightWindow(state.sleep);
+  const night = state.sleep && nightWindow(state.sleep, state.timeZone);
   if (!night || state.session) return;
   const { bedtimeShown } = await chrome.storage.local.get('bedtimeShown');
   if (bedtimeShown === night.key) return;

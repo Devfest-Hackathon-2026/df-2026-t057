@@ -26,9 +26,15 @@ test('watching Shorts after bedtime shows one quiet bedtime reminder per night',
         ),
       )
       .toBe(true);
-    // A bedtime 30 minutes from now puts the browser inside the night window (it starts an hour earlier).
+    // A bedtime 30 minutes from now in the profile time zone puts us inside the night window (it starts an hour earlier).
     await app.evaluate(async () => {
-      const clock = (offset: number) => new Date(Date.now() + offset).toTimeString().slice(0, 5);
+      const { profile } = await (await fetch('/api/state')).json();
+      const clock = (offset: number) =>
+        new Date(Date.now() + offset).toLocaleTimeString('en-GB', {
+          timeZone: profile.timeZone,
+          hour: '2-digit',
+          minute: '2-digit',
+        });
       await fetch('/api/sleep', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

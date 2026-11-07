@@ -411,13 +411,15 @@ function initialize() {
       void action({ type: 'PAUSE' }, timer!);
     });
     const complete = button(
-      state.sleep && nightWindow(state.sleep) ? '完了（＋20分は朝に）' : '完了 ＋20分',
+      state.sleep && nightWindow(state.sleep, state.timeZone)
+        ? '完了（＋20分は朝に）'
+        : '完了 ＋20分',
       () => {
         void action({ type: 'COMPLETE', taskId: task.id }, timer!).then((reply) => {
           if (reply)
             void say('complete', '課題完了！視聴時間 ＋20分', task.id).then((text) =>
               showToast(
-                `${text}（${state?.sleep && nightWindow(state.sleep) ? '＋20分は朝に受け取れます' : '＋20分'}）`,
+                `${text}（${state?.sleep && nightWindow(state.sleep, state.timeZone) ? '＋20分は朝に受け取れます' : '＋20分'}）`,
               ),
             );
         });

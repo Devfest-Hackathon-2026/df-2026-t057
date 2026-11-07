@@ -10,6 +10,7 @@ export type ExtensionState = Pick<
 > & {
   tasks: ExtensionTask[];
   sleep?: SleepTime;
+  timeZone: string;
 };
 
 export interface Connection {

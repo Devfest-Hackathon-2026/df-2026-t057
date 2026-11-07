@@ -49,7 +49,7 @@ export class AssistantCard {
   // At night the registration reward waits until morning; recomputed whenever state refreshes.
   readonly night = computed(() => {
     const sleep = this.api.state()?.sleep;
-    return !!sleep && !!nightWindow(sleep);
+    return !!sleep && !!nightWindow(sleep, this.api.state()!.profile.timeZone);
   });
   readonly sleepSet = computed(() => {
     const sleep = this.api.state()?.sleep;
