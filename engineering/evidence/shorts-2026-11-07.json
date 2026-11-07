@@ -1,0 +1,47 @@
+{
+  "verifiedAt": "2026-11-07",
+  "environment": "Real Chrome extension and real YouTube Shorts against production Cloud Run",
+  "commit": "b6dffb4a8f5ef4e89b8822ccbe739859b943e625",
+  "revision": "dopagaki-main-b6dffb4",
+  "buildId": "3e45fd5f-1b91-4b70-8b20-37daf88de079",
+  "imageDigest": "sha256:7c3cc7f2948ffc08f5ee6ff6ebe918438c1e3f0334aab1f9890c250a772dfecc",
+  "trafficPercent": 100,
+  "ciRun": 42326066750,
+  "cases": [
+    {
+      "case": "foreground playback",
+      "balanceDeltaSeconds": -38,
+      "newReceipts": 4,
+      "requestStatusCodes": [
+        200,
+        200,
+        200,
+        200
+      ]
+    },
+    {
+      "case": "paused playback",
+      "observationIntervalSeconds": 53,
+      "balanceDeltaSeconds": 0,
+      "newReceipts": 0,
+      "lastViewingAtUnchanged": true
+    },
+    {
+      "case": "management reload",
+      "displayedMinutesBefore": 189,
+      "displayedMinutesAfter": 188,
+      "persisted": true
+    }
+  ],
+  "taskCountUnchanged": true,
+  "rewardLedgerUnchanged": true,
+  "preparationPlaybackDebitSeconds": 12,
+  "totalVerificationDebitSeconds": 50,
+  "notRetested": [
+    "ordinary videos",
+    "background playback",
+    "zero balance blocking",
+    "calendar updates",
+    "new AI content-edit flow"
+  ]
+}

@@ -98,4 +98,4 @@ Goの追加回帰テストでは同名課題の選択、会話の対象ID保存�
 | スマホの日表示 | [mobile-calendar.png](assets/calendar-workspace/mobile-calendar.png) |
 | スマホの相談と入力保持 | [mobile-consultation.png](assets/calendar-workspace/mobile-consultation.png) |
 
-GitHub上の検証と公開環境の確認は、実施後に追記する。CD用PR #6のマージ許可は、この画面構成の選択とは別に確認待ちである。
+2026-11-07にPR #7をマージし、mainのCIも成功した。Cloud Runへの配信、本人の実Chromeでのカレンダー表示と残高の再読み込み、実Shortsの計測は[配信と実Shortsの記録](shorts-verification-2026-11-07.md)を参照。新しいAI内容編集・Google反映の本番再確認は未実施。CD用PR #6は未マージである。
