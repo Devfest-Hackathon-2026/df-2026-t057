@@ -87,6 +87,13 @@ CDを継続停止する場合はProvider `github` を無効にして新規認証
 ## 検証記録
 
 - ローカルの `tests/deploy.test.ts` 6件が成功。候補のhealthまたは認証確認で失敗すると切替がないこと、切替後の確認失敗では元の60%/40%配分まで戻すこと、可変タグの入力を拒否することを確認。外部クラウドや個人データにはアクセスしない。
-- `npm run test:unit` は既存を含む10件が成功。`actionlint` v1.7.12、`bash -n deploy/cloud-run.sh deploy/setup-cd.sh`、`git diff --check` も成功。
+- `npm run test:unit` は最新mainの拡張ビルド確認を含む11件が成功。`actionlint` v1.7.12、`bash -n deploy/cloud-run.sh deploy/setup-cd.sh`、`git diff --check` も成功。
 - GCPでSTS APIの有効化、配信SA・Pool・Providerの作成、対象リソースへの限定した権限追加は完了。
 - PR上ではDockerイメージのビルドまで検証し、配信は行わない。mainへの反映とGitHub発の初回CDは、実施後に結果を追記する。
+
+
+## 最新mainへの統合（2026-11-07）
+
+本番のセキュリティ修正を含むPR #11と、拡張のRelease設定を含むPR #12がmainへ入ったため、既存のCD用PR #6へ最新main `2be9301` を取り込んだ。アプリとDockerfileは最新mainの内容を使う。既存のOIDC Providerと配信SAの権限を読み取り、有効な状態と当該リポジトリ・main・指定ワークフローへの制限を確認した。セットアップスクリプトの再実行や鍵の作成は行っていない。
+
+初回のGitHub発配信は、この更新をmainへ入れた後の実行で確認する。

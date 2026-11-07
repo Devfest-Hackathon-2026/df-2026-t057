@@ -1,8 +1,21 @@
 import { build } from 'esbuild';
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 
 const origin = new URL(process.env.APP_URL ?? 'http://127.0.0.1:4200').origin;
+const version = process.env.RELEASE_TAG
+  ? process.env.RELEASE_TAG.replace(/^v/, '')
+  : JSON.parse(await readFile('package.json', 'utf8')).version;
+if (
+  !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) ||
+  version.split('.').some((part) => Number(part) > 65535) ||
+  version === '0.0.0'
+) {
+  throw new Error(
+    'Extension version must be X.Y.Z, with each number between 0 and 65535 (not all zero).',
+  );
+}
 const outdir = 'dist/extension';
+await rm(outdir, { recursive: true, force: true });
 await mkdir(outdir, { recursive: true });
 await cp('extension/public', outdir, { recursive: true });
 await cp('web/public/gold-light.png', `${outdir}/gold-light.png`);
@@ -35,7 +48,7 @@ await writeFile(
     {
       manifest_version: 3,
       name: 'DOPAGAKI',
-      version: '0.1.0',
+      version,
       description: '課題を終えて、次の楽しみに。カレンダー連携と作業タイマー。',
       minimum_chrome_version: '120',
       permissions: ['storage', 'alarms', 'notifications', 'scripting', 'activeTab'],

@@ -2,13 +2,18 @@
 
 記録日：2026-11-06。以下のクラウド設定は配信時に確認した値。秘密情報の実値は含めない。
 
-最新配信は管理画面のAI相談を追加した Cloud Run `dopagaki-00013-vtd`（100%）、コード `7b77026`。[変更と実確認の範囲](assistant.md)を参照。Google Chatアプリは無効化し、旧受付APIと専用環境変数を削除した。本人のGoogleアカウント照合とアカウント切替は[一般ユーザー対応の記録](public-accounts.md#配信と実確認)を参照。下記の「初期配信時の環境」と旧digestの配信例は、最初の実サービス確認時点の記録として保持する。
+最新の手動配信は2026-11-07の `dopagaki-ui-063109e`（100%）。PR #10のUIを、稼働中のセキュリティ修正版 `0b05f11` を保持して配信し、公開アセットの一致・health 200・未認証state 401を確認した。自動配信の初回結果は[継続的デプロイ](continuous-deployment.md)へ追記する。
+
+直前の配信は `dopagaki-main-b6dffb4`、main `b6dffb4`。[配信と実Shortsの検証](shorts-verification-2026-11-07.md)を参照。以下の初期配信時の設定・権限は当時の記録として保持する。
+
+前回の配信は管理画面のAI相談を追加した Cloud Run `dopagaki-00013-vtd`（100%）、コード `7b77026`。[変更と実確認の範囲](assistant.md)を参照。Google Chatアプリは無効化し、旧受付APIと専用環境変数を削除した。本人のGoogleアカウント照合とアカウント切替は[一般ユーザー対応の記録](public-accounts.md#配信と実確認)を参照。下記の「初期配信時の環境」と旧digestの配信例は、最初の実サービス確認時点の記録として保持する。
 
 ## 整備状況
 
 | 項目 | 状態 | 根拠・範囲 |
 |---|---|---|
 | CI | 整備済み（変更範囲による実行選択を追加） | [.github/workflows/check.yml](../.github/workflows/check.yml)。PRとmainへのpushで実行。下記の範囲に応じてチェックを選択 |
+| Chrome拡張の配布 | タグからReleaseを作成するワークフローを追加 | [release-extension.yml](../.github/workflows/release-extension.yml)。`vX.Y.Z` のpushで型チェック・単体テスト・公開先向けビルド・ZIPとチェックサムの公開を実行。導入は[INSTALL.txt](../extension/INSTALL.txt)参照。初回のGitHub上の実行結果はPR・Actionsで確認 |
 | Cloud Runへの配信 | 手動で実施済み | Cloud Buildでイメージ作成後、CLIでCloud Runを更新 |
 | CD | ワークフローを準備・GCP認証設定済み | [継続的デプロイ](continuous-deployment.md)。mainへの反映と初回実行は未完了 |
 | Terraform / IaC | 未導入 | Terraformコード・state管理・importは用意していない |
@@ -26,7 +31,7 @@ flowchart LR
   Deploy --> Smoke[実サービスでの確認]
 ```
 
-自動配信の経路、認証条件、候補の確認・切替・ロールバックは[継続的デプロイ](continuous-deployment.md)を参照。mainへの反映と実際の初回CDを確認するまで、自動配信が稼働済みとは説明しない。
+自動配信の経路、認証条件、候補の確認・切替・ロールバックは[継続的デプロイ](continuous-deployment.md)を参照。mainへの反映と初回CDを確認後、実行結果を同文書に追記する。Chrome拡張のタグからGitHub Releasesへの自動公開はCloud Run配信とは別のワークフローで、インストール済み拡張の自動更新は行わない。
 
 ## CIの実行範囲
 
@@ -41,7 +46,7 @@ PRと `main` へのpushで `check` を実行する。作業ブランチへのpus
 | CIワークフロー | すべて |
 | 資料・画像など上記の対象外のみ | 変更範囲の判定のみ。依存のインストール・ビルド・テストは省略 |
 
-複数の範囲を変更した場合は、該当するチェックをすべて実行する。資料だけのPRでも `check` の結果を残すため、ワークフロー全体をパス条件で除外せず、各ステップを条件付きで実行する。配信設定の変更検証や自動デプロイは含まない。この実行選択を含む統合後のCIは[PR #4の実行](https://github.com/a-sumikawa/devfest-2026/actions/runs/42241815393)で成功。CD用の変更ではmainの配信を途中で取り消さないよう、PRの実行だけをキャンセル対象にする。
+複数の範囲を変更した場合は、該当するチェックをすべて実行する。資料だけのPRでも `check` の結果を残すため、ワークフロー全体をパス条件で除外せず、各ステップを条件付きで実行する。配信スクリプトの変更では切替・復旧の単体テスト、Dockerfile等の変更ではPRでコンテナービルドを検証する。この実行選択を含む統合後のCIは[PR #4の実行](https://github.com/a-sumikawa/devfest-2026/actions/runs/42241815393)で成功。CD用の変更ではmainの配信を途中で取り消さないよう、PRの実行だけをキャンセル対象にする。
 
 ## 初期配信時の環境
 
@@ -186,6 +191,6 @@ gcloud run deploy dopagaki \
 | 自動配信の起点 | mainマージ、タグ、手動実行等のどれを使うか決める |
 | 配信前後の確認 | CI結果と配信イメージの対応、実行環境、ヘルスチェック、失敗時の扱いを定義する |
 | ロールバック | アプリのリビジョン切替と、データ・設定の復元を分けて手順化する。現時点で復旧訓練は未実施 |
-| 拡張の配布 | unpacked開発版のままか、更新・配布手段を整備するかを決める。Store配布は未実施 |
+| 拡張の配布 | GitHub ReleasesでZIPを配布し、Chromeへunpackedで導入する。Store配布とインストール済み拡張の自動更新は未実施 |
 
 この一覧を作ったことでTerraformやCDが整備済みになるわけではない。実装・適用・実行確認が終わったものだけ、上の整備状況を変更する。

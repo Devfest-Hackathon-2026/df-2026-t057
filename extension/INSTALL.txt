@@ -1,0 +1,22 @@
+DOPAGAKI Chrome拡張
+
+GitHub ReleaseのAssetsから dopagaki-extension-vX.Y.Z.zip をダウンロードしてください。「Source code」は導入用ではありません。
+公開中の管理画面へ接続する設定済みです。ローカルでのビルドは不要です。
+
+導入手順（Chrome 120以上）
+1. ダウンロードしたZIPを展開します。
+2. Chromeで chrome://extensions を開き、右上の「デベロッパーモード」を有効にします。
+3. 「パッケージ化されていない拡張機能を読み込む」を押し、展開したフォルダー内の extension フォルダーを選びます。
+4. https://dopagaki-1032251723022.asia-northeast1.run.app/ を開いてGoogleログインします。既に開いている場合は再読み込みします。
+5. 拡張のポップアップで「接続済み」を確認します。YouTubeを開いていた場合も再読み込みしてください。
+
+読み込み後も、展開したフォルダーは削除・移動せず保管してください。
+作業サイトにタイマーを表示する場合は、そのサイトで拡張の「この作業サイトにタイマーを表示」を押して許可します。
+
+更新方法
+Chrome Web Store版ではなく、ZIPを展開して読み込む開発版です。インストール済みの拡張は自動更新されません。
+新しいZIPを展開し、既存の extension フォルダーを置き換えてから、chrome://extensions のDOPAGAKIで再読み込みを押します。
+管理画面とYouTubeも再読み込みしてください。
+
+SHA256SUMS.txt は配布ZIPのSHA-256チェックサムです。
+配布元: https://github.com/a-sumikawa/devfest-2026/releases

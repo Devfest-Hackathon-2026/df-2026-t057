@@ -26,7 +26,7 @@ import { Api, localDate, message } from './api';
       <mat-progress-bar mode="indeterminate" aria-label="予定を処理中" />
     }
     <mat-dialog-content>
-      <p class="muted">OKを押すまで、現在の予定は変わりません。</p>
+      <p class="muted">保存するまで、現在の予定は変わりません。</p>
       @if (draft(); as d) {
         <div class="notice-info">{{ d.reason }}</div>
         @for (change of d.changes; track change.taskId; let i = $index) {
@@ -78,7 +78,7 @@ import { Api, localDate, message } from './api';
         @if (api.config()?.aiEnabled) {
           <div class="ai-box">
             <mat-form-field appearance="outline">
-              <mat-label>Geminiに調整を頼む</mat-label>
+              <mat-label>調整を相談</mat-label>
               <textarea
                 matInput
                 [(ngModel)]="instruction"
@@ -108,7 +108,7 @@ import { Api, localDate, message } from './api';
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close [disabled]="busy()">キャンセル</button>
       <button mat-flat-button (click)="commit()" [disabled]="busy() || !draft() || stale()">
-        {{ busy() ? '保存しています…' : 'OK・この予定に変更' }}
+        {{ busy() ? '保存しています…' : 'この予定に変更' }}
       </button>
     </mat-dialog-actions>
   `,

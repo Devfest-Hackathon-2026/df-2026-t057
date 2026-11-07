@@ -9,11 +9,13 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { AssistantCard as Card, Draft, Plan, TaskInput } from '../../../shared/models';
 import { Api, localDate, message } from './api';
+import { TaskChange } from './task-change';
 import { PlanDialog } from './plan-dialog';
 
 @Component({
   selector: 'app-assistant-card',
   imports: [
+    TaskChange,
     DatePipe,
     FormsModule,
     MatButtonModule,

@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   inject,
+  input,
   Injector,
   OnDestroy,
   output,
@@ -13,10 +14,11 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TextFieldModule } from '@angular/cdk/text-field';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { AssistantTurn } from '../../../shared/models';
+import { AssistantTurn, Task } from '../../../shared/models';
 import { Api, message } from './api';
 import { AssistantCard } from './assistant-card';
 
@@ -27,6 +29,7 @@ import { AssistantCard } from './assistant-card';
     FormsModule,
     TextFieldModule,
     MatButtonModule,
+    MatTooltipModule,
     MatFormFieldModule,
     MatInputModule,
     MatProgressBarModule,
@@ -39,6 +42,12 @@ export class Assistant implements OnDestroy {
   readonly api = inject(Api);
   private readonly injector = inject(Injector);
   readonly openSettings = output<void>();
+  readonly selectedTask = input<Task | null>(null);
+  readonly clearSelection = output<void>();
+  readonly fixedTask = input(false);
+  taskTitle(id: string) {
+    return this.api.state()?.tasks.find((t) => t.id === id)?.title ?? '削除された課題';
+  }
   readonly thread = viewChild<ElementRef<HTMLElement>>('thread');
   readonly turns = signal<AssistantTurn[]>([]);
   readonly loading = signal(true);
@@ -87,11 +96,15 @@ export class Assistant implements OnDestroy {
     const text = this.text.trim();
     if (!text || this.sending() || !this.api.config()?.aiEnabled || text.length > 2000) return;
     const last = this.turns().at(-1);
-    const id = last?.status === 'error' && last.text === text ? last.id : crypto.randomUUID();
-    await this.deliver(id, text);
+    const taskId = this.selectedTask()?.id ?? '';
+    const id =
+      last?.status === 'error' && last.text === text && (last.taskId ?? '') === taskId
+        ? last.id
+        : crypto.randomUUID();
+    await this.deliver(id, text, taskId);
   }
   async retry(turn: AssistantTurn) {
-    if (!this.sending()) await this.deliver(turn.id, turn.text);
+    if (!this.sending()) await this.deliver(turn.id, turn.text, turn.taskId ?? '');
   }
   private put(turn: AssistantTurn) {
     this.turns.update((turns) => {
@@ -100,12 +113,13 @@ export class Assistant implements OnDestroy {
       return turns.map((t, i) => (i === index ? turn : t));
     });
   }
-  private async deliver(id: string, text: string) {
+  private async deliver(id: string, text: string, taskId: string) {
     this.sending.set(true);
     this.error.set('');
     const pending: AssistantTurn = {
       id,
       text,
+      taskId,
       reply: '',
       cards: [],
       status: 'pending',
@@ -117,6 +131,7 @@ export class Assistant implements OnDestroy {
       const turn = await this.api.request<AssistantTurn>('/assistant/messages', 'POST', {
         id,
         text,
+        taskId,
       });
       this.put(turn);
       if (turn.status === 'ready' && this.text.trim() === text) this.text = '';

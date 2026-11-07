@@ -128,6 +128,7 @@ test('extension account switch removes old notices and rejects an in-flight resp
   const local: Record<string, any> = {};
   const sent: any[] = [];
   const cleared: string[] = [];
+  const accessLevels: string[] = [];
   const held = deferred<ReturnType<typeof json>>();
   const started = deferred<void>();
   let delay = false;
@@ -143,7 +144,15 @@ test('extension account switch removes old notices and rejects an in-flight resp
   });
   const event = { addListener() {} };
   const chrome = {
-    storage: { session: storage(session), local: storage(local) },
+    storage: {
+      session: storage(session),
+      local: {
+        ...storage(local),
+        setAccessLevel: async ({ accessLevel }: { accessLevel: string }) => {
+          accessLevels.push(accessLevel);
+        },
+      },
+    },
     runtime: {
       id: 'fixture',
       onMessage: {
@@ -189,7 +198,22 @@ test('extension account switch removes old notices and rejects an in-flight resp
           started.resolve();
           return held.promise;
         }
-        return json({ tasks: [], owner: options.headers.Authorization, balanceSeconds: 3600 });
+        return json({
+          tasks: [
+            {
+              id: 'completed',
+              title: 'task',
+              notes: 'private notes',
+              calendarEventId: 'private-calendar-id',
+              status: 'completed',
+              plan: {},
+            },
+          ],
+          balanceSeconds: options.headers.Authorization === 'Bearer b' ? 7200 : 3600,
+          profile: { context: 'private profile' },
+          ledger: [{ id: 'private history' }],
+          memoryReceipts: { private: true },
+        });
       },
     },
   );
@@ -203,16 +227,23 @@ test('extension account switch removes old notices and rejects an in-flight resp
       connection: { apiBase: 'https://app.example', auth: `Bearer ${id}`, accountId: id },
     });
   assert.equal((await connect('a')).connected, true);
+  assert.deepEqual(accessLevels, ['TRUSTED_CONTEXTS']);
+  assert.equal(local.state.profile, undefined);
+  assert.equal(local.state.ledger, undefined);
+  assert.equal(local.state.memoryReceipts, undefined);
+  assert.equal(local.state.tasks[0].notes, undefined);
+  assert.equal(local.state.tasks[0].calendarEventId, undefined);
+  assert.ok(sent.filter((m) => m.state).every((m) => !('profile' in m.state)));
   local.notifiedPlans = { old: 'start' };
   delay = true;
   const pending = call({ type: 'STATE' });
   await started.promise;
-  assert.equal((await connect('b')).state.owner, 'Bearer b');
+  assert.equal((await connect('b')).state.balanceSeconds, 7200);
   held.resolve(json({ tasks: [], owner: 'Bearer a', balanceSeconds: 9999 }));
   assert.match((await pending).error, /アカウントが切り替わりました/);
-  assert.equal(local.state.owner, 'Bearer b');
+  assert.equal(local.state.balanceSeconds, 7200);
   assert.equal(session.connection.accountId, 'b');
-  assert.equal(sent.filter((m) => m.state).at(-1).state.owner, 'Bearer b');
+  assert.equal(sent.filter((m) => m.state).at(-1).state.balanceSeconds, 7200);
   assert.ok(cleared.includes('task:old'));
   assert.ok(!cleared.includes('unrelated'));
   assert.equal(local.notifiedPlans, undefined);

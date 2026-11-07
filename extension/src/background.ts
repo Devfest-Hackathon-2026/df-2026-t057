@@ -1,5 +1,5 @@
 import { Draft, State } from '../../shared/models';
-import { Connection, MANAGEMENT_ORIGIN, Reply, Request } from './protocol';
+import { Connection, ExtensionState, MANAGEMENT_ORIGIN, Reply, Request } from './protocol';
 
 let connectionVersion = 0;
 
@@ -24,7 +24,25 @@ async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> 
     throw new Error(result.error ?? '通信に失敗しました。管理画面から再接続できます。');
   return result as T;
 }
-async function publish(state: State, version = connectionVersion) {
+async function apiState(path: string, method = 'GET', body?: unknown): Promise<ExtensionState> {
+  const state = await api<State>(path, method, body);
+  return {
+    balanceSeconds: state.balanceSeconds,
+    settings: state.settings,
+    session: state.session,
+    nextDraft: state.nextDraft,
+    tasks: state.tasks.map(({ id, title, why, minutes, url, status, plan }) => ({
+      id,
+      title,
+      why,
+      minutes,
+      url,
+      status,
+      plan,
+    })),
+  };
+}
+async function publish(state: ExtensionState, version = connectionVersion) {
   if (version !== connectionVersion) return;
   await chrome.storage.local.set({ state, lastError: '' });
   await chrome.alarms.clear('task-start');
@@ -50,7 +68,7 @@ async function publish(state: State, version = connectionVersion) {
 }
 async function refresh() {
   const version = connectionVersion;
-  const state = await api<State>('/state');
+  const state = await apiState('/state');
   await publish(state, version);
   return state;
 }
@@ -137,19 +155,19 @@ chrome.runtime.onMessage.addListener(
             instruction: request.instruction,
           }),
         };
-      let state: State;
+      let state: ExtensionState;
       switch (request.type) {
         case 'START':
-          state = await api<State>(`/tasks/${encodeURIComponent(request.taskId)}/start`, 'POST');
+          state = await apiState(`/tasks/${encodeURIComponent(request.taskId)}/start`, 'POST');
           break;
         case 'COMPLETE':
-          state = await api<State>(`/tasks/${encodeURIComponent(request.taskId)}/complete`, 'POST');
+          state = await apiState(`/tasks/${encodeURIComponent(request.taskId)}/complete`, 'POST');
           break;
         case 'PAUSE':
-          state = await api<State>('/session/pause', 'POST');
+          state = await apiState('/session/pause', 'POST');
           break;
         case 'COMMIT':
-          state = await api<State>('/draft/commit', 'POST', request.draft);
+          state = await apiState('/draft/commit', 'POST', request.draft);
           break;
         case 'VIEWING': {
           if (
@@ -159,7 +177,7 @@ chrome.runtime.onMessage.addListener(
             new URL(sender.url).hostname !== 'www.youtube.com'
           )
             throw new Error('視聴中のShorts以外は計測しません。');
-          state = await api<State>('/viewing', 'POST', {
+          state = await apiState('/viewing', 'POST', {
             id: request.id,
             seconds: request.seconds,
           });
@@ -231,7 +249,7 @@ chrome.notifications.onButtonClicked.addListener((id, index) => {
     void openApp(`?snooze=${encodeURIComponent(taskId)}`);
     return;
   }
-  void api<State>(`/tasks/${encodeURIComponent(taskId)}/start`, 'POST')
+  void apiState(`/tasks/${encodeURIComponent(taskId)}/start`, 'POST')
     .then(async (state) => {
       await publish(state);
       const task = state.tasks.find((t) => t.id === taskId);
@@ -241,6 +259,7 @@ chrome.notifications.onButtonClicked.addListener((id, index) => {
     .catch(() => openApp());
 });
 async function setup() {
+  await chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
   await chrome.alarms.create('sync', { periodInMinutes: 0.5 });
 }
 chrome.runtime.onInstalled.addListener(() => {
