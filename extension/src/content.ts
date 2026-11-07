@@ -378,7 +378,14 @@ function initialize() {
           'OK・この予定に変更',
           () => {
             void action({ type: 'COMMIT', draft: current }, panel).then((reply) => {
-              if (reply) dismiss();
+              if (!reply) return;
+              dismiss();
+              if (!adjust)
+                void say(
+                  'snooze',
+                  '了解、少し後ろにずらそう。次の時間に、また声かけるね。',
+                  task.id,
+                ).then(showToast);
             });
           },
           'primary',
