@@ -151,11 +151,33 @@ func (s *Server) assistantPreview(w http.ResponseWriter, r *http.Request) {
 	respond(w, map[string]any{"plan": plan, "revision": state.PlanRevision}, nil)
 }
 
+// historyCards keeps what the model needs to refer to or revise earlier cards, without plan previews.
+func historyCards(cards []AssistantCard) []map[string]any {
+	out := []map[string]any{}
+	for _, c := range cards {
+		card := map[string]any{"id": c.ID, "kind": c.Kind}
+		if c.Input != nil {
+			card["input"] = map[string]any{"title": c.Input.Title, "notes": c.Input.Notes, "why": c.Input.Why, "deadline": c.Input.Deadline, "minutes": c.Input.Minutes, "url": c.Input.URL}
+		}
+		if c.TaskID != "" {
+			card["taskId"] = c.TaskID
+		}
+		if c.Memory != "" {
+			card["memory"] = c.Memory
+		}
+		if c.Sleep != nil {
+			card["sleep"] = c.Sleep
+		}
+		out = append(out, card)
+	}
+	return out
+}
+
 func (p *Planner) Consult(ctx context.Context, owner, text string, history []AssistantTurn, state State, taskID string) (string, []AssistantCard, error) {
 	past := []map[string]any{}
 	for _, turn := range history {
 		if turn.Status == "ready" && (state.AssistantContextSince == nil || !turn.CreatedAt.Before(*state.AssistantContextSince)) {
-			past = append(past, map[string]any{"user": turn.Text, "assistant": turn.Reply, "cards": turn.Cards, "taskId": turn.TaskID})
+			past = append(past, map[string]any{"user": turn.Text, "assistant": turn.Reply, "cards": historyCards(turn.Cards), "taskId": turn.TaskID})
 		}
 	}
 	if len(past) > 4 {

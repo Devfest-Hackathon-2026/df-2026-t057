@@ -354,3 +354,12 @@ func TestAssistantProposesOwnedContentEditWithoutSaving(t *testing.T) {
 		t.Fatal("model invented a foreign task edit")
 	}
 }
+
+func TestHistoryCardsDropPreviews(t *testing.T) {
+	plan := Plan{Reason: "長い手順"}
+	cards := historyCards([]AssistantCard{{ID: "c1", Kind: "create", Input: &TaskInput{Title: "レポート", Minutes: 30}, Preview: &plan}})
+	raw, _ := json.Marshal(cards)
+	if strings.Contains(string(raw), "長い手順") || !strings.Contains(string(raw), "レポート") || !strings.Contains(string(raw), "c1") {
+		t.Fatalf("history card: %s", raw)
+	}
+}
