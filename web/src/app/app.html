@@ -1,115 +1,107 @@
-<div class="app-shell">
-  <div class="grime" [style.opacity]="grimeOpacity()" aria-hidden="true"></div>
-  <aside class="sidebar">
-    <a class="brand" href="/" aria-label="DOPAGAKI ホーム">
-      <img src="/logo.png" alt="DOPAGAKI" />
-    </a>
-    <nav aria-label="メインメニュー">
-      @for (
-        nav of [
-          { id: 'calendar', icon: 'calendar_month', text: 'カレンダー' },
-          { id: 'tasks', icon: 'assignment', text: '課題' },
-          { id: 'records', icon: 'grass', text: '記録' },
-        ];
-        track nav.id
-      ) {
-        <a [routerLink]="'/' + nav.id" routerLinkActive="selected" [attr.aria-label]="nav.text">
-          <span aria-hidden="true" class="material-symbols-rounded">{{ nav.icon }}</span>
-          {{ nav.text }}
-          <span class="nav-dot"></span>
-        </a>
-      }
-    </nav>
-  </aside>
+@if (!api.signedIn()) {
+  <app-login-screen />
+} @else {
+  <div class="app-shell">
+    <div class="grime" [style.opacity]="grimeOpacity()" aria-hidden="true"></div>
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="DOPAGAKI ホーム">
+        <img src="/logo.png" alt="DOPAGAKI" />
+      </a>
+      <nav aria-label="メインメニュー">
+        @for (
+          nav of [
+            { id: 'calendar', icon: 'calendar_month', text: 'カレンダー' },
+            { id: 'tasks', icon: 'assignment', text: '課題' },
+            { id: 'records', icon: 'grass', text: '記録' },
+          ];
+          track nav.id
+        ) {
+          <a [routerLink]="'/' + nav.id" routerLinkActive="selected" [attr.aria-label]="nav.text">
+            <span aria-hidden="true" class="material-symbols-rounded">{{ nav.icon }}</span>
+            {{ nav.text }}
+            <span class="nav-dot"></span>
+          </a>
+        }
+      </nav>
+    </aside>
 
-  <div class="main-shell">
-    @if (api.state()?.session; as session) {
-      <section class="focus-bar" aria-label="作業タイマー">
-        <div>
-          <span class="status-dot" [class.paused]="session.pausedAt"></span>
-          <strong>{{ active()?.title }}</strong>
-          <span class="mono">{{ displayTime(elapsed()) }}</span>
-          <span class="muted">/ {{ workMinutes() }}分</span>
-        </div>
-        <div>
-          <button mat-button (click)="api.mutate('/session/pause')" [disabled]="api.busy()">
-            {{ session.pausedAt ? '再開' : '一時停止' }}
-          </button>
-          @if (api.state()?.timePolicy) {
-            <button mat-button (click)="actions.confirmWork()" [disabled]="api.busy()">
-              ここまで取り組んだ
+    <div class="main-shell">
+      @if (api.state()?.session; as session) {
+        <section class="focus-bar" aria-label="作業タイマー">
+          <div>
+            <span class="status-dot" [class.paused]="session.pausedAt"></span>
+            <strong>{{ active()?.title }}</strong>
+            <span class="mono">{{ displayTime(elapsed()) }}</span>
+            <span class="muted">/ {{ workMinutes() }}分</span>
+          </div>
+          <div>
+            <button mat-button (click)="api.mutate('/session/pause')" [disabled]="api.busy()">
+              {{ session.pausedAt ? '再開' : '一時停止' }}
             </button>
-          }
-          <button mat-flat-button (click)="actions.complete(active()!)" [disabled]="api.busy()">
-            課題を完了
-          </button>
-        </div>
-        <mat-progress-bar mode="determinate" [value]="progress()" aria-label="作業の進捗" />
-      </section>
-    }
-    <header class="topbar">
-      <div class="topbar-right">
-        @if (api.config()?.mode === 'demo') {
-          <span class="demo-badge">デモ</span>
-        }
-        <span class="today-date">{{ now() | date: 'M月d日 EEEE' : '' : 'ja' }}</span>
-        @if (api.config()?.mode === 'demo') {
-          <button
-            mat-icon-button
-            matTooltip="設定"
-            aria-label="設定を開く"
-            (click)="navigate('settings')"
-          >
-            <span class="material-symbols-rounded">settings</span>
-          </button>
-        } @else {
-          <app-account-menu (openSettings)="navigate('settings')" />
-        }
-      </div>
-    </header>
-
-    <main>
-      @if (api.error()) {
-        <div class="error-banner" role="alert">
-          <span aria-hidden="true" class="material-symbols-rounded">error</span>
-          <span>{{ api.error() }}</span>
-          <button mat-button (click)="api.error.set('')">閉じる</button>
-        </div>
-      }
-      @if (api.loading()) {
-        <div class="page-title skeleton-title skeleton"></div>
-        <div class="loading-grid" aria-label="課題と予定を読み込み中" role="status">
-          <div class="skeleton"></div>
-          <div class="skeleton"></div>
-          <div class="skeleton"></div>
-          <span>課題と予定を読み込んでいます…</span>
-        </div>
-      } @else if (!api.signedIn()) {
-        <section class="login-card">
-          <h1>やることを、ひとつずつ。</h1>
-          <p>見る時間を決めて、次の作業へ。</p>
-          <details class="disclosure">
-            <summary>このアプリについて</summary>
-            <p>
-              Googleカレンダーの課題から作業予定を作ります。課題・予定・視聴時間はアカウントごとに保存します。
-            </p>
-            <a href="/privacy.html" target="_blank" rel="noopener">データの取り扱い</a>
-          </details>
-        </section>
-      } @else if (api.state(); as state) {
-        @if (state.calendarConnected && state.calendarSync === 'pending') {
-          <div class="notice-info" role="status">
-            管理画面の予定をGoogleカレンダーへ反映できていません。
-            <button mat-button (click)="api.mutate('/calendar/sync')" [disabled]="api.busy()">
-              同期を再試行
+            @if (api.state()?.timePolicy) {
+              <button mat-button (click)="actions.confirmWork()" [disabled]="api.busy()">
+                ここまで取り組んだ
+              </button>
+            }
+            <button mat-flat-button (click)="actions.complete(active()!)" [disabled]="api.busy()">
+              課題を完了
             </button>
           </div>
-        }
-        <router-outlet />
+          <mat-progress-bar mode="determinate" [value]="progress()" aria-label="作業の進捗" />
+        </section>
       }
-    </main>
+      <header class="topbar">
+        <div class="topbar-right">
+          @if (api.config()?.mode === 'demo') {
+            <span class="demo-badge">デモ</span>
+          }
+          <span class="today-date">{{ now() | date: 'M月d日 EEEE' : '' : 'ja' }}</span>
+          @if (api.config()?.mode === 'demo') {
+            <button
+              mat-icon-button
+              matTooltip="設定"
+              aria-label="設定を開く"
+              (click)="navigate('settings')"
+            >
+              <span class="material-symbols-rounded">settings</span>
+            </button>
+          } @else {
+            <app-account-menu (openSettings)="navigate('settings')" />
+          }
+        </div>
+      </header>
+
+      <main>
+        @if (api.error()) {
+          <div class="error-banner" role="alert">
+            <span aria-hidden="true" class="material-symbols-rounded">error</span>
+            <span>{{ api.error() }}</span>
+            <button mat-button (click)="api.error.set('')">閉じる</button>
+          </div>
+        }
+        @if (api.loading()) {
+          <div class="page-title skeleton-title skeleton"></div>
+          <div class="loading-grid" aria-label="課題と予定を読み込み中" role="status">
+            <div class="skeleton"></div>
+            <div class="skeleton"></div>
+            <div class="skeleton"></div>
+            <span>課題と予定を読み込んでいます…</span>
+          </div>
+        } @else if (api.state(); as state) {
+          @if (state.calendarConnected && state.calendarSync === 'pending') {
+            <div class="notice-info" role="status">
+              管理画面の予定をGoogleカレンダーへ反映できていません。
+              <button mat-button (click)="api.mutate('/calendar/sync')" [disabled]="api.busy()">
+                同期を再試行
+              </button>
+            </div>
+          }
+          <router-outlet />
+        }
+      </main>
+    </div>
   </div>
-</div>
+}
 
 @if (preview(); as task) {
   <div
