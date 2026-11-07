@@ -10,7 +10,7 @@ YouTube Shortsから、いま始める課題へ戻るためのChrome拡張と管
 
 ## 開発記録と発表用の根拠
 
-[engineering/README.md](engineering/README.md) に、設計判断、不具合の症状と原因、運用・CI/CDの現状、実サービス検証、発表用の論点と実画面をまとめています。今後の変更でも、関連する判断・知見・検証結果を併せて更新します。Terraformは未導入です。mainの検証成功後にCloud Runへ自動配信する[CD設定](engineering/continuous-deployment.md)を準備し、GCPの鍵なし認証を設定しました。mainへの反映と初回CDの実確認は、CIの成功・過去の手動配信とは区別して記録します。
+[engineering/README.md](engineering/README.md) に、設計判断、不具合の症状と原因、運用・CI/CDの現状、実サービス検証、発表用の論点と実画面をまとめています。今後の変更でも、関連する判断・知見・検証結果を併せて更新します。Terraformは未導入です。アプリの変更をmainへマージすると、検証成功後にCloud Runへ[自動配信](engineering/continuous-deployment.md)します。鍵なし認証・候補確認・切替・初回の公開先確認まで成功しています。資料だけ・拡張だけの変更ではCloud Runへの配信を省きます。
 
 ## ローカルで試す
 

@@ -2,7 +2,7 @@
 
 記録日：2026-11-06。以下のクラウド設定は配信時に確認した値。秘密情報の実値は含めない。
 
-最新の手動配信は2026-11-07の `dopagaki-ui-063109e`（100%）。PR #10のUIを、稼働中のセキュリティ修正版 `0b05f11` を保持して配信し、公開アセットの一致・health 200・未認証state 401を確認した。自動配信の初回結果は[継続的デプロイ](continuous-deployment.md)へ追記する。
+最新配信は2026-11-07の `dopagaki-00021-gus`（100%）、main `7fabe1f`。PR #6のマージを起点にGitHub Actionsの初回CDが成功した。[自動配信の実確認](continuous-deployment.md#初回cdの実確認2026-11-07)と[機械可読な記録](evidence/cd-first-deployment-2026-11-07.json)を参照。直前はUIを手動配信した `dopagaki-ui-063109e`。
 
 直前の配信は `dopagaki-main-b6dffb4`、main `b6dffb4`。[配信と実Shortsの検証](shorts-verification-2026-11-07.md)を参照。以下の初期配信時の設定・権限は当時の記録として保持する。
 
@@ -14,13 +14,13 @@
 |---|---|---|
 | CI | 整備済み（変更範囲による実行選択を追加） | [.github/workflows/check.yml](../.github/workflows/check.yml)。PRとmainへのpushで実行。下記の範囲に応じてチェックを選択 |
 | Chrome拡張の配布 | タグからReleaseを作成するワークフローを追加 | [release-extension.yml](../.github/workflows/release-extension.yml)。`vX.Y.Z` のpushで型チェック・単体テスト・公開先向けビルド・ZIPとチェックサムの公開を実行。導入は[INSTALL.txt](../extension/INSTALL.txt)参照。初回のGitHub上の実行結果はPR・Actionsで確認 |
-| Cloud Runへの配信 | 手動で実施済み | Cloud Buildでイメージ作成後、CLIでCloud Runを更新 |
-| CD | ワークフローを準備・GCP認証設定済み | [継続的デプロイ](continuous-deployment.md)。mainへの反映と初回実行は未完了 |
+| Cloud Runへの配信 | 自動配信の初回成功を確認済み | GitHub Actionsでイメージ作成・push・候補確認・切替 |
+| CD | 稼働済み | [継続的デプロイ](continuous-deployment.md)。mainの検証成功後に配信し、公開確認失敗時は元の配分へ戻す |
 | Terraform / IaC | 未導入 | Terraformコード・state管理・importは用意していない |
 | 配信設定の共有 | 一部あり | Dockerfile、公開環境変数の例、Firestoreルール、README |
 | 再現可能な一連の運用 | 未完成 | Firebase・OAuth・Chat・IAM等を含む初期設定全体はCLI・画面操作に依存 |
 
-2026-11-07にGitHub ActionsからのCDを追加する変更と、対象リソースに限定した鍵なし認証を用意した。mainへ反映するまでは、既存の手動配信が現行の運用である。以下の図は手動配信の経路として残す。
+2026-11-07にGitHub ActionsからのCDをmainへ反映し、対象リソースに限定した鍵なし認証で初回配信が成功した。以下の図は以前の手動配信の経路として残す。
 
 ```mermaid
 flowchart LR
@@ -31,7 +31,7 @@ flowchart LR
   Deploy --> Smoke[実サービスでの確認]
 ```
 
-自動配信の経路、認証条件、候補の確認・切替・ロールバックは[継続的デプロイ](continuous-deployment.md)を参照。mainへの反映と初回CDを確認後、実行結果を同文書に追記する。Chrome拡張のタグからGitHub Releasesへの自動公開はCloud Run配信とは別のワークフローで、インストール済み拡張の自動更新は行わない。
+自動配信の経路、認証条件、候補の確認・切替・ロールバックは[継続的デプロイ](continuous-deployment.md)を参照。初回の実行結果も同文書に記録した。Chrome拡張のタグからGitHub Releasesへの自動公開はCloud Run配信とは別のワークフローで、インストール済み拡張の自動更新は行わない。
 
 ## CIの実行範囲
 
