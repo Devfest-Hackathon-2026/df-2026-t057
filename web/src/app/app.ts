@@ -7,11 +7,18 @@ import { filter, map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Api, message } from './api';
 import { AccountMenu } from './account-menu';
 import { TaskActions } from './task-actions';
-import { displayTime, elapsedSeconds, plannedSeconds, Task } from '../../../shared/models';
+import {
+  Morning,
+  State,
+  Task,
+  displayTime,
+  elapsedSeconds,
+  plannedSeconds,
+} from '../../../shared/models';
 
 @Component({
   selector: 'app-root',
@@ -42,6 +49,9 @@ export class App implements OnDestroy {
   );
   readonly now = signal(Date.now());
   readonly preview = this.actions.preview;
+  readonly companionLine = signal('');
+  private readonly snack = inject(MatSnackBar);
+  private morningChecked = false;
   readonly active = computed(() =>
     this.api.state()?.tasks.find((t) => t.id === this.api.state()?.session?.taskId),
   );
@@ -79,6 +89,22 @@ export class App implements OnDestroy {
   }, 30000);
   constructor() {
     effect(() => {
+      const task = this.preview();
+      this.companionLine.set('');
+      if (!task) return;
+      void this.api
+        .request<{ line: string }>('/companion/line', 'POST', { moment: 'notice', taskId: task.id })
+        .then((reply) => {
+          if (this.preview()?.id === task.id) this.companionLine.set(reply.line);
+        })
+        .catch(() => undefined);
+    });
+    effect(() => {
+      if (this.morningChecked || !this.api.state()?.sleep) return;
+      this.morningChecked = true;
+      void this.checkMorning();
+    });
+    effect(() => {
       if (!this.api.state()) {
         this.actions.dialog.closeAll();
         this.preview.set(null);
@@ -107,5 +133,27 @@ export class App implements OnDestroy {
   }
   navigate(page: string) {
     void this.router.navigateByUrl('/' + page);
+  }
+  // Once per load: settle last night and let the companion say good morning.
+  private async checkMorning() {
+    try {
+      const result = await this.api.request<{ state: State; morning: Morning | null }>(
+        '/sleep/morning',
+        'POST',
+      );
+      this.api.state.set(result.state);
+      const morning = result.morning;
+      if (!morning) return;
+      const { line } = await this.api.request<{ line: string }>('/companion/line', 'POST', {
+        moment: 'morning',
+      });
+      const gains = [
+        morning.kept ? `早寝ボーナス ＋${morning.bonusSeconds / 60}分` : '',
+        morning.releasedSeconds ? `昨夜の報酬 ＋${morning.releasedSeconds / 60}分` : '',
+      ].filter(Boolean);
+      this.snack.open([line, ...gains].join(' ・ '), '閉じる', { duration: 8000 });
+    } catch {
+      /* The morning check-in is optional. */
+    }
   }
 }

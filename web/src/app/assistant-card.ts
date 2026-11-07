@@ -46,6 +46,11 @@ export class AssistantCard {
         ?.ledger.some((e) => e.kind === 'registration' && e.taskId === this.card().input?.id),
   );
   readonly remembered = computed(() => !!this.api.state()?.memoryReceipts?.[this.card().id]);
+  readonly sleepSet = computed(() => {
+    const sleep = this.api.state()?.sleep;
+    const proposed = this.card().sleep;
+    return !!sleep && sleep.bedtime === proposed?.bedtime && sleep.wake === proposed?.wake;
+  });
   readonly stale = computed(() => this.preview()?.revision !== this.api.state()?.planRevision);
   form: TaskInput = { id: '', title: '', notes: '', deadline: '', minutes: 30, url: '' };
   memoryText = '';
@@ -146,6 +151,14 @@ export class AssistantCard {
     } finally {
       this.busy.set(false);
     }
+  }
+  async setSleep() {
+    if (this.busy() || this.sleepSet() || !this.card().sleep) return;
+    this.busy.set(true);
+    this.error.set('');
+    if (!(await this.api.mutate('/sleep', this.card().sleep, 'PUT')))
+      this.error.set(this.api.error());
+    this.busy.set(false);
   }
   async remember() {
     if (this.busy() || this.remembered() || !this.memoryText.trim()) return;

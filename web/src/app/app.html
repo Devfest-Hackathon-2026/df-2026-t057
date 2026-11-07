@@ -123,6 +123,9 @@
       <h2 id="notice-title">
         {{ api.state()?.settings?.mode === 'mahjong' ? 'まず、一手。' : 'そろそろ、やるか。' }}
       </h2>
+      @if (companionLine()) {
+        <p class="companion">{{ companionLine() }}</p>
+      }
       <div class="notice-task">
         <span aria-hidden="true" class="material-symbols-rounded">assignment</span>
         <h3>{{ task.title }}</h3>

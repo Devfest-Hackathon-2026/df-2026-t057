@@ -91,6 +91,7 @@ test('unpacked extension connects, counts foreground Shorts and presents a due t
     await expect(host.getByRole('button', { name: '作業をはじめる', exact: true })).toBeVisible({
       timeout: 15000,
     });
+    await expect(host.locator('.companion')).toContainText('一緒に始めよっか');
     await youtube.screenshot({
       animations: 'disabled',
       path: 'test-results/extension-notification.png',
@@ -104,7 +105,9 @@ test('unpacked extension connects, counts foreground Shorts and presents a due t
     await host.getByRole('button', { name: '一時停止', exact: true }).click();
     await expect(host.getByRole('button', { name: '再開', exact: true })).toBeVisible();
     await host.getByRole('button', { name: '完了 ＋20分', exact: true }).click();
-    await expect(host.getByText('課題完了！視聴時間 ＋20分')).toBeVisible();
+    await expect(
+      host.getByText('やりきったね。その積み重ね、ちゃんと効いてる。（＋20分）'),
+    ).toBeVisible();
     await expect(host.locator('.timer')).not.toBeVisible();
     await worker.evaluate(async () => {
       const { state } = await chrome.storage.local.get('state');
@@ -119,7 +122,7 @@ test('unpacked extension connects, counts foreground Shorts and presents a due t
       .poll(() => youtube.locator('video').evaluate((video: HTMLVideoElement) => video.paused))
       .toBe(true);
     await expect(
-      host.getByText('視聴時間がなくなりました。課題を登録・完了して時間を増やしましょう。'),
+      host.getByText('今日の視聴はここで区切ろう。次の一手で、また時間が増えるよ。'),
     ).toBeVisible();
   } finally {
     await context.close();

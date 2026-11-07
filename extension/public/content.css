@@ -77,6 +77,17 @@ h2 {
 h3 {
   font-size: 14px;
 }
+.companion {
+  display: inline-block;
+  max-width: 34em;
+  margin: -14px 0 22px;
+  padding: 10px 16px;
+  border-radius: 16px 16px 16px 4px;
+  background: #ffffffe6;
+  color: #1f1a10;
+  font-size: 15px;
+  line-height: 1.6;
+}
 .task-card {
   background: #100900bc;
   border: 1px solid #ffee9d55;
