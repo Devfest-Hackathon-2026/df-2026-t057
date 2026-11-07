@@ -10,6 +10,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Api, message } from './api';
 import { AccountMenu } from './account-menu';
+import { LoginScreen } from './login-screen';
 import { TaskActions } from './task-actions';
 import {
   Morning,
@@ -32,6 +33,7 @@ import {
     MatProgressBarModule,
     MatSnackBarModule,
     AccountMenu,
+    LoginScreen,
     RouterLink,
     RouterLinkActive,
     RouterOutlet,
