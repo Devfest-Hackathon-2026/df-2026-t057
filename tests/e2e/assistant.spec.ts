@@ -51,10 +51,7 @@ test('conversation cards require confirmation, preserve edits, and update real t
     await route.fulfill({ json: turn });
   });
   await page.goto('/');
-  await page
-    .getByRole('navigation', { name: 'メインメニュー' })
-    .getByRole('button', { name: 'AIに相談', exact: true })
-    .click();
+  await page.getByRole('radio', { name: '相談', exact: true }).click();
   const composer = page.getByLabel('相談する', { exact: true });
   await composer.fill('4時間後までにレポートを30分で。区切って進めたい');
   await page.getByRole('button', { name: '送信', exact: true }).click();
@@ -96,15 +93,13 @@ test('conversation cards require confirmation, preserve edits, and update real t
   await edited.getByRole('button', { name: '予定・手順を調整', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByLabel('開始', { exact: true })).toBeVisible();
-  await dialog.getByRole('button', { name: 'OK・この予定に変更', exact: true }).click();
+  await dialog.getByRole('button', { name: 'この予定に変更', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await page.reload();
-  await page
-    .getByRole('navigation', { name: 'メインメニュー' })
-    .getByRole('button', { name: 'AIに相談', exact: true })
-    .click();
+  await page.getByRole('radio', { name: '相談', exact: true }).click();
   await expect(edited).toContainText('現在の予定');
   await expect(memory).not.toContainText('30分ずつ区切ると進めやすい');
+  await page.locator('.memory-disclosure summary').click();
   await page.getByRole('button', { name: '編集・忘れる内容を選ぶ', exact: true }).click();
   await page.getByLabel('作業の傾向', { exact: true }).fill('');
   await page.getByRole('button', { name: '保存', exact: true }).click();
@@ -113,6 +108,8 @@ test('conversation cards require confirmation, preserve edits, and update real t
   expect(state.balanceSeconds).toBe(4200);
   expect(state.tasks).toHaveLength(1);
   await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    .toBe(true);
   expect(errors).toEqual([]);
 });

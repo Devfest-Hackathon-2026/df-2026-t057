@@ -3,7 +3,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 
-test('unpacked extension connects, counts foreground Shorts and presents a due task', async () => {
+test('unpacked extension connects, counts foreground Shorts and presents a due task', async ({
+  baseURL,
+}) => {
   test.setTimeout(60000);
   const profile = await mkdtemp(join(tmpdir(), 'dopagaki-chrome-'));
   const extension = resolve('dist/extension');
@@ -16,7 +18,7 @@ test('unpacked extension connects, counts foreground Shorts and presents a due t
   try {
     const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
     const app = await context.newPage();
-    await app.goto('http://127.0.0.1:4200');
+    await app.goto(baseURL!);
     await expect
       .poll(() =>
         worker.evaluate(
@@ -44,6 +46,28 @@ test('unpacked extension connects, counts foreground Shorts and presents a due t
         { timeout: 20000 },
       )
       .toBeLessThan(3600);
+    const stored = await worker.evaluate(
+      async () => (await chrome.storage.local.get('state')).state,
+    );
+    expect(stored).not.toHaveProperty('profile');
+    expect(stored).not.toHaveProperty('ledger');
+    expect(
+      await worker.evaluate(async (baseURL) => {
+        const [tab] = await chrome.tabs.query({ url: `${baseURL}/*` });
+        const [result] = await chrome.scripting.executeScript({
+          target: { tabId: tab.id! },
+          func: async () => {
+            try {
+              await chrome.storage.local.get('state');
+              return false;
+            } catch {
+              return true;
+            }
+          },
+        });
+        return result.result;
+      }, baseURL),
+    ).toBe(true);
     await app.evaluate(async () => {
       await fetch('/api/tasks', {
         method: 'POST',

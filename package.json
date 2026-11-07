@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "cd api && APP_MODE=demo PORT=8080 go run ./cmd/server",
+    "dev:api": "cd api && APP_MODE=demo DEV_API_ONLY=true PORT=8080 go run ./cmd/server",
     "dev:web": "ng serve --host 127.0.0.1 --port 4200 --proxy-config web/proxy.json",
     "build": "ng build && npm run build:extension",
     "build:extension": "node scripts/build-extension.mjs",
@@ -18,25 +18,29 @@
     "test:unit": "node --test tests/*.test.ts"
   },
   "dependencies": {
+    "@angular/cdk": "22.2.6",
     "@angular/common": "22.2.4",
     "@angular/compiler": "22.2.4",
     "@angular/core": "22.2.4",
     "@angular/forms": "22.2.4",
-    "@angular/platform-browser": "22.2.4",
-    "@angular/cdk": "22.2.6",
     "@angular/material": "22.2.6",
+    "@angular/platform-browser": "22.2.4",
+    "@angular/router": "22.2.4",
+    "@fullcalendar/angular": "7.1.4",
     "firebase": "13.2.0",
+    "fullcalendar": "7.1.4",
+    "material-symbols": "^0.40.2",
     "rxjs": "~7.8.2",
-    "tslib": "^2.8.1",
-    "material-symbols": "^0.40.2"
+    "temporal-polyfill": "1.0.7",
+    "tslib": "^2.8.1"
   },
   "devDependencies": {
     "@angular/build": "22.2.6",
     "@angular/cli": "22.2.6",
     "@angular/compiler-cli": "22.2.4",
+    "@playwright/test": "^1.56.1",
     "@types/chrome": "^0.1.27",
     "@types/node": "^24.0.0",
-    "@playwright/test": "^1.56.1",
     "concurrently": "^9.2.1",
     "esbuild": "^0.25.12",
     "prettier": "^3.6.2",

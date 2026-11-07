@@ -71,6 +71,8 @@ func streakDays(state State, now time.Time) int {
 type companionTask struct {
 	ID        string    `json:"id"`
 	Title     string    `json:"title"`
+	Notes     string    `json:"notes,omitempty"`
+	URL       string    `json:"url,omitempty"`
 	Why       string    `json:"why,omitempty"`
 	Deadline  time.Time `json:"deadline"`
 	Minutes   int       `json:"minutes"`
@@ -82,7 +84,7 @@ type companionTask struct {
 }
 
 func describeTask(t Task) companionTask {
-	c := companionTask{ID: t.ID, Title: t.Title, Why: t.Why, Deadline: t.Deadline, Minutes: t.Minutes, Start: t.Plan.Start, End: t.Plan.End, Status: t.Status, Calendar: t.CalendarEventID != ""}
+	c := companionTask{ID: t.ID, Title: t.Title, Notes: t.Notes, URL: t.URL, Why: t.Why, Deadline: t.Deadline, Minutes: t.Minutes, Start: t.Plan.Start, End: t.Plan.End, Status: t.Status, Calendar: t.CalendarEventID != ""}
 	if len(t.Plan.Steps) > 0 && t.Plan.Steps[0].Title != t.Title {
 		c.FirstStep = t.Plan.Steps[0].Title
 	}
@@ -133,10 +135,11 @@ const (
 	toolReschedule = "propose_reschedule"
 	toolMemory     = "propose_memory"
 	toolSleep      = "propose_sleep"
+	toolUpdate     = "propose_update"
 )
 
 // proposalKinds maps proposal tools to the confirmation cards the user must press.
-var proposalKinds = map[string]string{toolTask: "create", toolReschedule: "task", toolMemory: "memory", toolSleep: "sleep"}
+var proposalKinds = map[string]string{toolTask: "create", toolReschedule: "task", toolMemory: "memory", toolSleep: "sleep", toolUpdate: "update"}
 
 func companionTools() []*genai.Tool {
 	str := func(description string) *genai.Schema {
@@ -161,6 +164,15 @@ func companionTools() []*genai.Tool {
 			"taskId": str("get_todayなどで得た実在する課題のid"),
 			"start":  str("新しい開始時刻（RFC3339）。参照だけなら省略"),
 		}, Required: []string{"taskId"}}},
+		{Name: toolUpdate, Description: "未開始の既存課題の内容（課題名・メモ・Why・締切・必要時間・URL）の変更を候補として本人に見せる。変えない項目は現在値のまま全項目を出す。本人が押すまで変わらない。", Parameters: &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
+			"taskId":   str("get_todayなどで得た実在する課題のid"),
+			"title":    str("課題名"),
+			"notes":    str("メモ"),
+			"why":      str("やる理由。本人が言っていなければ現在値"),
+			"deadline": str("締切。タイムゾーン付きRFC3339"),
+			"minutes":  {Type: genai.TypeInteger, Description: "必要な分数"},
+			"url":      str("関連URL。なければ空文字"),
+		}, Required: []string{"taskId", "title", "deadline", "minutes"}}},
 		{Name: toolMemory, Description: "本人がはっきり言った作業の好み・苦手・時間帯を、覚える候補として見せる。推測した性格や機微な情報は使わない。", Parameters: &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
 			"memory": str("短く覚える内容（500文字以内）"),
 		}, Required: []string{"memory"}}},
@@ -233,6 +245,15 @@ func proposalCard(call *genai.FunctionCall) (consultationCard, error) {
 		}
 		_ = json.Unmarshal(raw, &args)
 		card.Memory = args.Memory
+	case toolUpdate:
+		var args struct {
+			TaskInput
+			TaskID string `json:"taskId"`
+		}
+		if err := json.Unmarshal(raw, &args); err != nil {
+			return card, errors.New("課題の変更候補を読み取れませんでした")
+		}
+		card.Input, card.TaskID = &args.TaskInput, args.TaskID
 	case toolSleep:
 		_ = json.Unmarshal(raw, &card.Sleep)
 	default:
@@ -241,22 +262,16 @@ func proposalCard(call *genai.FunctionCall) (consultationCard, error) {
 	return card, nil
 }
 
-// retry retries rate-limited and transient Gemini errors twice, starting after delay seconds.
-func retry(delay float64) *genai.HTTPOptions {
-	attempts, limit := int32(3), 2*delay
-	return &genai.HTTPOptions{RetryOptions: &genai.HTTPRetryOptions{Attempts: &attempts, InitialDelay: &delay, MaxDelay: &limit}}
-}
-
 // maxToolRounds bounds the Gemini round trips of one consultation.
 const maxToolRounds = 4
 
 // converse lets Gemini read state through tools and collects proposal calls as unconfirmed cards.
-func (p *Planner) converse(ctx context.Context, prompt string, state State) (string, []consultationCard, error) {
+func (p *Planner) converse(ctx context.Context, owner, prompt string, state State) (string, []consultationCard, error) {
 	contents := []*genai.Content{genai.NewContentFromText(prompt, genai.RoleUser)}
-	config := &genai.GenerateContentConfig{SystemInstruction: persona(), Tools: companionTools(), MaxOutputTokens: 5000, ThinkingConfig: &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelLow}, HTTPOptions: retry(1)}
+	config := &genai.GenerateContentConfig{SystemInstruction: persona(), Tools: companionTools(), MaxOutputTokens: 5000, ThinkingConfig: &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelLow}}
 	proposals := []consultationCard{}
 	for range maxToolRounds {
-		result, err := p.Client.Models.GenerateContent(ctx, p.Model, contents, config)
+		result, err := p.generateContents(ctx, owner, contents, config)
 		if err != nil {
 			return "", nil, err
 		}
@@ -341,7 +356,7 @@ func fallbackLine(moment string, task *Task) string {
 var lineTimeout = 6 * time.Second
 
 // Line asks the companion for one short remark at a moment, falling back to fixed text.
-func (p *Planner) Line(ctx context.Context, moment string, state State, task *Task) (string, bool) {
+func (p *Planner) Line(ctx context.Context, owner, moment string, state State, task *Task) (string, bool) {
 	fallback := fallbackLine(moment, task)
 	if p == nil || p.Client == nil {
 		return fallback, false
@@ -355,7 +370,7 @@ func (p *Planner) Line(ctx context.Context, moment string, state State, task *Ta
 	}
 	raw, _ := json.Marshal(data)
 	prompt := "次の場面で、本人に向けたひとことを日本語で1つだけ返してください。40文字以内、かぎかっこや説明は付けない。\n" + string(raw)
-	result, err := p.Client.Models.GenerateContent(ctx, p.Model, genai.Text(prompt), &genai.GenerateContentConfig{SystemInstruction: persona(), MaxOutputTokens: 1000, ThinkingConfig: &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelLow}, HTTPOptions: retry(0.3)})
+	result, err := p.generate(ctx, owner, prompt, &genai.GenerateContentConfig{SystemInstruction: persona(), MaxOutputTokens: 1000, ThinkingConfig: &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelLow}})
 	if err != nil {
 		slog.Warn("companion line fell back", "moment", moment, "error", err)
 		return fallback, false
@@ -391,6 +406,6 @@ func (s *Server) companionLine(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	line, generated := s.Planner.Line(r.Context(), in.Moment, state, task)
+	line, generated := s.Planner.Line(r.Context(), uid(r), in.Moment, state, task)
 	respond(w, map[string]any{"line": line, "name": CompanionName, "generated": generated}, nil)
 }

@@ -2,13 +2,18 @@
 
 記録日：2026-11-06。以下のクラウド設定は配信時に確認した値。秘密情報の実値は含めない。
 
-最新配信は管理画面のAI相談を追加した Cloud Run `dopagaki-00013-vtd`（100%）、コード `7b77026`。[変更と実確認の範囲](assistant.md)を参照。Google Chatアプリは無効化し、旧受付APIと専用環境変数を削除した。本人のGoogleアカウント照合とアカウント切替は[一般ユーザー対応の記録](public-accounts.md#配信と実確認)を参照。下記の「初期配信時の環境」と旧digestの配信例は、最初の実サービス確認時点の記録として保持する。
+最新配信は2026-11-07の `dopagaki-security-0b05f11`（100%）、アプリコード `0b05f11`。IAM縮小・AI利用上限・CSP・依存とOS更新を反映し、同じ実行SAでSDK操作とAI疎通1回を確認した。[本番反映の記録](security-rollout-2026-11-07.md)を参照。ローカルで監査したコンテナーtarを既存レジストリへpushし、digest固定で手動配信した。GitHubへのpush・マージやCDは行っていない。
+
+直前の配信は `dopagaki-main-b6dffb4`、main `b6dffb4`。[配信と実Shortsの検証](shorts-verification-2026-11-07.md)を参照。以下の初期配信時の設定・権限は当時の記録として保持する。
+
+前回の配信は管理画面のAI相談を追加した Cloud Run `dopagaki-00013-vtd`（100%）、コード `7b77026`。[変更と実確認の範囲](assistant.md)を参照。Google Chatアプリは無効化し、旧受付APIと専用環境変数を削除した。本人のGoogleアカウント照合とアカウント切替は[一般ユーザー対応の記録](public-accounts.md#配信と実確認)を参照。下記の「初期配信時の環境」と旧digestの配信例は、最初の実サービス確認時点の記録として保持する。
 
 ## 整備状況
 
 | 項目 | 状態 | 根拠・範囲 |
 |---|---|---|
 | CI | 整備済み（変更範囲による実行選択を追加） | [.github/workflows/check.yml](../.github/workflows/check.yml)。PRとmainへのpushで実行。下記の範囲に応じてチェックを選択 |
+| Chrome拡張の配布 | タグからReleaseを作成するワークフローを追加 | [release-extension.yml](../.github/workflows/release-extension.yml)。`vX.Y.Z` のpushで型チェック・単体テスト・公開先向けビルド・ZIPとチェックサムの公開を実行。導入は[INSTALL.txt](../extension/INSTALL.txt)参照。初回のGitHub上の実行結果はPR・Actionsで確認 |
 | Cloud Runへの配信 | 手動で実施済み | Cloud Buildでイメージ作成後、CLIでCloud Runを更新 |
 | CD | 未整備 | この開発でmainへのマージ等を起点にした自動デプロイを設定していない |
 | Terraform / IaC | 未導入 | Terraformコード・state管理・importは用意していない |
@@ -26,7 +31,7 @@ flowchart LR
   Deploy --> Smoke[実サービスでの確認]
 ```
 
-CI成功からCloud Run更新へ自動でつながる経路はまだない。
+CI成功からCloud Run更新へ自動でつながる経路はまだない。Chrome拡張のタグからGitHub Releasesへの自動公開はCloud Run配信とは別のワークフローで、インストール済み拡張の自動更新は行わない。
 
 ## CIの実行範囲
 
@@ -186,6 +191,6 @@ gcloud run deploy dopagaki \
 | 自動配信の起点 | mainマージ、タグ、手動実行等のどれを使うか決める |
 | 配信前後の確認 | CI結果と配信イメージの対応、実行環境、ヘルスチェック、失敗時の扱いを定義する |
 | ロールバック | アプリのリビジョン切替と、データ・設定の復元を分けて手順化する。現時点で復旧訓練は未実施 |
-| 拡張の配布 | unpacked開発版のままか、更新・配布手段を整備するかを決める。Store配布は未実施 |
+| 拡張の配布 | GitHub ReleasesでZIPを配布し、Chromeへunpackedで導入する。Store配布とインストール済み拡張の自動更新は未実施 |
 
 この一覧を作ったことでTerraformやCDが整備済みになるわけではない。実装・適用・実行確認が終わったものだけ、上の整備状況を変更する。

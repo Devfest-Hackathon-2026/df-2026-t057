@@ -91,7 +91,7 @@ func TestLiveCompanionScript(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	planner := &Planner{Client: client, Model: "gemini-3.8-flash"}
+	planner := &Planner{Client: client, Model: "gemini-3.8-flash", Usage: NewMemoryAIUsageStore(), Limits: AILimits{60, 300, 60, 300}}
 	lineTimeout = 20 * time.Second
 	for _, c := range cases {
 		state := liveFixture(time.Now())
@@ -104,7 +104,7 @@ func TestLiveCompanionScript(t *testing.T) {
 		for _, text := range c.Turns {
 			trace.calls = nil
 			began := time.Now()
-			reply, cards, err := planner.Consult(ctx, text, history, state)
+			reply, cards, err := planner.Consult(ctx, "live-fixture", text, history, state, "")
 			t.Logf("\n[%s] 本人: %s\n  道具: %v\n  相棒(%.1fs): %s\n  エラー: %v", c.Name, text, trace.calls, time.Since(began).Seconds(), reply, err)
 			for _, card := range cards {
 				out, _ := json.Marshal(card)
@@ -119,7 +119,7 @@ func TestLiveCompanionScript(t *testing.T) {
 			}
 			trace.text = ""
 			began := time.Now()
-			line, generated := planner.Line(ctx, c.Line, state, task)
+			line, generated := planner.Line(ctx, "live-fixture", c.Line, state, task)
 			t.Logf("\n[%s] 場面 %s → %s（生成:%v %.1fs）", c.Name, c.Line, line, generated, time.Since(began).Seconds())
 			if !generated {
 				t.Logf("  Geminiの生出力: %q", trace.text)

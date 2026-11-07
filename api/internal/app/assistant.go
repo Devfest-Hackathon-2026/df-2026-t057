@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -21,14 +20,15 @@ func (s *Server) assistantHistory(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) assistantMessage(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		ID   string `json:"id"`
-		Text string `json:"text"`
+		ID     string `json:"id"`
+		Text   string `json:"text"`
+		TaskID string `json:"taskId"`
 	}
 	if !decode(w, r, &in) {
 		return
 	}
 	in.Text = strings.TrimSpace(in.Text)
-	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`).MatchString(in.ID) || in.Text == "" || utf8.RuneCountInString(in.Text) > 2000 {
+	if !requestIDPattern.MatchString(in.ID) || in.Text == "" || utf8.RuneCountInString(in.Text) > 2000 {
 		respond(w, nil, errors.New("相談を2000文字以内で入力してください"))
 		return
 	}
@@ -36,7 +36,7 @@ func (s *Server) assistantMessage(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, errors.New("この環境ではAI相談を利用できません"))
 		return
 	}
-	turn, runID, err := s.Assistant.Begin(r.Context(), uid(r), in.ID, in.Text)
+	turn, runID, err := s.Assistant.Begin(r.Context(), uid(r), in.ID, in.Text, in.TaskID)
 	if err != nil || runID == "" {
 		respond(w, turn, err)
 		return
@@ -49,7 +49,7 @@ func (s *Server) assistantMessage(w http.ResponseWriter, r *http.Request) {
 		history, err = s.Assistant.History(ctx, uid(r))
 	}
 	if err == nil {
-		turn.Reply, turn.Cards, err = s.Planner.Consult(ctx, in.Text, history, state)
+		turn.Reply, turn.Cards, err = s.Planner.Consult(ctx, uid(r), in.Text, history, state, in.TaskID)
 	}
 	if err == nil {
 		latest, readErr := s.Store.Read(ctx, uid(r))
@@ -72,6 +72,11 @@ func (s *Server) assistantMessage(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, saveErr)
 		return
 	}
+	var limit *AILimitError
+	if errors.As(err, &limit) || errors.Is(err, ErrAIUsageUnavailable) {
+		respond(w, nil, err)
+		return
+	}
 	respond(w, turn, nil)
 }
 func (s *Server) remember(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +88,7 @@ func (s *Server) remember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in.Text = strings.TrimSpace(in.Text)
-	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`).MatchString(in.ID) || in.Text == "" || utf8.RuneCountInString(in.Text) > 500 {
+	if !requestIDPattern.MatchString(in.ID) || in.Text == "" || utf8.RuneCountInString(in.Text) > 500 {
 		respond(w, nil, errors.New("覚える内容を500文字以内で入力してください"))
 		return
 	}
@@ -144,28 +149,37 @@ func (s *Server) assistantPreview(w http.ResponseWriter, r *http.Request) {
 	respond(w, map[string]any{"plan": plan, "revision": state.PlanRevision}, nil)
 }
 
-func (p *Planner) Consult(ctx context.Context, text string, history []AssistantTurn, state State) (string, []AssistantCard, error) {
+func (p *Planner) Consult(ctx context.Context, owner, text string, history []AssistantTurn, state State, taskID string) (string, []AssistantCard, error) {
 	past := []map[string]any{}
 	for _, turn := range history {
 		if turn.Status == "ready" && (state.AssistantContextSince == nil || !turn.CreatedAt.Before(*state.AssistantContextSince)) {
-			past = append(past, map[string]any{"user": turn.Text, "assistant": turn.Reply, "cards": turn.Cards})
+			past = append(past, map[string]any{"user": turn.Text, "assistant": turn.Reply, "cards": turn.Cards, "taskId": turn.TaskID})
 		}
 	}
 	if len(past) > 4 {
 		past = past[len(past)-4:]
 	}
-	data, _ := json.Marshal(map[string]any{"timeZone": state.Profile.TimeZone, "history": past, "user": text, "now": time.Now().Format(time.RFC3339)})
+	var selected map[string]any
+	if taskID != "" {
+		task, err := state.task(taskID)
+		if err != nil {
+			return "", nil, errors.New("相談する課題が見つかりません。カレンダーで選び直してください")
+		}
+		selected = map[string]any{"id": task.ID, "title": task.Title, "deadline": task.Deadline, "minutes": task.Minutes, "plan": task.Plan, "notes": task.Notes, "why": task.Why, "url": task.URL, "status": task.Status}
+	}
+	data, _ := json.Marshal(map[string]any{"timeZone": state.Profile.TimeZone, "history": past, "selectedTask": selected, "user": text, "now": time.Now().Format(time.RFC3339)})
 	prompt := `これは相談チャットです。本人の発言(user)に、日本語の短い平文（ふだん3文以内、最大2000文字）で答えます。
 進め方：受け止める → Whyがまだなら本人の言葉で引き出す → 最初の一歩を5分以内の行動にする → 計画を提案する → 「これでいけそう？」と確認する。質問は1回の返答で1つまで。
 新しい課題の締切と所要時間がそろったら、Whyや最初の一歩が未定でもその返答で propose_task を出し、残りはカードを見せながら聞く。
 道具：予定・課題に触れる前に get_today、前進を認めたり振り返るときは get_progress、カレンダーの話は get_calendar、好みは get_profile を呼んで事実を確かめる。データにない予定や数字を作らない。
-提案：propose_task / propose_reschedule / propose_memory は候補カードを出すだけで、本人が押すまで保存されない。予定や情報を保存したとは言わない。カードは1回の返答で最大3枚。
-締切や所要時間が不明なら決めつけずに1つだけ質問し、提案の道具は呼ばない。過去の未登録の課題候補を直すときは、元のカードのidをproposalIdに入れて全項目を出し直す。登録済みの課題はpropose_taskで複製せずpropose_rescheduleを使う。
+提案：propose_task / propose_reschedule / propose_update / propose_memory / propose_sleep は候補カードを出すだけで、本人が押すまで保存されない。予定や情報を保存したとは言わない。カードは1回の返答で最大3枚。
+締切や所要時間が不明なら決めつけずに1つだけ質問し、提案の道具は呼ばない。過去の未登録の課題候補を直すときは、元のカードのidをproposalIdに入れて全項目を出し直す。登録済みの課題はpropose_taskで複製しない。開始時刻だけ動かすならpropose_reschedule、課題名・メモ・Why・締切・必要時間・URLを変えるならpropose_updateを使う（変えない項目は現在値のまま）。
+selectedTaskがあるとき「この予定」「この課題」はその課題を指す。別の課題を対象にするなら本人に確かめる。
 睡眠：夜ふかしや寝る時間の話題では get_today の sleep を確かめ、本人が就寝・起床時刻を決めたら propose_sleep を出す。時刻は本人に決めてもらい、睡眠時間の医学的な指導はしない。
 日付はtimeZoneとnowを使う。「それ」は直前の会話(history)から読み取る。
 入力JSON:
 ` + string(data)
-	reply, candidates, err := p.converse(ctx, prompt, state)
+	reply, candidates, err := p.converse(ctx, owner, prompt, state)
 	if err != nil {
 		return "", nil, err
 	}
@@ -219,6 +233,20 @@ func (p *Planner) Consult(ctx context.Context, text string, history []AssistantT
 				}
 				card.Preview = &draft.Changes[0].After
 			}
+		case "update":
+			task, err := state.task(candidate.TaskID)
+			if err != nil {
+				return "", nil, ErrNotFound
+			}
+			if candidate.Input == nil {
+				return "", nil, errors.New("変更する課題の内容がありません")
+			}
+			candidate.Input.ID = task.ID
+			change, err := previewTaskEdit(state, *candidate.Input)
+			if err != nil {
+				return "", nil, err
+			}
+			card.TaskID, card.Change = task.ID, &change
 		case "memory":
 			card.Memory = strings.TrimSpace(candidate.Memory)
 			if card.Memory == "" || utf8.RuneCountInString(card.Memory) > 500 {

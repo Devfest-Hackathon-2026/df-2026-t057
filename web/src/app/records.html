@@ -1,0 +1,41 @@
+@if (api.state(); as state) {
+  <div class="page-title">
+    <div>
+      <h1>記録</h1>
+    </div>
+  </div>
+  <section class="activity-card">
+    <div class="section-heading">
+      <h2>完了した課題 {{ completed().length }}件</h2>
+      <span>過去12週間</span>
+    </div>
+    <div class="grass-grid large">
+      @for (cell of cells; track cell) {
+        <span [class.filled]="activity(cell) > 0" [attr.title]="dayLabel(cell)"></span>
+      }
+    </div>
+  </section>
+  <h2 class="section-heading">視聴時間の履歴</h2>
+  <section class="task-list">
+    @for (entry of state.ledger.slice().reverse(); track entry.id) {
+      <div class="ledger-row">
+        <span aria-hidden="true" class="material-symbols-rounded">
+          {{ entry.kind === 'completion' ? 'task_alt' : 'add_circle' }}
+        </span>
+        <div>
+          <strong>
+            {{
+              entry.kind === 'initial'
+                ? 'はじめの視聴時間'
+                : entry.kind === 'registration'
+                  ? '課題を登録'
+                  : '課題を完了'
+            }}
+          </strong>
+          <p>{{ entry.at | date: 'M/d HH:mm' }}</p>
+        </div>
+        <strong class="ledger-credit">＋{{ entry.seconds / 60 }}分</strong>
+      </div>
+    }
+  </section>
+}

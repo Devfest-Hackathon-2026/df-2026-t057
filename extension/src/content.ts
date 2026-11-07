@@ -1,13 +1,19 @@
 import {
   Draft,
-  State,
-  Task,
   displayTime,
   elapsedSeconds,
   nightWindow,
   plannedSeconds,
 } from '../../shared/models';
-import { MANAGEMENT_ORIGIN, Moment, Reply, Request, send } from './protocol';
+import {
+  ExtensionState,
+  ExtensionTask,
+  MANAGEMENT_ORIGIN,
+  Moment,
+  Reply,
+  Request,
+  send,
+} from './protocol';
 
 const runtimeWindow = window as Window & { dopagakiLoaded?: boolean };
 if (!runtimeWindow.dopagakiLoaded) {
@@ -15,7 +21,7 @@ if (!runtimeWindow.dopagakiLoaded) {
   initialize();
 }
 function initialize() {
-  let state: State | undefined;
+  let state: ExtensionState | undefined;
   let overlay: HTMLDialogElement | undefined;
   let root: ShadowRoot | undefined;
   let timer: HTMLElement | undefined;
@@ -117,7 +123,7 @@ function initialize() {
     overlay?.remove();
     overlay = undefined;
   }
-  function showNotice(task: Task, snapshot: State, line = '') {
+  function showNotice(task: ExtensionTask, snapshot: ExtensionState, line = '') {
     if (!shorts() || document.visibilityState !== 'visible') return false;
     state = snapshot;
     dismiss();
@@ -202,7 +208,7 @@ function initialize() {
     }
     return true;
   }
-  function showNight(snapshot: State, line = '') {
+  function showNight(snapshot: ExtensionState, line = '') {
     if (!shorts() || document.visibilityState !== 'visible' || overlay) return false;
     state = snapshot;
     shortsVideo()?.pause();
@@ -238,7 +244,7 @@ function initialize() {
     const date = new Date(value);
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   }
-  async function showDraft(task: Task, adjust: boolean, candidate?: Draft) {
+  async function showDraft(task: ExtensionTask, adjust: boolean, candidate?: Draft) {
     dismiss();
     overlay = element('dialog', '', 'overlay simple');
     overlay.setAttribute('role', 'dialog');

@@ -9,6 +9,9 @@
 | Material Symbols Rounded | Google / [Material Symbols](https://fonts.google.com/icons) | Apache-2.0。`material-symbols` パッケージから使用するアイコンを抽出し自己ホスト。ライセンスは `web/public/material-symbols-LICENSE.txt` |
 | Google Gロゴ | Google / [ログインボタンの公式ガイド](https://developers.google.com/identity/branding-guidelines)、[公式PNG](https://developers.google.com/static/identity/images/g-logo.png) | `web/public/google-g.png`。Googleログインボタン内に使用。Googleのブランドガイドに従い、画像生成案のロゴは転用しない |
 | Angular / Angular Material / CDK | [angular.dev](https://angular.dev/)、[material.angular.dev](https://material.angular.dev/) | MIT |
+| FullCalendar / Angularコネクター 7.1.4、@full-ui/headless-calendar | [FullCalendar公式Angular案内](https://fullcalendar.io/docs/angular)、同梱LICENSE | MIT。日・週の時間割に使用。ライセンス原文は `web/public/calendar-LICENSES.txt` |
+| temporal-polyfill / temporal-spec / temporal-utils | npmパッケージのLICENSE | MIT。FullCalendarの日時処理。原文は同上 |
+| Preact（FullCalendar内部の描画） | npmパッケージのLICENSE | MIT。原文は同上 |
 | Firebase JavaScript SDK / Firebase Admin Go SDK | [firebase.google.com](https://firebase.google.com/) | Apache-2.0 |
 | Google Gen AI Go SDK、Google Cloud Go SDK | [Google Cloud](https://cloud.google.com/)、[googleapis/go-genai](https://github.com/googleapis/go-genai) | Apache-2.0 |
 | Google API Go client、golang.org/x/oauth2 | Google提供GoパッケージのLICENSE | BSD-3-Clause |

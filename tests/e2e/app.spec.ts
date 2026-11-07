@@ -16,9 +16,10 @@ test('registration, confirmation, timer and completion', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'そろそろ、やるか。' })).toBeVisible();
   await page.screenshot({ animations: 'disabled', path: 'test-results/notification.png' });
   await page.getByRole('button', { name: '10分スヌーズ・予定を確認' }).click();
-  await expect(dialog.getByText('OKを押すまで、現在の予定は変わりません。')).toBeVisible();
+  await expect(dialog.getByText('保存するまで、現在の予定は変わりません。')).toBeVisible();
   await dialog.getByRole('button', { name: 'キャンセル' }).click();
-  await page.locator('.task-row').getByRole('button', { name: '予定を調整' }).click();
+  await page.locator('.next-task').click();
+  await page.getByRole('button', { name: '予定・手順を調整', exact: true }).click();
   const start = await dialog.getByLabel('開始', { exact: true }).inputValue();
   const end = new Date(start);
   end.setMinutes(end.getMinutes() + 10);
@@ -26,9 +27,10 @@ test('registration, confirmation, timer and completion', async ({ page }) => {
     .toISOString()
     .slice(0, 16);
   await dialog.getByLabel('終了', { exact: true }).fill(localEnd);
-  await dialog.getByRole('button', { name: 'OK・この予定に変更' }).click();
+  await dialog.getByRole('button', { name: 'この予定に変更' }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page.locator('.next-bottom')).toContainText('10分の作業');
+  await page.getByRole('link', { name: '課題', exact: true }).click();
+  await expect(page.locator('.task-row')).toContainText('予定 10分');
   await expect(page.locator('.task-row')).toContainText('見積もり 30分');
   await page.locator('.task-row').getByRole('button', { name: 'はじめる' }).click();
   await expect(page.getByRole('region', { name: '作業タイマー' })).toBeVisible();
@@ -38,6 +40,7 @@ test('registration, confirmation, timer and completion', async ({ page }) => {
   await page.reload();
   await expect(page.getByRole('button', { name: '再開', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '完了 ＋20分', exact: true }).click();
+  await page.getByRole('link', { name: 'カレンダー', exact: true }).click();
   await expect(page.locator('.credit-number')).toContainText('90');
   await expect(page.locator('.focus-bar')).not.toBeVisible();
   expect(errors).toEqual([]);
@@ -46,7 +49,7 @@ test('registration, confirmation, timer and completion', async ({ page }) => {
 test('snooze commit, settings and responsive layout', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'サンプル3件で試す' }).click();
-  await expect(page.locator('.task-row')).toHaveCount(3);
+  await expect(page.locator('.calendar-surface .workspace-event')).toHaveCount(3);
   await page.screenshot({
     animations: 'disabled',
     path: 'test-results/dashboard.png',
@@ -56,14 +59,14 @@ test('snooze commit, settings and responsive layout', async ({ page }) => {
   await page.getByRole('button', { name: '10分スヌーズ・予定を確認' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.locator('.plan-change')).toHaveCount(3);
-  await dialog.getByRole('button', { name: 'OK・この予定に変更' }).click();
+  await dialog.getByRole('button', { name: 'この予定に変更' }).click();
   await expect(dialog).not.toBeVisible();
   await expect(page.locator('.credit-number')).toContainText('90');
-  await page.getByRole('button', { name: '設定', exact: true }).click();
+  await page.getByRole('button', { name: '設定を開く', exact: true }).click();
   await page.getByLabel('分', { exact: true }).fill('15');
   await page.getByRole('button', { name: '設定を保存', exact: true }).click();
   await expect(page.getByText('設定を保存しました')).toBeVisible();
-  await page.getByRole('button', { name: '今日の課題', exact: true }).click();
+  await page.getByRole('link', { name: 'カレンダー', exact: true }).click();
   await page.getByRole('button', { name: '通知を試す' }).click();
   await expect(page.getByRole('button', { name: '15分スヌーズ・予定を確認' })).toBeVisible();
   await page

@@ -8,6 +8,14 @@
 
 | 文書 | 内容 |
 |---|---|
+| [セキュリティ修正の本番反映](security-rollout-2026-11-07.md) | IAM縮小、新版100%配信、Runtime SAでの実操作・AI1回、カウンターと片付けの確認 |
+| [利用上限・CSPと追加監査](security-hardening-2026-11-07.md) | Gemini共有上限、ログ秘匿、本番設定の照合、IAM縮小案、コンテナー・履歴監査 |
+| [セキュリティ確認と整理](security-review-2026-11-07.md) | JSON・認証・外部エラー・Calendar受付・拡張データの修正、依存監査、未確認の境界 |
+| [視聴時間の付与設計（検討案）](viewing-time-design.md) | 初回・ログイン・定期付与の比較、少量補充と作業報酬、自己管理への移行と評価方法。未実装 |
+| [実Shortsの持ち時間計測](shorts-verification-2026-11-07.md) | PR #7の配信、実ChromeとShortsによる消費・停止・再読み込みの実測 |
+| [文字を減らした管理画面](simple-ui.md) | 日本語表記、＋からの追加と詳細表示、画面幅変更時の日表示、ローカル検証 |
+| [カレンダー中心の管理画面](calendar-workspace.md) | 採用した③の実装、日・週表示と相談パネル、URL、選択対象の分離、実画面 |
+| [課題の登録と内容調整](task-registration-and-editing.md) | 登録・編集のAI／手入力、変更前後の確認、報酬・権限・Google同期の検証 |
 | [管理画面のAI相談](assistant.md) | 編集できる予定カード、会話の保存、確認して覚える作業傾向、Google Chatの廃止 |
 | [Chrome風プロフィールメニュー](chrome-account-menu.md) | 採用デザイン、実装、認証中とキャンセル、表示確認と本番配信 |
 | [一般ユーザー対応](public-accounts.md) | 本人のGoogleアカウント照合、旧個別DM、アカウント切替、運営者と利用者の区別、配布上の制約 |

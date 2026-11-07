@@ -22,20 +22,21 @@ type Plan struct {
 	Reason string    `json:"reason"`
 }
 type Task struct {
-	ID              string     `json:"id"`
-	Title           string     `json:"title"`
-	Notes           string     `json:"notes"`
-	Why             string     `json:"why,omitempty"`
-	Deadline        time.Time  `json:"deadline"`
-	Minutes         int        `json:"minutes"`
-	URL             string     `json:"url"`
-	Status          string     `json:"status"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	CompletedAt     *time.Time `json:"completedAt,omitempty"`
-	Plan            Plan       `json:"plan"`
-	CalendarEventID string     `json:"calendarEventId,omitempty"`
-	CalendarETag    string     `json:"calendarEtag,omitempty"`
-	InputHash       string     `json:"inputHash,omitempty"`
+	ID                   string     `json:"id"`
+	Title                string     `json:"title"`
+	Notes                string     `json:"notes"`
+	Why                  string     `json:"why,omitempty"`
+	Deadline             time.Time  `json:"deadline"`
+	Minutes              int        `json:"minutes"`
+	URL                  string     `json:"url"`
+	Status               string     `json:"status"`
+	CreatedAt            time.Time  `json:"createdAt"`
+	CompletedAt          *time.Time `json:"completedAt,omitempty"`
+	Plan                 Plan       `json:"plan"`
+	CalendarEventID      string     `json:"calendarEventId,omitempty"`
+	CalendarInputPending bool       `json:"calendarInputPending,omitempty"`
+	CalendarETag         string     `json:"calendarEtag,omitempty"`
+	InputHash            string     `json:"inputHash,omitempty"`
 }
 type Profile struct {
 	Name     string `json:"name"`

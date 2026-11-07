@@ -18,6 +18,8 @@
           この時間で就寝予定を入れる
         </button>
       }
+    } @else if (card().kind === 'update' && card().change) {
+      <app-task-change [change]="card().change!" />
     } @else if (card().kind === 'memory') {
       <div class="card-heading">
         <span class="material-symbols-rounded" aria-hidden="true">psychology</span>
@@ -55,13 +57,23 @@
             card().kind === 'create' && !registered()
               ? '登録前'
               : task()
-                ? '現在の予定'
+                ? task()?.status === 'completed'
+                  ? '完了'
+                  : task()?.status === 'active'
+                    ? '作業中'
+                    : '現在の予定'
                 : '削除済み'
           }}
         </span>
       </div>
       @if (task(); as task) {
         <h3>{{ task.title }}</h3>
+        @if (task.why) {
+          <p class="card-note">なぜ：{{ task.why }}</p>
+        }
+        @if (task.notes) {
+          <p class="memory-text">{{ task.notes }}</p>
+        }
         <p class="event-time">
           {{ task.plan.start | date: 'M/d HH:mm' }} — {{ task.plan.end | date: 'HH:mm' }}
         </p>
@@ -89,7 +101,7 @@
         }
         @if (api.state()?.calendarSync === 'pending') {
           <p class="card-note">
-            Googleカレンダーへの同期待ちです。設定・スケジュールから再同期できます。
+            Googleカレンダーへの同期待ちです。カレンダーの「Googleと同期」から再試行できます。
           </p>
         }
         <button
@@ -140,7 +152,7 @@
               ></textarea>
             </mat-form-field>
             <mat-form-field appearance="outline">
-              <mat-label>課題のURL（任意）</mat-label>
+              <mat-label>作業リンク（任意）</mat-label>
               <input matInput type="url" [(ngModel)]="form.url" [disabled]="busy()" />
             </mat-form-field>
             <div class="card-actions">

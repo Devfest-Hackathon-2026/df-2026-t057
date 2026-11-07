@@ -1,4 +1,16 @@
-import type { Draft, State } from '../../shared/models';
+import type { Draft, SleepTime, State, Task } from '../../shared/models';
+
+export type ExtensionTask = Pick<
+  Task,
+  'id' | 'title' | 'why' | 'minutes' | 'url' | 'status' | 'plan'
+>;
+export type ExtensionState = Pick<
+  State,
+  'balanceSeconds' | 'settings' | 'session' | 'nextDraft'
+> & {
+  tasks: ExtensionTask[];
+  sleep?: SleepTime;
+};
 
 export interface Connection {
   apiBase: string;
@@ -6,7 +18,7 @@ export interface Connection {
   accountId: string;
 }
 export interface Snapshot {
-  state?: State;
+  state?: ExtensionState;
   connected: boolean;
   error?: string;
 }
@@ -26,7 +38,7 @@ export type Request =
   | { type: 'OPEN_APP'; path?: string }
   | { type: 'CLOSE_TAB' };
 export interface Reply {
-  state?: State;
+  state?: ExtensionState;
   draft?: Draft;
   line?: string;
   connected?: boolean;

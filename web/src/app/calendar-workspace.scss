@@ -1,0 +1,227 @@
+:host {
+  display: block;
+}
+.workspace-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.workspace-title h1 {
+  font-size: 30px;
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.workspace-title button {
+  flex-shrink: 0;
+}
+.workspace-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 14px 18px;
+  background: #edf1e7;
+  border-radius: 16px;
+}
+.workspace-credit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 18px;
+  border-right: 1px solid #d4ddcb;
+}
+.workspace-credit > span {
+  font-size: 11px;
+}
+.workspace-credit .credit-number {
+  font-size: 28px;
+  line-height: 1.4;
+  letter-spacing: -1px;
+  margin: 0;
+}
+.credit-number small {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.next-task {
+  max-width: 360px;
+}
+.next-task span {
+  font-size: 11px;
+  margin: 0 6px;
+}
+.next-task strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+.calendar-surface {
+  min-width: 0;
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+}
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.calendar-navigation {
+  display: flex;
+  align-items: center;
+}
+.calendar-toolbar h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  white-space: nowrap;
+}
+.calendar-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 8px;
+  align-items: flex-start;
+}
+.calendar-empty {
+  position: absolute;
+  z-index: 2;
+  top: 42%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  text-align: center;
+  background: #fffffff2;
+  padding: 22px 12px;
+  border-radius: 16px;
+}
+.calendar-loading {
+  min-height: 650px;
+  position: absolute;
+  inset: 76px 16px 50px;
+  z-index: 3;
+  text-align: center;
+  padding-top: 80px;
+}
+.workspace-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  padding: 16px;
+}
+.panel-switch {
+  margin-bottom: 16px;
+  display: flex;
+}
+.panel-switch mat-button-toggle {
+  flex: 1;
+}
+.selected-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.mobile-switch {
+  display: none;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 1100px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+  .mobile-switch {
+    display: inline-flex;
+    margin-bottom: 16px;
+  }
+  .workspace-grid[data-mobile-part='calendar'] .workspace-panel,
+  .workspace-grid[data-mobile-part='panel'] .calendar-surface {
+    display: none;
+  }
+}
+@media (max-width: 550px) {
+  .workspace-title h1 {
+    font-size: 26px;
+  }
+  .workspace-summary {
+    padding: 12px;
+    gap: 8px;
+  }
+  .workspace-credit {
+    border: 0;
+    width: 100%;
+  }
+  .next-task {
+    max-width: 100%;
+  }
+  .calendar-surface,
+  .workspace-panel {
+    padding: 12px;
+  }
+  .calendar-toolbar h2 {
+    order: 3;
+    width: 100%;
+    flex: auto;
+    font-size: 16px;
+  }
+  .calendar-toolbar {
+    justify-content: space-between;
+  }
+  .calendar-caption {
+    flex-wrap: wrap;
+  }
+}
+
+.event-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 500;
+}
+.event-clock {
+  display: block;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.credit-help {
+  margin-left: auto;
+}
+.credit-help[open] {
+  flex-basis: 100%;
+}
+.calendar-empty > .material-symbols-rounded {
+  font-size: 32px;
+  color: #7b8e6b;
+  margin-bottom: 12px;
+}
+.calendar-empty h3 {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
