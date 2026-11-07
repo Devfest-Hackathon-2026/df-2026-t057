@@ -4,6 +4,7 @@ import {
   Task,
   displayTime,
   elapsedSeconds,
+  nightWindow,
   plannedSeconds,
 } from '../../shared/models';
 import { MANAGEMENT_ORIGIN, Moment, Reply, Request, send } from './protocol';
@@ -201,6 +202,38 @@ function initialize() {
     }
     return true;
   }
+  function showNight(snapshot: State, line = '') {
+    if (!shorts() || document.visibilityState !== 'visible' || overlay) return false;
+    state = snapshot;
+    shortsVideo()?.pause();
+    overlay = element('dialog', '', 'overlay simple night');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', '寝る時間が近づいています');
+    const panel = element('div', '', 'panel');
+    panel.append(element('p', 'GOOD NIGHT', 'eyebrow'), element('h1', 'そろそろ、寝る準備。'));
+    if (line) panel.append(element('p', line, 'companion'));
+    panel.append(
+      element(
+        'p',
+        `就寝 ${snapshot.sleep?.bedtime} ・ 起床 ${snapshot.sleep?.wake}。今夜の課題の報酬は、朝に受け取れます。`,
+        'muted',
+      ),
+      element('strong', 'このまま寝ると、朝に視聴時間 ＋15分'),
+    );
+    const actions = element('div', '', 'actions');
+    actions.append(
+      button('Shortsを閉じて寝る', () => void send({ type: 'CLOSE_TAB' }), 'primary'),
+      button('あと少しだけ', dismiss),
+    );
+    panel.append(actions);
+    overlay.append(panel);
+    mount().append(overlay);
+    overlay.oncancel = dismiss;
+    overlay.showModal();
+    actions.querySelector('button')?.focus();
+    return true;
+  }
   function local(value: string) {
     const date = new Date(value);
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -370,7 +403,9 @@ function initialize() {
         void action({ type: 'COMPLETE', taskId: task.id }, timer!).then((reply) => {
           if (reply)
             void say('complete', '課題完了！視聴時間 ＋20分', task.id).then((text) =>
-              showToast(`${text}（＋20分）`),
+              showToast(
+                `${text}（${state?.sleep && nightWindow(state.sleep) ? '＋20分は朝に受け取れます' : '＋20分'}）`,
+              ),
             );
         });
       },
@@ -405,6 +440,9 @@ function initialize() {
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
     if (message.type === 'SHOW_NOTICE') {
       respond({ shown: showNotice(message.task, message.state, message.line) });
+    }
+    if (message.type === 'SHOW_NIGHT') {
+      respond({ shown: showNight(message.state, message.line) });
     }
     if (message.type === 'STATE_UPDATED') {
       if (!message.state) {

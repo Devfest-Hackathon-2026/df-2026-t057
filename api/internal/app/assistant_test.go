@@ -32,7 +32,7 @@ func assistantClient(t *testing.T, reply func(string) any) (*Server, testClient)
 	return s, c
 }
 
-var fixtureTools = map[string]string{"create": toolTask, "task": toolReschedule, "memory": toolMemory}
+var fixtureTools = map[string]string{"create": toolTask, "task": toolReschedule, "memory": toolMemory, "sleep": toolSleep}
 
 // fixtureParts turns a {"reply","cards"} fixture into a text part plus proposal function calls.
 // Other fixtures are returned as JSON text, and {"call": name} as a single read-tool call.
@@ -51,10 +51,12 @@ func fixtureParts(value any) []map[string]any {
 					Input      map[string]any `json:"input"`
 					TaskID     string         `json:"taskId"`
 					Memory     string         `json:"memory"`
+					Bedtime    string         `json:"bedtime"`
+					Wake       string         `json:"wake"`
 					ProposalID string         `json:"proposalId"`
 				}
 				_ = json.Unmarshal(raw, &c)
-				args := map[string]any{"taskId": c.TaskID, "memory": c.Memory}
+				args := map[string]any{"taskId": c.TaskID, "memory": c.Memory, "bedtime": c.Bedtime, "wake": c.Wake}
 				if c.Input != nil {
 					args = c.Input
 					if c.ProposalID != "" {

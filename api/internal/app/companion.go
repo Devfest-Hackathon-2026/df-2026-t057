@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -106,7 +107,21 @@ func companionProgress(state State, now time.Time) map[string]any {
 	for i := 0; i < len(recent) && i < 3; i++ {
 		titles = append(titles, recent[i].Title)
 	}
-	return map[string]any{"streakDays": streakDays(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "viewingMinutesLeft": state.BalanceSeconds / 60}
+	return map[string]any{"streakDays": streakDays(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
+}
+
+// sleepSummary is what the companion may know about the user's bedtime.
+func sleepSummary(state State, now time.Time) map[string]any {
+	if state.Sleep == nil {
+		return map[string]any{"set": false}
+	}
+	_, night := state.nightAt(now)
+	key, _, _ := state.lastNight(now)
+	summary := map[string]any{"set": true, "bedtime": state.Sleep.Bedtime, "wake": state.Sleep.Wake, "keptNights": state.Sleep.Kept, "nightNow": night}
+	if state.Sleep.Settled == key {
+		summary["lastNightWithoutShorts"] = state.Sleep.Watched != key
+	}
+	return summary
 }
 
 const (
@@ -117,10 +132,11 @@ const (
 	toolTask       = "propose_task"
 	toolReschedule = "propose_reschedule"
 	toolMemory     = "propose_memory"
+	toolSleep      = "propose_sleep"
 )
 
 // proposalKinds maps proposal tools to the confirmation cards the user must press.
-var proposalKinds = map[string]string{toolTask: "create", toolReschedule: "task", toolMemory: "memory"}
+var proposalKinds = map[string]string{toolTask: "create", toolReschedule: "task", toolMemory: "memory", toolSleep: "sleep"}
 
 func companionTools() []*genai.Tool {
 	str := func(description string) *genai.Schema {
@@ -128,8 +144,8 @@ func companionTools() []*genai.Tool {
 	}
 	empty := &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{}}
 	return []*genai.Tool{{FunctionDeclarations: []*genai.FunctionDeclaration{
-		{Name: toolToday, Description: "今日と明日の未完了の課題（予定時刻・Why・最初の一手）、作業中の課題、残りの視聴時間を読む。", Parameters: empty},
-		{Name: toolProgress, Description: "続いた日数、直近7日の完了数、最近終えた課題を読む。前進を認めたり振り返るときに使う。", Parameters: empty},
+		{Name: toolToday, Description: "今日と明日の未完了の課題（予定時刻・Why・最初の一手）、作業中の課題、残りの視聴時間、就寝・起床の設定と今が夜の時間帯かを読む。", Parameters: empty},
+		{Name: toolProgress, Description: "続いた日数、直近7日の完了数、最近終えた課題、ショートを見ずに寝られた夜の連続数を読む。前進を認めたり振り返るときに使う。", Parameters: empty},
 		{Name: toolCalendar, Description: "DOPAGAKIカレンダーと同期した予定と同期状況を読む。本人の他のカレンダーは読めない。", Parameters: empty},
 		{Name: toolProfile, Description: "本人が保存した作業の傾向・好み・タイムゾーンを読む。", Parameters: empty},
 		{Name: toolTask, Description: "新しい課題を登録候補として本人に見せる。本人がカードを押すまで保存されない。締切や所要時間が不明なら呼ばずに質問する。登録済みの課題には使わない。", Parameters: &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
@@ -148,6 +164,10 @@ func companionTools() []*genai.Tool {
 		{Name: toolMemory, Description: "本人がはっきり言った作業の好み・苦手・時間帯を、覚える候補として見せる。推測した性格や機微な情報は使わない。", Parameters: &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
 			"memory": str("短く覚える内容（500文字以内）"),
 		}, Required: []string{"memory"}}},
+		{Name: toolSleep, Description: "本人が決めた就寝・起床時刻を、毎日の就寝予定としてカレンダーに入れる候補を見せる。本人が押すまで保存されない。就寝1時間前からの報酬は翌朝に受け取りになり、ショートを見ずに寝られた朝は＋15分。", Parameters: &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
+			"bedtime": str("就寝時刻 HH:MM（24時間表記）"),
+			"wake":    str("起床時刻 HH:MM（24時間表記）"),
+		}, Required: []string{"bedtime", "wake"}}},
 	}}}
 }
 
@@ -163,7 +183,7 @@ func readTool(state State, name string, now time.Time) map[string]any {
 				tasks = append(tasks, describeTask(t))
 			}
 		}
-		result := map[string]any{"now": now.In(loc).Format(time.RFC3339), "tasks": tasks, "viewingMinutesLeft": state.BalanceSeconds / 60}
+		result := map[string]any{"now": now.In(loc).Format(time.RFC3339), "tasks": tasks, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
 		if state.Session != nil {
 			result["workingOn"] = state.Session.TaskID
 		}
@@ -213,10 +233,18 @@ func proposalCard(call *genai.FunctionCall) (consultationCard, error) {
 		}
 		_ = json.Unmarshal(raw, &args)
 		card.Memory = args.Memory
+	case toolSleep:
+		_ = json.Unmarshal(raw, &card.Sleep)
 	default:
 		return card, errors.New("相談のカード形式を確認できませんでした")
 	}
 	return card, nil
+}
+
+// retry retries rate-limited and transient Gemini errors twice, starting after delay seconds.
+func retry(delay float64) *genai.HTTPOptions {
+	attempts, limit := int32(3), 2*delay
+	return &genai.HTTPOptions{RetryOptions: &genai.HTTPRetryOptions{Attempts: &attempts, InitialDelay: &delay, MaxDelay: &limit}}
 }
 
 // maxToolRounds bounds the Gemini round trips of one consultation.
@@ -225,7 +253,7 @@ const maxToolRounds = 4
 // converse lets Gemini read state through tools and collects proposal calls as unconfirmed cards.
 func (p *Planner) converse(ctx context.Context, prompt string, state State) (string, []consultationCard, error) {
 	contents := []*genai.Content{genai.NewContentFromText(prompt, genai.RoleUser)}
-	config := &genai.GenerateContentConfig{SystemInstruction: persona(), Tools: companionTools(), MaxOutputTokens: 5000}
+	config := &genai.GenerateContentConfig{SystemInstruction: persona(), Tools: companionTools(), MaxOutputTokens: 5000, ThinkingConfig: &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelLow}, HTTPOptions: retry(1)}
 	proposals := []consultationCard{}
 	for range maxToolRounds {
 		result, err := p.Client.Models.GenerateContent(ctx, p.Model, contents, config)
@@ -284,6 +312,8 @@ var companionMoments = map[string]string{
 	"snooze":       "本人がスヌーズを選んだ。責めずに受け止め、次に始める時刻へ気持ちをつなぐ",
 	"complete":     "本人が課題を完了した。具体的に認めて、続いた日数があれば触れる",
 	"balance_zero": "今日の視聴時間を使い切った。罰ではなく区切りとして伝え、次の一手で時間が増えることに触れる",
+	"night":        "就寝1時間前を過ぎてもショートを見ている。責めずに、スマホを置く・歯をみがくなど寝る準備の小さな一歩を促す。今夜の報酬は朝に受け取れる",
+	"morning":      "朝、アプリを開いた。sleep.lastNightWithoutShortsがtrueなら区切れたことを具体的に認め、falseでも責めずに今日の最初の一手へつなぐ",
 }
 
 func fallbackLine(moment string, task *Task) string {
@@ -299,9 +329,16 @@ func fallbackLine(moment string, task *Task) string {
 		return "やりきったね。その積み重ね、ちゃんと効いてる。"
 	case "balance_zero":
 		return "今日の視聴はここで区切ろう。次の一手で、また時間が増えるよ。"
+	case "night":
+		return "そろそろ寝る準備しよっか。今夜の分は、朝ちゃんと受け取れるよ。"
+	case "morning":
+		return "おはよう。今日の最初の一手、一緒に決めよっか。"
 	}
 	return ""
 }
+
+// lineTimeout keeps a remark from delaying the moment it belongs to.
+var lineTimeout = 6 * time.Second
 
 // Line asks the companion for one short remark at a moment, falling back to fixed text.
 func (p *Planner) Line(ctx context.Context, moment string, state State, task *Task) (string, bool) {
@@ -309,7 +346,7 @@ func (p *Planner) Line(ctx context.Context, moment string, state State, task *Ta
 	if p == nil || p.Client == nil {
 		return fallback, false
 	}
-	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, lineTimeout)
 	defer cancel()
 	now := time.Now()
 	data := map[string]any{"moment": companionMoments[moment], "progress": companionProgress(state, now), "profileContext": state.Profile.Context}
@@ -318,8 +355,9 @@ func (p *Planner) Line(ctx context.Context, moment string, state State, task *Ta
 	}
 	raw, _ := json.Marshal(data)
 	prompt := "次の場面で、本人に向けたひとことを日本語で1つだけ返してください。40文字以内、かぎかっこや説明は付けない。\n" + string(raw)
-	result, err := p.Client.Models.GenerateContent(ctx, p.Model, genai.Text(prompt), &genai.GenerateContentConfig{SystemInstruction: persona(), MaxOutputTokens: 1000})
+	result, err := p.Client.Models.GenerateContent(ctx, p.Model, genai.Text(prompt), &genai.GenerateContentConfig{SystemInstruction: persona(), MaxOutputTokens: 1000, ThinkingConfig: &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelLow}, HTTPOptions: retry(0.3)})
 	if err != nil {
+		slog.Warn("companion line fell back", "moment", moment, "error", err)
 		return fallback, false
 	}
 	line := strings.Trim(strings.TrimSpace(result.Text()), "「」\"")

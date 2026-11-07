@@ -512,6 +512,37 @@
             </button>
           </section>
           <section class="settings-card">
+            <h2>夜の区切り</h2>
+            <p class="muted">
+              就寝1時間前から起床までは、課題の報酬を翌朝に受け取ります。ショートを見ずに寝られた朝は視聴時間
+              ＋15分。カレンダー連携中は、DOPAGAKIカレンダーに毎日の就寝予定を入れます。
+            </p>
+            <div class="sleep-fields">
+              <mat-form-field appearance="outline">
+                <mat-label>就寝</mat-label>
+                <input matInput type="time" [(ngModel)]="sleep.bedtime" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>起床</mat-label>
+                <input matInput type="time" [(ngModel)]="sleep.wake" />
+              </mat-form-field>
+            </div>
+            @if (api.state()?.sleep; as current) {
+              <p class="muted">
+                現在：{{ current.bedtime }} 就寝・{{ current.wake }} 起床 ・ ショートなしの夜
+                {{ current.keptNights }}日連続
+              </p>
+            }
+            <div class="card-actions">
+              <button mat-flat-button (click)="saveSleep()" [disabled]="api.busy()">
+                就寝の予定を保存
+              </button>
+              @if (api.state()?.sleep) {
+                <button mat-button (click)="saveSleep(true)" [disabled]="api.busy()">外す</button>
+              }
+            </div>
+          </section>
+          <section class="settings-card">
             <h2>あなたの作業の傾向</h2>
             <p class="muted">Geminiが予定を具体的にするときの参考にします。</p>
             <mat-form-field appearance="outline">

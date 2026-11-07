@@ -16,8 +16,11 @@ import { AccountMenu } from './account-menu';
 import { Assistant } from './assistant';
 import {
   DEFAULT_SETTINGS,
+  Morning,
   Profile,
   Settings,
+  SleepTime,
+  State,
   Task,
   displayTime,
   elapsedSeconds,
@@ -78,6 +81,8 @@ export class App implements OnDestroy {
   });
   settings: Settings = { ...DEFAULT_SETTINGS };
   profile: Profile = { name: '', context: '', timeZone: 'Asia/Tokyo' };
+  sleep: SleepTime = { bedtime: '23:30', wake: '07:00' };
+  private morningChecked = false;
   displayTime = displayTime;
   plannedMinutes(task: Task) {
     return Math.ceil(plannedSeconds(task) / 60);
@@ -109,6 +114,11 @@ export class App implements OnDestroy {
         this.profile = { name: '', context: '', timeZone: 'Asia/Tokyo' };
       }
     });
+    effect(() => {
+      if (this.morningChecked || !this.api.state()?.sleep) return;
+      this.morningChecked = true;
+      void this.checkMorning();
+    });
     const params = new URLSearchParams(location.search);
     const taskId = params.get('snooze') ?? params.get('notification');
     let notificationOpened = false;
@@ -135,6 +145,8 @@ export class App implements OnDestroy {
     if (page === 'settings' && this.api.state()) {
       this.settings = { ...this.api.state()!.settings };
       this.profile = { ...this.api.state()!.profile };
+      const sleep = this.api.state()!.sleep;
+      if (sleep) this.sleep = { bedtime: sleep.bedtime, wake: sleep.wake };
     }
     this.page.set(page);
   }
@@ -172,6 +184,35 @@ export class App implements OnDestroy {
   async saveProfile() {
     if (await this.api.mutate('/profile', this.profile, 'PUT'))
       this.snack.open('作業の傾向を保存しました', '閉じる', { duration: 3000 });
+  }
+  async saveSleep(clear = false) {
+    const body = clear ? { bedtime: '', wake: '' } : this.sleep;
+    if (await this.api.mutate('/sleep', body, 'PUT'))
+      this.snack.open(clear ? '就寝の予定を外しました' : '就寝の予定を保存しました', '閉じる', {
+        duration: 3000,
+      });
+  }
+  // Once per load: settle last night and let the companion say good morning.
+  private async checkMorning() {
+    try {
+      const result = await this.api.request<{ state: State; morning: Morning | null }>(
+        '/sleep/morning',
+        'POST',
+      );
+      this.api.state.set(result.state);
+      const morning = result.morning;
+      if (!morning) return;
+      const { line } = await this.api.request<{ line: string }>('/companion/line', 'POST', {
+        moment: 'morning',
+      });
+      const gains = [
+        morning.kept ? `早寝ボーナス ＋${morning.bonusSeconds / 60}分` : '',
+        morning.releasedSeconds ? `昨夜の報酬 ＋${morning.releasedSeconds / 60}分` : '',
+      ].filter(Boolean);
+      this.snack.open([line, ...gains].join(' ・ '), '閉じる', { duration: 8000 });
+    } catch {
+      /* The morning check-in is optional. */
+    }
   }
   async connect() {
     await this.api.run(async () => {

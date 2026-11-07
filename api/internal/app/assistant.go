@@ -114,6 +114,7 @@ type consultationCard struct {
 	TaskID     string     `json:"taskId,omitempty"`
 	Start      *time.Time `json:"start,omitempty"`
 	Memory     string     `json:"memory,omitempty"`
+	Sleep      *SleepTime `json:"sleep,omitempty"`
 	ProposalID string     `json:"proposalId,omitempty"`
 }
 
@@ -155,10 +156,12 @@ func (p *Planner) Consult(ctx context.Context, text string, history []AssistantT
 	}
 	data, _ := json.Marshal(map[string]any{"timeZone": state.Profile.TimeZone, "history": past, "user": text, "now": time.Now().Format(time.RFC3339)})
 	prompt := `これは相談チャットです。本人の発言(user)に、日本語の短い平文（ふだん3文以内、最大2000文字）で答えます。
-進め方：受け止める → Whyがまだなら本人の言葉で引き出す → 最初の一歩を5分以内の行動にする → 計画を提案する → 「これでいけそう？」と確認する。1回の返答で進めるのは1段階まで。
+進め方：受け止める → Whyがまだなら本人の言葉で引き出す → 最初の一歩を5分以内の行動にする → 計画を提案する → 「これでいけそう？」と確認する。質問は1回の返答で1つまで。
+新しい課題の締切と所要時間がそろったら、Whyや最初の一歩が未定でもその返答で propose_task を出し、残りはカードを見せながら聞く。
 道具：予定・課題に触れる前に get_today、前進を認めたり振り返るときは get_progress、カレンダーの話は get_calendar、好みは get_profile を呼んで事実を確かめる。データにない予定や数字を作らない。
 提案：propose_task / propose_reschedule / propose_memory は候補カードを出すだけで、本人が押すまで保存されない。予定や情報を保存したとは言わない。カードは1回の返答で最大3枚。
 締切や所要時間が不明なら決めつけずに1つだけ質問し、提案の道具は呼ばない。過去の未登録の課題候補を直すときは、元のカードのidをproposalIdに入れて全項目を出し直す。登録済みの課題はpropose_taskで複製せずpropose_rescheduleを使う。
+睡眠：夜ふかしや寝る時間の話題では get_today の sleep を確かめ、本人が就寝・起床時刻を決めたら propose_sleep を出す。時刻は本人に決めてもらい、睡眠時間の医学的な指導はしない。
 日付はtimeZoneとnowを使う。「それ」は直前の会話(history)から読み取る。
 入力JSON:
 ` + string(data)
@@ -221,6 +224,11 @@ func (p *Planner) Consult(ctx context.Context, text string, history []AssistantT
 			if card.Memory == "" || utf8.RuneCountInString(card.Memory) > 500 {
 				return "", nil, errors.New("覚える内容を確認できませんでした")
 			}
+		case "sleep":
+			if candidate.Sleep == nil || validateSleep(candidate.Sleep.Bedtime, candidate.Sleep.Wake) != nil {
+				return "", nil, errors.New("就寝と起床の時刻を確認できませんでした")
+			}
+			card.Sleep = candidate.Sleep
 		default:
 			return "", nil, errors.New("相談のカード形式を確認できませんでした")
 		}

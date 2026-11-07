@@ -49,6 +49,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/assistant/memory", s.protected(s.remember))
 	mux.HandleFunc("POST /api/assistant/preview", s.protected(s.assistantPreview))
 	mux.HandleFunc("POST /api/companion/line", s.protected(s.companionLine))
+	mux.HandleFunc("PUT /api/sleep", s.protected(s.setSleep))
+	mux.HandleFunc("POST /api/sleep/morning", s.protected(s.morning))
 	mux.HandleFunc("POST /api/tasks", s.protected(s.addTask))
 	mux.HandleFunc("DELETE /api/tasks/{id}", s.protected(s.deleteTask))
 	mux.HandleFunc("POST /api/parse", s.protected(s.parse))
@@ -467,6 +469,9 @@ func (s *Server) viewing(w http.ResponseWriter, r *http.Request) {
 		}
 		st.BalanceSeconds -= seconds
 		st.LastViewingAt = &now
+		if night, ok := st.nightAt(now); ok && seconds > 0 {
+			st.Sleep.Watched = night
+		}
 		if len(st.ViewingReceipts) > 2000 {
 			st.ViewingReceipts = map[string]bool{}
 		}

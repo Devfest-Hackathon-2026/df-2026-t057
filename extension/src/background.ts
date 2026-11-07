@@ -1,4 +1,4 @@
-import { Draft, State } from '../../shared/models';
+import { Draft, State, Task, nightWindow } from '../../shared/models';
 import { Connection, MANAGEMENT_ORIGIN, Moment, Reply, Request } from './protocol';
 
 let connectionVersion = 0;
@@ -34,10 +34,12 @@ async function publish(state: State, version = connectionVersion) {
   const next = state.tasks
     .filter((t) => t.status === 'pending' && notified[t.id] !== t.plan.start)
     .sort((a, b) => Date.parse(a.plan.start) - Date.parse(b.plan.start))[0];
-  if (next)
+  if (next) {
     await chrome.alarms.create('task-start', {
       when: Math.max(Date.now() + 1000, Date.parse(next.plan.start)),
     });
+    if (Date.parse(next.plan.start) - Date.now() < 5 * 60000) void prefetchNotice(next);
+  }
   const tabs = await chrome.tabs.query({});
   if (version !== connectionVersion) return;
   await Promise.allSettled(
@@ -52,7 +54,22 @@ async function refresh() {
   const version = connectionVersion;
   const state = await api<State>('/state');
   await publish(state, version);
+  void remindBedtime(state).catch(() => undefined);
   return state;
+}
+// Once a night, a quiet bedtime reminder on top of Shorts. Nothing is blocked.
+async function remindBedtime(state: State) {
+  const night = state.sleep && nightWindow(state.sleep);
+  if (!night || state.session) return;
+  const { bedtimeShown } = await chrome.storage.local.get('bedtimeShown');
+  if (bedtimeShown === night.key) return;
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab?.id || !tab.url?.startsWith('https://www.youtube.com/shorts/')) return;
+  const line = (await companionLine('night')) || '';
+  const response = await chrome.tabs
+    .sendMessage(tab.id, { type: 'SHOW_NIGHT', state, line })
+    .catch(() => undefined);
+  if (response?.shown) await chrome.storage.local.set({ bedtimeShown: night.key });
 }
 // One short remark from the companion; empty when the API is unavailable.
 async function companionLine(moment: Moment, taskId?: string) {
@@ -61,6 +78,24 @@ async function companionLine(moment: Moment, taskId?: string) {
   } catch {
     return '';
   }
+}
+// The notice line is fetched a few minutes ahead so the notice never waits on Gemini.
+async function prefetchNotice(task: Task) {
+  const key = `${task.id}@${task.plan.start}`;
+  const lines = ((await chrome.storage.session.get('noticeLines'))['noticeLines'] ?? {}) as Record<
+    string,
+    string
+  >;
+  if (lines[key]) return;
+  const line = await noticeLine(task);
+  if (line) await chrome.storage.session.set({ noticeLines: { [key]: line } });
+}
+async function noticeLine(task: Task) {
+  const lines = ((await chrome.storage.session.get('noticeLines'))['noticeLines'] ?? {}) as Record<
+    string,
+    string
+  >;
+  return lines[`${task.id}@${task.plan.start}`] || companionLine('notice', task.id);
 }
 async function openApp(path = '') {
   const config = await connection();
@@ -126,6 +161,10 @@ chrome.runtime.onMessage.addListener(
       }
       if (request.type === 'OPEN_APP') {
         await openApp(request.path);
+        return {};
+      }
+      if (request.type === 'CLOSE_TAB') {
+        if (sender.tab?.id) await chrome.tabs.remove(sender.tab.id);
         return {};
       }
       if (request.type === 'STATE') {
@@ -197,7 +236,7 @@ async function notify() {
     .filter((t) => t.status === 'pending' && notified[t.id] !== t.plan.start)
     .sort((a, b) => Date.parse(a.plan.start) - Date.parse(b.plan.start))[0];
   if (!task || Date.parse(task.plan.start) > Date.now() + 1000) return;
-  const line = await companionLine('notice', task.id);
+  const line = await noticeLine(task);
   const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   let shown = false;
   if (tabs[0]?.id && tabs[0].url?.startsWith('https://www.youtube.com/shorts/')) {

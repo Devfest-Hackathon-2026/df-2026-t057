@@ -43,10 +43,28 @@ export interface Session {
 }
 export interface LedgerEntry {
   id: string;
-  kind: 'initial' | 'registration' | 'completion' | 'viewing';
+  kind: 'initial' | 'registration' | 'completion' | 'viewing' | 'sleep';
   seconds: number;
   taskId?: string;
   at: string;
+  deferred?: boolean;
+}
+export interface SleepTime {
+  bedtime: string;
+  wake: string;
+}
+export interface Sleep extends SleepTime {
+  since: string;
+  eventId?: string;
+  watchedNight?: string;
+  settledNight?: string;
+  keptNights: number;
+}
+export interface Morning {
+  night: string;
+  kept: boolean;
+  bonusSeconds: number;
+  releasedSeconds: number;
 }
 export interface State {
   revision: number;
@@ -62,6 +80,7 @@ export interface State {
   lastSync?: string;
   nextDraft?: Draft;
   memoryReceipts?: Record<string, boolean>;
+  sleep?: Sleep;
 }
 export interface PlanChange {
   taskId: string;
@@ -98,12 +117,13 @@ export interface TaskInput {
 }
 export interface AssistantCard {
   id: string;
-  kind: 'create' | 'task' | 'memory';
+  kind: 'create' | 'task' | 'memory' | 'sleep';
   input?: TaskInput;
   taskId?: string;
   preview?: Plan;
   revision?: number;
   memory?: string;
+  sleep?: SleepTime;
 }
 export interface AssistantTurn {
   id: string;
@@ -137,4 +157,27 @@ export function displayTime(seconds: number): string {
 }
 export function plannedSeconds(task: Task): number {
   return Math.max(60, (Date.parse(task.plan.end) - Date.parse(task.plan.start)) / 1000);
+}
+
+// The night window in local time: from one hour before bedtime until wake, as on the server.
+export function nightWindow(sleep: SleepTime, now = Date.now()) {
+  const [bh, bm] = sleep.bedtime.split(':').map(Number);
+  const [wh, wm] = sleep.wake.split(':').map(Number);
+  for (const back of [0, -1]) {
+    const day = new Date(now);
+    day.setDate(day.getDate() + back);
+    const bed = new Date(
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate() + (bh < 12 ? 1 : 0),
+      bh,
+      bm,
+    );
+    const end = new Date(bed.getFullYear(), bed.getMonth(), bed.getDate(), wh, wm);
+    if (end <= bed) end.setDate(end.getDate() + 1);
+    const start = bed.getTime() - 3600000;
+    const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    if (now >= start && now < end.getTime()) return { key, start, end: end.getTime() };
+  }
+  return undefined;
 }

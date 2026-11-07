@@ -10,7 +10,7 @@ export interface Snapshot {
   connected: boolean;
   error?: string;
 }
-export type Moment = 'notice' | 'snooze' | 'complete' | 'balance_zero';
+export type Moment = 'notice' | 'snooze' | 'complete' | 'balance_zero' | 'night' | 'morning';
 export type Request =
   | { type: 'CONNECT'; connection: Connection }
   | { type: 'DISCONNECT' }
@@ -23,7 +23,8 @@ export type Request =
   | { type: 'COMMIT'; draft: Draft }
   | { type: 'VIEWING'; id: string; seconds: number }
   | { type: 'LINE'; moment: Moment; taskId?: string }
-  | { type: 'OPEN_APP'; path?: string };
+  | { type: 'OPEN_APP'; path?: string }
+  | { type: 'CLOSE_TAB' };
 export interface Reply {
   state?: State;
   draft?: Draft;

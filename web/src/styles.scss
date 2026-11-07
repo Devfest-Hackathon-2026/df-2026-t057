@@ -1338,3 +1338,13 @@ mat-dialog-content {
     scroll-behavior: auto !important;
   }
 }
+.sleep-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.settings-card .card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

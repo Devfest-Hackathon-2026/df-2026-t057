@@ -23,6 +23,13 @@ type AssistantCard struct {
 	Preview  *Plan      `json:"preview,omitempty"`
 	Revision int        `json:"revision,omitempty"`
 	Memory   string     `json:"memory,omitempty"`
+	Sleep    *SleepTime `json:"sleep,omitempty"`
+}
+
+// SleepTime is a proposed bedtime and wake time, both HH:MM.
+type SleepTime struct {
+	Bedtime string `json:"bedtime"`
+	Wake    string `json:"wake"`
 }
 
 type AssistantTurn struct {

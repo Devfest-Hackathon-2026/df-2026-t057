@@ -3,7 +3,22 @@
     <mat-progress-bar mode="indeterminate" aria-label="カードを処理中" />
   }
   <mat-card-content>
-    @if (card().kind === 'memory') {
+    @if (card().kind === 'sleep') {
+      <div class="card-heading">
+        <span class="material-symbols-rounded" aria-hidden="true">bedtime</span>
+        <span>毎日の就寝予定</span>
+        <span class="card-status">{{ sleepSet() ? '設定済み' : '提案' }}</span>
+      </div>
+      <h3>{{ card().sleep?.bedtime }} 就寝 ・ {{ card().sleep?.wake }} 起床</h3>
+      <p class="card-note">
+        就寝1時間前からの課題の報酬は翌朝に受け取り。ショートを見ずに寝られた朝は ＋15分。
+      </p>
+      @if (!sleepSet()) {
+        <button mat-flat-button (click)="setSleep()" [disabled]="busy() || api.busy()">
+          この時間で就寝予定を入れる
+        </button>
+      }
+    } @else if (card().kind === 'memory') {
       <div class="card-heading">
         <span class="material-symbols-rounded" aria-hidden="true">psychology</span>
         <span>覚えておくこと</span>

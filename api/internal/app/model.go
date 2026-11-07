@@ -61,6 +61,8 @@ type LedgerEntry struct {
 	Seconds int       `json:"seconds"`
 	TaskID  string    `json:"taskId,omitempty"`
 	At      time.Time `json:"at"`
+	// Deferred rewards were earned during the night and are added to the balance in the morning.
+	Deferred bool `json:"deferred,omitempty"`
 }
 type State struct {
 	Revision              int             `json:"revision"`
@@ -79,6 +81,7 @@ type State struct {
 	ViewingReceipts       map[string]bool `json:"viewingReceipts,omitempty"`
 	MemoryReceipts        map[string]bool `json:"memoryReceipts,omitempty"`
 	AssistantContextSince *time.Time      `json:"assistantContextSince,omitempty"`
+	Sleep                 *Sleep          `json:"sleep,omitempty"`
 }
 type PlanChange struct {
 	TaskID          string  `json:"taskId"`
@@ -124,8 +127,13 @@ func (s *State) grant(kind, taskID string, seconds int, now time.Time) {
 			return
 		}
 	}
-	s.BalanceSeconds += seconds
-	s.Ledger = append(s.Ledger, LedgerEntry{ID: id, Kind: kind, Seconds: seconds, TaskID: taskID, At: now})
+	entry := LedgerEntry{ID: id, Kind: kind, Seconds: seconds, TaskID: taskID, At: now}
+	if _, night := s.nightAt(now); night && kind != "sleep" {
+		entry.Deferred = true
+	} else {
+		s.BalanceSeconds += seconds
+	}
+	s.Ledger = append(s.Ledger, entry)
 }
 func (s *State) pending() []Task {
 	tasks := []Task{}
