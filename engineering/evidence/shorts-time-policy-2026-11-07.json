@@ -1,0 +1,76 @@
+{
+  "date": "2026-11-07",
+  "environment": "real Chrome, real YouTube Shorts and production Cloud Run",
+  "commit": "b3fc7b07745640695235996746e6579ade44b5da",
+  "revision": "dopagaki-00025-xan",
+  "imageDigest": "sha256:22cd0dfbf7fa38a8204997e9737705d699c15f95506973ecee73ce58a4003c26",
+  "trafficPercent": 100,
+  "ciRun": 42354875739,
+  "extensionZipSha256": "e925b3e8d90c50e3a99d9bec32a96637bc883f161960e71a0210350b229254b9",
+  "extensionInstallConfirmedBy": "user",
+  "selectedMinutes": 5,
+  "measurementSource": "visible extension timer and management records after reload; no direct Firestore read",
+  "cases": [
+    {
+      "case": "start outside foreground tab",
+      "rejected": true,
+      "message": "視聴中のShortsから操作してください。"
+    },
+    {
+      "case": "foreground playback",
+      "observedAtUtc": [
+        "2026-11-07T08:48:45.048Z",
+        "2026-11-07T08:49:13.045Z"
+      ],
+      "observationIntervalSeconds": 27.997,
+      "remainingSeconds": [
+        288,
+        260
+      ],
+      "displayedConsumedSeconds": 28
+    },
+    {
+      "case": "paused playback after display settled",
+      "observedAtUtc": [
+        "2026-11-07T08:49:22.130Z",
+        "2026-11-07T08:49:47.847Z"
+      ],
+      "observationIntervalSeconds": 25.717,
+      "remainingSeconds": [
+        259,
+        259
+      ],
+      "displayedConsumedSeconds": 0
+    },
+    {
+      "case": "stop with extension button",
+      "timerRemoved": true,
+      "videoPaused": true
+    },
+    {
+      "case": "management reload",
+      "displayedViewedMinutes": 0.7,
+      "displayedSessions": 1,
+      "displayedEndedSessions": 1,
+      "persisted": true
+    }
+  ],
+  "displayedTotalConsumedSeconds": 41,
+  "pauseTransitionNote": "Display advanced from 04:20 at pause to 04:19 before the settled comparison; instantaneous pause accuracy was not measured.",
+  "exactServerDebitSeconds": null,
+  "shortsTabClosed": true,
+  "notRetested": [
+    "ordinary videos",
+    "background playback accounting",
+    "automatic stop after selected duration",
+    "zero balance blocking",
+    "extension of viewing session",
+    "multiple tabs",
+    "disconnect and retry",
+    "daily reset",
+    "registration, work and sleep rewards",
+    "AI generation",
+    "Calendar changes",
+    "long-term habit effects"
+  ]
+}

@@ -1,6 +1,6 @@
 # 視聴時間の付与と区切り
 
-2026-11-07。[設計案](viewing-time-design.md)に基づくローカル実装。作業ブランチは`codex/viewing-time-policy`、worktreeは`/private/tmp/dopagaki-viewing-time-policy`。実サービスへの配信、既存データの変更、効果測定は行っていない。
+2026-11-07。[設計案](viewing-time-design.md)に基づく実装とローカル検証の記録。作業ブランチは`codex/viewing-time-policy`、worktreeは`/private/tmp/dopagaki-viewing-time-policy`。その後、PR #16のmain `b3fc7b0`が本番へ配信され、[実YouTubeでの視聴枠選択・減算・停止・記録保持](shorts-time-policy-verification-2026-11-07.md)を確認した。長期的な効果測定は未実施。
 
 ## 実装した動作
 
@@ -56,4 +56,6 @@ mainのセキュリティ修正・拡張リリース・相棒と睡眠・自動�
 
 ブラウザーでは選択前の停止、通信失敗時の保存・再送、再読み込み、別タブへの引き継ぎ、途中終了、延長、当日枠の終了、登録5分とリセット差分の表示を確認した。APIでは日替わり・同時再送・作業の端数と分割・一時停止・放置・日次上限・他ユーザーの拒否に加え、旧方式と暫定版の一度だけのリセット、課題・進行中タイマーの保持を確認した。旧報告の破棄と、処理中のアカウント切り替えの拒否も単体テストで確認した。
 
-Geminiは既存のローカルHTTP fixture、Shortsは合成DOMを使い、有料APIや実YouTubeは呼ばない。実YouTube・実Firestoreでの新方式の確認と、長期的な習慣の変化は未検証。実サービス用のsecurity-smokeコマンドは実行していない。
+上記のローカル検証では、Geminiは既存のローカルHTTP fixture、Shortsは合成DOMを使い、有料APIや実YouTubeは呼ばない。実サービス用のsecurity-smokeコマンドは実行していない。
+
+後続の[実YouTube確認](shorts-time-policy-verification-2026-11-07.md)では、本番アプリと更新した拡張を使い、視聴枠選択・再生中の減算・一時停止中の表示保持・途中終了・管理画面を再読み込みした後の記録保持を確認した。Firestoreの直接照会や、実環境での報酬・日替わり等の全ケース確認ではない。長期的な習慣の変化は未検証。
