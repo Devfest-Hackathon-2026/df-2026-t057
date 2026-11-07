@@ -1,13 +1,16 @@
 <div class="page-title">
   <div>
-    <span class="eyebrow">ONE THING AT A TIME</span>
-    <h1>
-      課題
-      <span class="title-dot">.</span>
-    </h1>
-    <p>やることと締切を整理して、カレンダーで時間を決めよう。</p>
+    <h1>課題</h1>
   </div>
-  <button mat-flat-button (click)="actions.add()">課題を登録</button>
+  <button
+    mat-fab
+    class="create-button"
+    aria-label="課題を登録"
+    matTooltip="課題を登録"
+    (click)="actions.add()"
+  >
+    <span class="material-symbols-rounded" aria-hidden="true">add</span>
+  </button>
 </div>
 <mat-button-toggle-group
   class="task-filter"
@@ -19,21 +22,16 @@
   <mat-button-toggle value="completed">完了</mat-button-toggle>
 </mat-button-toggle-group>
 <section class="task-list" aria-label="課題一覧">
-  @for (task of tasks(); track task.id; let i = $index) {
+  @for (task of tasks(); track task.id) {
     <article class="task-row">
-      <span class="task-index">{{ (i + 1).toString().padStart(2, '0') }}</span>
       <div class="task-main">
         <div class="task-title">
           <h3>{{ task.title }}</h3>
-          <span class="task-tag">
-            {{
-              task.status === 'active'
-                ? '作業中'
-                : task.status === 'completed'
-                  ? '完了'
-                  : 'これから'
-            }}
-          </span>
+          @if (task.status !== 'pending') {
+            <span class="task-tag">
+              {{ task.status === 'active' ? '作業中' : '完了' }}
+            </span>
+          }
         </div>
         <p>
           締切 {{ task.deadline | date: 'M/d HH:mm' }} / 予定 {{ plannedMinutes(task) }}分
@@ -41,23 +39,34 @@
             <span>（見積もり {{ task.minutes }}分）</span>
           }
         </p>
-        @if (task.why) {
-          <p>{{ task.why }}</p>
-        }
       </div>
       <div class="task-actions">
         <a
-          mat-button
+          mat-icon-button
+          aria-label="カレンダーで見る"
+          matTooltip="カレンダーで見る"
           routerLink="/calendar"
           [queryParams]="{ task: task.id, date: taskDate(task.plan.start) }"
         >
-          カレンダーで見る
+          <span class="material-symbols-rounded" aria-hidden="true">calendar_month</span>
         </a>
         @if (task.status === 'pending') {
-          <button mat-button (click)="actions.edit(task)">内容を調整・AIに相談</button>
+          <button
+            mat-icon-button
+            aria-label="課題を編集"
+            matTooltip="課題を編集"
+            (click)="actions.edit(task)"
+          >
+            <span class="material-symbols-rounded" aria-hidden="true">edit</span>
+          </button>
         }
         @if (task.status !== 'completed') {
-          <button mat-icon-button aria-label="予定を調整" (click)="actions.plan(task, true)">
+          <button
+            mat-icon-button
+            aria-label="予定を調整"
+            matTooltip="予定を調整"
+            (click)="actions.plan(task, true)"
+          >
             <span class="material-symbols-rounded">edit_calendar</span>
           </button>
           <button
@@ -75,9 +84,6 @@
       <h3>
         {{ status() === 'completed' ? '完了した課題はまだありません' : 'まだ課題がありません' }}
       </h3>
-      @if (status() !== 'completed') {
-        <button mat-stroked-button (click)="actions.add()">最初の課題を登録</button>
-      }
     </div>
   }
 </section>

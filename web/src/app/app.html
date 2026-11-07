@@ -3,7 +3,6 @@
   <aside class="sidebar">
     <a class="brand" href="/" aria-label="DOPAGAKI ホーム">
       <img src="/logo.png" alt="DOPAGAKI" />
-      <span class="brand-caption">MAKE TIME. EARN TIME.</span>
     </a>
     <nav aria-label="メインメニュー">
       @for (
@@ -21,15 +20,6 @@
         </a>
       }
     </nav>
-    <div class="sidebar-bottom">
-      <span aria-hidden="true" class="material-symbols-rounded">all_inclusive</span>
-      <p>
-        やることを、
-        <br />
-        次の楽しみに。
-      </p>
-      <small>DOPAGAKI / 01</small>
-    </div>
   </aside>
 
   <div class="main-shell">
@@ -53,18 +43,18 @@
       </section>
     }
     <header class="topbar">
-      <div class="breadcrumb">
-        WORKSPACE
-        <span>/</span>
-        {{ page().toUpperCase() }}
-      </div>
       <div class="topbar-right">
         @if (api.config()?.mode === 'demo') {
-          <span class="demo-badge">LOCAL DEMO</span>
+          <span class="demo-badge">デモ</span>
         }
         <span class="today-date">{{ now() | date: 'M月d日 EEEE' : '' : 'ja' }}</span>
         @if (api.config()?.mode === 'demo') {
-          <button mat-icon-button aria-label="設定を開く" (click)="navigate('settings')">
+          <button
+            mat-icon-button
+            matTooltip="設定"
+            aria-label="設定を開く"
+            (click)="navigate('settings')"
+          >
             <span class="material-symbols-rounded">settings</span>
           </button>
         } @else {
@@ -91,19 +81,15 @@
         </div>
       } @else if (!api.signedIn()) {
         <section class="login-card">
-          <span class="eyebrow">WELCOME TO DOPAGAKI</span>
-          <h1>
-            やることを終えて、
-            <br />
-            気持ちよく楽しもう。
-          </h1>
-          <p>
-            Googleカレンダーの課題を、具体的な作業予定に。
-            <br />
-            完了したら、YouTube Shortsの視聴時間が増えます。
-          </p>
-          <p>課題・予定・視聴時間は、ログインしたアカウントごとに保存します。</p>
-          <p><a href="/privacy.html" target="_blank" rel="noopener">データの取り扱い</a></p>
+          <h1>やることを、ひとつずつ。</h1>
+          <p>課題を終えると、動画を楽しめる時間が増えます。</p>
+          <details class="disclosure">
+            <summary>このアプリについて</summary>
+            <p>
+              Googleカレンダーの課題から作業予定を作ります。課題・予定・視聴時間はアカウントごとに保存します。
+            </p>
+            <a href="/privacy.html" target="_blank" rel="noopener">データの取り扱い</a>
+          </details>
         </section>
       } @else if (api.state(); as state) {
         @if (state.calendarConnected && state.calendarSync === 'pending') {
@@ -116,10 +102,6 @@
         }
         <router-outlet />
       }
-      <footer class="page-footer">
-        <span>DOPAGAKI</span>
-        <span>ひとつ終えたら、ひとつ楽しもう。</span>
-      </footer>
     </main>
   </div>
 </div>
@@ -138,7 +120,6 @@
   >
     <div class="notification-preview-label">通知プレビュー</div>
     <div class="notification-content">
-      <span class="eyebrow">IT'S YOUR TURN</span>
       <h2 id="notice-title">
         {{ api.state()?.settings?.mode === 'mahjong' ? 'まず、一手。' : 'そろそろ、やるか。' }}
       </h2>

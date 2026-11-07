@@ -5,6 +5,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } fro
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { Api, message } from './api';
@@ -18,6 +19,7 @@ import { displayTime, elapsedSeconds, plannedSeconds, Task } from '../../../shar
     DatePipe,
     A11yModule,
     MatButtonModule,
+    MatTooltipModule,
     MatProgressBarModule,
     MatSnackBarModule,
     AccountMenu,

@@ -10,16 +10,11 @@
 }
 .workspace-title h1 {
   font-size: 30px;
-  margin: 0 0 4px;
-}
-.workspace-title .eyebrow {
-  margin-bottom: 6px;
-}
-.workspace-title p {
-  color: var(--muted);
-  font-size: 12px;
   margin: 0;
+  font-weight: 500;
+  letter-spacing: 0;
 }
+
 .workspace-title button {
   flex-shrink: 0;
 }
@@ -67,7 +62,7 @@
 }
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 24px;
   align-items: start;
 }
@@ -104,6 +99,7 @@
   font-size: 10px;
   color: var(--muted);
   margin-top: 8px;
+  align-items: flex-start;
 }
 .calendar-empty {
   position: absolute;
@@ -116,10 +112,6 @@
   background: #fffffff2;
   padding: 22px 12px;
   border-radius: 16px;
-}
-.calendar-empty p {
-  font-size: 12px;
-  color: var(--muted);
 }
 .calendar-loading {
   min-height: 650px;
@@ -149,11 +141,7 @@
   gap: 8px;
   margin-top: 16px;
 }
-.detail-note {
-  font-size: 11px;
-  color: var(--muted);
-  margin: 16px 0 0;
-}
+
 .mobile-switch {
   display: none;
 }
@@ -177,9 +165,6 @@
   .workspace-title h1 {
     font-size: 26px;
   }
-  .workspace-title .eyebrow {
-    display: none;
-  }
   .workspace-summary {
     padding: 12px;
     gap: 8px;
@@ -187,9 +172,6 @@
   .workspace-credit {
     border: 0;
     width: 100%;
-  }
-  .notice-preview {
-    display: none;
   }
   .next-task {
     max-width: 100%;
@@ -224,4 +206,22 @@
   display: block;
   font-size: 10px;
   line-height: 1.2;
+}
+
+.credit-help {
+  margin-left: auto;
+}
+.credit-help[open] {
+  flex-basis: 100%;
+}
+.calendar-empty > .material-symbols-rounded {
+  font-size: 32px;
+  color: #7b8e6b;
+  margin-bottom: 12px;
+}
+.calendar-empty h3 {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-bottom: 12px;
 }

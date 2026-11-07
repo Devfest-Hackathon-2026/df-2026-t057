@@ -72,12 +72,12 @@ test('calendar selection, routes and chat preserve the chosen task and draft', a
   await expect(
     page.locator('.calendar-surface .event-name').filter({ hasText: '同じ名前のレポート' }),
   ).toBeVisible();
-  await page.getByRole('radio', { name: 'AIに相談', exact: true }).click();
+  await page.getByRole('radio', { name: '相談', exact: true }).click();
   await expect(page.locator('.selected-context')).toContainText('同じ名前のレポート');
   const composer = page.getByLabel('相談する', { exact: true });
   await composer.fill('この予定を見直したい');
   await page.getByRole('radio', { name: '課題の詳細', exact: true }).click();
-  await page.getByRole('radio', { name: 'AIに相談', exact: true }).click();
+  await page.getByRole('radio', { name: '相談', exact: true }).click();
   await expect(composer).toHaveValue('この予定を見直したい');
   await page.screenshot({
     path: 'test-results/calendar-desktop-consultation.png',
