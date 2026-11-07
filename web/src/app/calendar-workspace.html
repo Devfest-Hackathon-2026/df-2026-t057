@@ -1,18 +1,22 @@
 @if (api.state(); as state) {
   <div class="workspace-title">
-    <div>
-      <span class="eyebrow">YOUR TIME, TOGETHER</span>
-      <h1>カレンダー</h1>
-      <p>予定を見ながら、次の一歩を相談しよう。</p>
-    </div>
-    <button mat-flat-button (click)="actions.add()">課題を登録</button>
+    <h1>カレンダー</h1>
+    <button
+      mat-fab
+      class="create-button"
+      aria-label="課題を登録"
+      matTooltip="課題を登録"
+      (click)="actions.add()"
+    >
+      <span class="material-symbols-rounded" aria-hidden="true">add</span>
+    </button>
   </div>
   <div class="workspace-summary">
     <div class="workspace-credit">
       <span>視聴できる時間</span>
       <strong class="credit-number">
         {{ (state.balanceSeconds / 60).toFixed(0) }}
-        <small>min</small>
+        <small>分</small>
       </strong>
     </div>
     @if (next(); as task) {
@@ -29,12 +33,19 @@
       >
         はじめる
       </button>
-      <button mat-button class="notice-preview" (click)="actions.preview.set(task)">
-        通知を試す
+      <button
+        mat-icon-button
+        aria-label="通知を試す"
+        matTooltip="通知を試す"
+        (click)="actions.preview.set(task)"
+      >
+        <span class="material-symbols-rounded" aria-hidden="true">notifications</span>
       </button>
-    } @else {
-      <span class="muted">予定の登録で＋10分、課題の完了で＋20分。</span>
     }
+    <details class="disclosure credit-help">
+      <summary>視聴時間について</summary>
+      <p>初回60分。課題の登録で10分、完了で20分増えます。残った時間は繰り越せます。</p>
+    </details>
   </div>
   <mat-button-toggle-group
     class="mobile-switch"
@@ -77,7 +88,12 @@
         </ng-template>
       </full-calendar>
       <div class="calendar-caption">
-        <span>{{ timeZone }} · 確定した作業時間を表示</span>
+        <details class="disclosure">
+          <summary>表示について</summary>
+          <p>確定した作業時間を表示しています。</p>
+          <p>時間帯：{{ timeZone }}</p>
+          <p>予定の変更は、連携した専用カレンダーにも反映します。</p>
+        </details>
         <button
           mat-button
           (click)="state.calendarConnected ? api.mutate('/calendar/sync') : api.load()"
@@ -88,8 +104,8 @@
       </div>
       @if (!state.tasks.length) {
         <div class="calendar-empty">
-          <h3>最初の予定を入れよう</h3>
-          <p>課題を登録するか、右側のAIに相談できます。</p>
+          <span class="material-symbols-rounded" aria-hidden="true">event_available</span>
+          <h3>予定はまだありません</h3>
           @if (api.config()?.mode === 'demo') {
             <button mat-stroked-button (click)="api.mutate('/demo/sample')" [disabled]="api.busy()">
               サンプル3件で試す
@@ -105,7 +121,7 @@
         (change)="panel.set($event.value)"
         aria-label="相談パネルの表示"
       >
-        <mat-button-toggle value="assistant">AIに相談</mat-button-toggle>
+        <mat-button-toggle value="assistant">相談</mat-button-toggle>
         <mat-button-toggle value="detail" [disabled]="!selected()">課題の詳細</mat-button-toggle>
       </mat-button-toggle-group>
       <div [hidden]="panel() !== 'assistant'">
@@ -124,11 +140,9 @@
               (click)="actions.edit(task)"
               [disabled]="task.status !== 'pending'"
             >
-              課題の内容を調整
+              編集
             </button>
-            <button mat-stroked-button (click)="panel.set('assistant')">
-              この予定について相談
-            </button>
+            <button mat-stroked-button (click)="panel.set('assistant')">相談</button>
             <button
               mat-flat-button
               (click)="actions.start(task)"
@@ -139,11 +153,10 @@
                   ? '作業中'
                   : task.status === 'completed'
                     ? '完了済み'
-                    : 'この課題をはじめる'
+                    : 'はじめる'
               }}
             </button>
           </div>
-          <p class="detail-note">時間割を変更すると、専用Googleカレンダーの詳細欄へ反映します。</p>
         } @else {
           <p>カレンダーから予定を選んでください。</p>
         }

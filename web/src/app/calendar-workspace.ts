@@ -2,7 +2,10 @@ import { Component, computed, effect, inject, signal, viewChild } from '@angular
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { CalendarOptions, FullCalendarComponent, FullCalendarModule } from '@fullcalendar/angular';
 import timeGridPlugin from '@fullcalendar/angular/timegrid';
@@ -20,6 +23,7 @@ import { Task, AssistantCard as Card } from '../../../shared/models';
   imports: [
     DatePipe,
     MatButtonModule,
+    MatTooltipModule,
     MatButtonToggleModule,
     FullCalendarModule,
     Assistant,
@@ -56,12 +60,18 @@ export class CalendarWorkspace {
         ?.tasks.filter((t) => t.status === 'pending')
         .sort((a, b) => Date.parse(a.plan.start) - Date.parse(b.plan.start))[0],
   );
+  private readonly compact = toSignal(
+    inject(BreakpointObserver)
+      .observe('(max-width: 1100px)')
+      .pipe(map((state) => state.matches)),
+    { initialValue: window.matchMedia('(max-width: 1100px)').matches },
+  );
   readonly view = computed(() =>
     this.params().get('view') === 'day'
       ? 'day'
       : this.params().get('view') === 'week'
         ? 'week'
-        : window.matchMedia('(max-width: 1100px)').matches
+        : this.compact()
           ? 'day'
           : 'week',
   );

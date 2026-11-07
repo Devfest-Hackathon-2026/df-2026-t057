@@ -64,7 +64,7 @@ test('an AI limit preserves the message and existing tasks', async ({ page }) =>
     route.fulfill({ status: 429, headers: { 'Retry-After': '60' }, json: { error } }),
   );
   await page.goto('/');
-  await page.getByRole('radio', { name: 'AIに相談', exact: true }).click();
+  await page.getByRole('radio', { name: '相談', exact: true }).click();
   const composer = page.getByLabel('相談する', { exact: true });
   await composer.fill('この相談を消さずに残しておく');
   await page.getByRole('button', { name: '送信', exact: true }).click();

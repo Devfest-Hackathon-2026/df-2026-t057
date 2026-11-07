@@ -1,11 +1,7 @@
 :host {
   display: block;
 }
-.assistant-intro {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 0 0 12px;
-}
+
 .conversation {
   min-width: 0;
 }
@@ -28,10 +24,7 @@
 .chat-welcome h2 {
   font-size: 17px;
 }
-.chat-welcome p {
-  color: #687165;
-  font-size: 12px;
-}
+
 .starters {
   display: flex;
   flex-direction: column;
@@ -117,19 +110,16 @@ mat-form-field {
 .composer-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
 }
-.composer-actions > span {
-  font-size: 10px;
-  color: #687165;
-}
+
 .composer-actions button {
   flex-shrink: 0;
 }
 .composer-actions .material-symbols-rounded {
   font-size: 18px;
-  margin-right: 6px;
+  margin: 0;
 }
 .selected-context {
   display: flex;

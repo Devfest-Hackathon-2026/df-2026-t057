@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { Api, localDate } from './api';
 import { TaskActions } from './task-actions';
@@ -9,7 +10,7 @@ import { plannedSeconds, Task } from '../../../shared/models';
 
 @Component({
   selector: 'app-tasks',
-  imports: [DatePipe, RouterLink, MatButtonModule, MatButtonToggleModule],
+  imports: [DatePipe, RouterLink, MatButtonModule, MatTooltipModule, MatButtonToggleModule],
   templateUrl: './tasks.html',
 })
 export class Tasks {

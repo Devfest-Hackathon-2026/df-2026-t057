@@ -1,12 +1,7 @@
 @if (api.state(); as state) {
   <div class="page-title">
     <div>
-      <span class="eyebrow">EVERY LITTLE COUNTS</span>
-      <h1>
-        積み上げの記録
-        <span class="title-dot">.</span>
-      </h1>
-      <p>終わらせた分だけ、ちゃんと前に進んでいる。</p>
+      <h1>記録</h1>
     </div>
   </div>
   <section class="activity-card">
@@ -39,9 +34,8 @@
           </strong>
           <p>{{ entry.at | date: 'M/d HH:mm' }}</p>
         </div>
-        <strong class="ledger-credit">＋{{ entry.seconds / 60 }} min</strong>
+        <strong class="ledger-credit">＋{{ entry.seconds / 60 }}分</strong>
       </div>
     }
   </section>
-  <p class="muted">視聴による消費は残り時間へ反映されます。</p>
 }

@@ -50,7 +50,7 @@ import { Api, localDate, message } from './api';
         aria-label="課題の入力方法"
         [disabled]="busy() || api.busy() || assistant()?.sending()"
       >
-        <mat-button-toggle value="ai">AIに相談</mat-button-toggle>
+        <mat-button-toggle value="ai">相談</mat-button-toggle>
         <mat-button-toggle value="manual">手入力</mat-button-toggle>
       </mat-button-toggle-group>
       <div [hidden]="mode() !== 'ai' || (data?.taskId && !task())" class="input-panel">
@@ -63,13 +63,6 @@ import { Api, localDate, message } from './api';
         }
       </div>
       <div [hidden]="mode() !== 'manual' || (data?.taskId && !task())" class="input-panel">
-        <p class="muted">
-          {{
-            task()
-              ? '内容を直して、変更後の時間割を確認します。'
-              : '締切から逆算して予定を作ります。登録で視聴時間 ＋10分。'
-          }}
-        </p>
         <div class="form-stack">
           <mat-form-field appearance="outline">
             <mat-label>課題名</mat-label>
@@ -108,40 +101,43 @@ import { Api, localDate, message } from './api';
               />
             </mat-form-field>
           </div>
-          <mat-form-field appearance="outline">
-            <mat-label>なぜやる？（任意・一行）</mat-label>
-            <input
-              matInput
-              [disabled]="busy() || api.busy()"
-              (ngModelChange)="change.set(null)"
-              [(ngModel)]="form.why"
-              maxlength="200"
-              placeholder="来週のゼミで、自信をもって発表したいから"
-            />
-            <mat-hint>通知のときに表示します</mat-hint>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>作業リンク（任意）</mat-label>
-            <input
-              matInput
-              type="url"
-              [disabled]="busy() || api.busy()"
-              (ngModelChange)="change.set(null)"
-              [(ngModel)]="form.url"
-              placeholder="https://docs.google.com/…"
-            />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>やること・メモ</mat-label>
-            <textarea
-              matInput
-              [disabled]="busy() || api.busy()"
-              (ngModelChange)="change.set(null)"
-              [(ngModel)]="form.notes"
-              rows="2"
-              maxlength="4000"
-            ></textarea>
-          </mat-form-field>
+          <details class="disclosure optional-fields" [open]="!!data?.taskId">
+            <summary>詳細を追加</summary>
+            <div class="form-stack">
+              <mat-form-field appearance="outline">
+                <mat-label>目的（任意）</mat-label>
+                <input
+                  matInput
+                  [disabled]="busy() || api.busy()"
+                  (ngModelChange)="change.set(null)"
+                  [(ngModel)]="form.why"
+                  maxlength="200"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>作業リンク（任意）</mat-label>
+                <input
+                  matInput
+                  type="url"
+                  [disabled]="busy() || api.busy()"
+                  (ngModelChange)="change.set(null)"
+                  [(ngModel)]="form.url"
+                  placeholder="https://docs.google.com/…"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>やること・メモ</mat-label>
+                <textarea
+                  matInput
+                  [disabled]="busy() || api.busy()"
+                  (ngModelChange)="change.set(null)"
+                  [(ngModel)]="form.notes"
+                  rows="2"
+                  maxlength="4000"
+                ></textarea>
+              </mat-form-field>
+            </div>
+          </details>
         </div>
         @if (change(); as candidate) {
           <app-task-change [change]="candidate" />
