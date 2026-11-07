@@ -4,14 +4,14 @@ test('registration, confirmation, timer and completion', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await expect(page.locator('.credit-number')).toContainText('60');
+  await expect(page.locator('.credit-number')).toContainText('10');
   await page.getByRole('button', { name: '課題を登録', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('課題名', { exact: true }).fill('演習レポート');
   await dialog.getByLabel('必要時間（分）').fill('30');
   await dialog.getByRole('button', { name: '登録する', exact: true }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page.locator('.credit-number')).toContainText('70');
+  await expect(page.locator('.credit-number')).toContainText('15');
   await page.getByRole('button', { name: '通知を試す' }).click();
   await expect(page.getByRole('heading', { name: 'そろそろ、やるか。' })).toBeVisible();
   await page.screenshot({ animations: 'disabled', path: 'test-results/notification.png' });
@@ -39,9 +39,9 @@ test('registration, confirmation, timer and completion', async ({ page }) => {
   await expect(page.getByRole('button', { name: '再開', exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: '再開', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '完了 ＋20分', exact: true }).click();
+  await page.getByRole('button', { name: '課題を完了', exact: true }).click();
   await page.getByRole('link', { name: 'カレンダー', exact: true }).click();
-  await expect(page.locator('.credit-number')).toContainText('90');
+  await expect(page.locator('.credit-number')).toContainText('15');
   await expect(page.locator('.focus-bar')).not.toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -61,7 +61,7 @@ test('snooze commit, settings and responsive layout', async ({ page }) => {
   await expect(dialog.locator('.plan-change')).toHaveCount(3);
   await dialog.getByRole('button', { name: 'この予定に変更' }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page.locator('.credit-number')).toContainText('90');
+  await expect(page.locator('.credit-number')).toContainText('25');
   await page.getByRole('button', { name: '設定を開く', exact: true }).click();
   await page.getByLabel('分', { exact: true }).fill('15');
   await page.getByRole('button', { name: '設定を保存', exact: true }).click();

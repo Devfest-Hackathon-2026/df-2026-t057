@@ -28,7 +28,7 @@ func TestAccountsCannotReadOrCompleteEachOthersTasks(t *testing.T) {
 	b := a
 	b.cookie = &http.Cookie{Name: "dopagaki_demo", Value: "0123456789abcdef0123456789abcdef"}
 	a.state("POST", "/api/tasks", input())
-	if s := b.state("GET", "/api/state", nil); len(s.Tasks) != 0 || s.BalanceSeconds != 3600 {
+	if s := b.state("GET", "/api/state", nil); len(s.Tasks) != 0 || s.BalanceSeconds != initialSeconds {
 		t.Fatal("new account inherited another account's tasks or credit")
 	}
 	for _, path := range []string{"/api/tasks/one/start", "/api/tasks/one/complete"} {
@@ -43,19 +43,21 @@ func TestAccountsCannotReadOrCompleteEachOthersTasks(t *testing.T) {
 	other.Title = "別の人の課題"
 	b.state("POST", "/api/tasks", other)
 	b.state("POST", "/api/tasks/one/complete", nil)
-	if s := a.state("GET", "/api/state", nil); s.Tasks[0].Status != "pending" || s.BalanceSeconds != 4200 {
+	if s := a.state("GET", "/api/state", nil); s.Tasks[0].Status != "pending" || s.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("same task ID changed another account")
 	}
 }
 
 type testClient struct {
 	handler http.Handler
+	store   *MemoryStore
 	cookie  *http.Cookie
 	t       *testing.T
 }
 
 func client(t *testing.T) testClient {
-	return testClient{handler: (&Server{Mode: "demo", Store: NewMemoryStore(), Planner: &Planner{}, AppURL: "http://127.0.0.1:4200"}).Handler(), cookie: &http.Cookie{Name: "dopagaki_demo", Value: "abcdef0123456789abcdef0123456789"}, t: t}
+	store := NewMemoryStore()
+	return testClient{store: store, handler: (&Server{Mode: "demo", Store: store, Planner: &Planner{}, AppURL: "http://127.0.0.1:4200"}).Handler(), cookie: &http.Cookie{Name: "dopagaki_demo", Value: "abcdef0123456789abcdef0123456789"}, t: t}
 }
 func (c testClient) call(method, path string, body any) (int, []byte) {
 	raw, _ := json.Marshal(body)
@@ -84,12 +86,12 @@ func input() TaskInput {
 func TestTaskLifecycleRewardsAndTimer(t *testing.T) {
 	c := client(t)
 	s := c.state("GET", "/api/state", nil)
-	if s.BalanceSeconds != 3600 {
+	if s.BalanceSeconds != initialSeconds {
 		t.Fatal("initial credit")
 	}
 	s = c.state("POST", "/api/tasks", input())
-	if s.BalanceSeconds != 4200 {
-		t.Fatal("registration credit")
+	if s.BalanceSeconds != initialSeconds+300 {
+		t.Fatal("registration did not grant five minutes")
 	}
 	var wg sync.WaitGroup
 	for range 8 {
@@ -102,7 +104,7 @@ func TestTaskLifecycleRewardsAndTimer(t *testing.T) {
 	}
 	wg.Wait()
 	s = c.state("GET", "/api/state", nil)
-	if len(s.Tasks) != 1 || s.BalanceSeconds != 4200 {
+	if len(s.Tasks) != 1 || s.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("retry duplicated a task or reward")
 	}
 	s = c.state("POST", "/api/tasks/one/start", nil)
@@ -129,7 +131,7 @@ func TestTaskLifecycleRewardsAndTimer(t *testing.T) {
 	}
 	wg.Wait()
 	s = c.state("GET", "/api/state", nil)
-	if s.BalanceSeconds != 5400 || s.Session != nil || s.Tasks[0].Status != "completed" {
+	if s.BalanceSeconds != initialSeconds+300 || s.Session != nil || s.Tasks[0].Status != "completed" || len(s.Ledger) != 3 {
 		t.Fatal("completion was not exactly once")
 	}
 }
@@ -170,30 +172,33 @@ func TestDraftPreviewCancelAndStaleCommit(t *testing.T) {
 	s = c.state("GET", "/api/state", nil)
 	draft = s.NextDraft
 	s = c.state("POST", "/api/draft/commit", draft)
-	if !s.Tasks[0].Plan.Start.Equal(draft.Changes[0].After.Start) || s.BalanceSeconds != 4200 {
+	if !s.Tasks[0].Plan.Start.Equal(draft.Changes[0].After.Start) || s.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("commit changed credit or did not apply proposal")
 	}
 }
 
 func TestViewingReceiptsAndUserIsolation(t *testing.T) {
-	c := client(t)
-	body := map[string]any{"id": "receipt-001", "seconds": 10}
+	now := time.Now()
+	c := policyClient(t, &now)
+	c.state("POST", "/api/viewing/start", map[string]any{"id": "receipt-session", "seconds": 300})
+	now = now.Add(10 * time.Second)
+	body := map[string]any{"id": "receipt-001", "seconds": 10, "sessionId": "receipt-session"}
 	s := c.state("POST", "/api/viewing", body)
-	if s.BalanceSeconds != 3590 {
+	if s.BalanceSeconds != 590 {
 		t.Fatal("viewing debit")
 	}
 	s = c.state("POST", "/api/viewing", body)
-	if s.BalanceSeconds != 3590 {
+	if s.BalanceSeconds != 590 {
 		t.Fatal("retry charged twice")
 	}
-	s = c.state("POST", "/api/viewing", map[string]any{"id": "receipt-002", "seconds": 10})
-	if s.BalanceSeconds < 3589 {
+	s = c.state("POST", "/api/viewing", map[string]any{"id": "receipt-002", "seconds": 10, "sessionId": "receipt-session"})
+	if s.BalanceSeconds < 589 {
 		t.Fatal("parallel tab overcharged")
 	}
 	other := c
 	other.cookie = &http.Cookie{Name: "dopagaki_demo", Value: "0123456789abcdef0123456789abcdef"}
 	s = other.state("GET", "/api/state", nil)
-	if s.BalanceSeconds != 3600 {
+	if s.BalanceSeconds != initialSeconds {
 		t.Fatal("user data leaked")
 	}
 }

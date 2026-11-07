@@ -109,7 +109,7 @@ func companionProgress(state State, now time.Time) map[string]any {
 	for i := 0; i < len(recent) && i < 3; i++ {
 		titles = append(titles, recent[i].Title)
 	}
-	return map[string]any{"streakDays": streakDays(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
+	return map[string]any{"streakDays": streakDays(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "timePolicy": state.TimePolicy, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
 }
 
 // sleepSummary is what the companion may know about the user's bedtime.
@@ -176,7 +176,7 @@ func companionTools() []*genai.Tool {
 		{Name: toolMemory, Description: "本人がはっきり言った作業の好み・苦手・時間帯を、覚える候補として見せる。推測した性格や機微な情報は使わない。", Parameters: &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
 			"memory": str("短く覚える内容（500文字以内）"),
 		}, Required: []string{"memory"}}},
-		{Name: toolSleep, Description: "本人が決めた就寝・起床時刻を、毎日の就寝予定としてカレンダーに入れる候補を見せる。本人が押すまで保存されない。就寝1時間前からの報酬は翌朝に受け取りになり、ショートを見ずに寝られた朝は＋15分。", Parameters: &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
+		{Name: toolSleep, Description: "本人が決めた就寝・起床時刻を、毎日の就寝予定としてカレンダーに入れる候補を見せる。本人が押すまで保存されない。就寝1時間前からの報酬は翌朝に受け取りになり、ショートを見ずに寝られた朝は最大15分（残高30分まで）。", Parameters: &genai.Schema{Type: genai.TypeObject, Properties: map[string]*genai.Schema{
 			"bedtime": str("就寝時刻 HH:MM（24時間表記）"),
 			"wake":    str("起床時刻 HH:MM（24時間表記）"),
 		}, Required: []string{"bedtime", "wake"}}},
@@ -195,7 +195,7 @@ func readTool(state State, name string, now time.Time) map[string]any {
 				tasks = append(tasks, describeTask(t))
 			}
 		}
-		result := map[string]any{"now": now.In(loc).Format(time.RFC3339), "tasks": tasks, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
+		result := map[string]any{"now": now.In(loc).Format(time.RFC3339), "tasks": tasks, "timePolicy": state.TimePolicy, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
 		if state.Session != nil {
 			result["workingOn"] = state.Session.TaskID
 		}

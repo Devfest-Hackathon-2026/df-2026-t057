@@ -1,4 +1,4 @@
-import type { Draft, SleepTime, State, Task } from '../../shared/models';
+import type { Draft, SleepTime, State, Task, TimePolicy } from '../../shared/models';
 
 export type ExtensionTask = Pick<
   Task,
@@ -6,9 +6,11 @@ export type ExtensionTask = Pick<
 >;
 export type ExtensionState = Pick<
   State,
-  'balanceSeconds' | 'settings' | 'session' | 'nextDraft'
+  'revision' | 'balanceSeconds' | 'settings' | 'session' | 'nextDraft' | 'viewingSession'
 > & {
   tasks: ExtensionTask[];
+  timePolicy?: Pick<TimePolicy, 'version' | 'mode' | 'dailyLimitSeconds' | 'viewedSeconds'>;
+  workRewardSeconds: number;
   sleep?: SleepTime;
 };
 
@@ -33,11 +35,17 @@ export type Request =
   | { type: 'DRAFT'; taskId: string; adjust: boolean }
   | { type: 'ADJUST'; draft: Draft; instruction: string }
   | { type: 'COMMIT'; draft: Draft }
-  | { type: 'VIEWING'; id: string; seconds: number }
+  | { type: 'VIEWING'; id: string; seconds: number; sessionId?: string }
+  | { type: 'START_VIEWING'; id: string; seconds: number; extendFrom?: string }
+  | { type: 'CLAIM_VIEWING'; sessionId: string }
+  | { type: 'END_VIEWING'; sessionId: string; reason: 'stop' | 'limit' }
+  | { type: 'CONFIRM_WORK'; id: string }
   | { type: 'LINE'; moment: Moment; taskId?: string }
   | { type: 'OPEN_APP'; path?: string }
   | { type: 'CLOSE_TAB' };
 export interface Reply {
+  tabId?: number;
+  viewingOwnerTabId?: number;
   state?: ExtensionState;
   draft?: Draft;
   line?: string;

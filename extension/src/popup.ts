@@ -1,4 +1,4 @@
-import { displayTime, elapsedSeconds } from '../../shared/models';
+import { displayTime, elapsedSeconds, viewingAvailable } from '../../shared/models';
 import { ExtensionState, MANAGEMENT_ORIGIN, send } from './protocol';
 
 const status = document.querySelector<HTMLElement>('#status')!;
@@ -34,7 +34,10 @@ document.querySelector<HTMLButtonElement>('#permission')!.onclick = async () => 
   }
 };
 function render(state: ExtensionState) {
-  balance.textContent = `${Math.floor(state.balanceSeconds / 60)} min`;
+  balance.textContent =
+    state.timePolicy?.mode === 'self' || state.timePolicy?.mode === 'reminder'
+      ? '制限なし'
+      : `${Math.floor(viewingAvailable(state) / 60)} min`;
   if (state.session) {
     const task = state.tasks.find((t) => t.id === state.session!.taskId);
     focus.textContent = `作業中 · ${task?.title} · ${displayTime(elapsedSeconds(state.session))}`;

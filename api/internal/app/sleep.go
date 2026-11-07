@@ -115,14 +115,14 @@ func (st *State) settleMorning(now time.Time) *Morning {
 	for i := range st.Ledger {
 		if st.Ledger[i].Deferred {
 			st.Ledger[i].Deferred = false
-			st.BalanceSeconds += st.Ledger[i].Seconds
-			morning.Released += st.Ledger[i].Seconds
+			seconds := max(0, min(st.Ledger[i].Seconds, balanceCapSeconds-st.BalanceSeconds))
+			st.BalanceSeconds += seconds
+			morning.Released += seconds
 		}
 	}
 	if st.Sleep.Since.Before(start) && st.Sleep.Watched != key {
 		morning.Kept = true
-		morning.Bonus = sleepBonus
-		st.grant("sleep", key, sleepBonus, now)
+		morning.Bonus = st.grant("sleep", key, sleepBonus, now)
 		st.Sleep.Kept++
 	} else {
 		st.Sleep.Kept = 0

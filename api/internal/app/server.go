@@ -18,6 +18,7 @@ import (
 )
 
 type Server struct {
+	Now       func() time.Time
 	Store     Store
 	Planner   *Planner
 	Calendar  *Calendar
@@ -27,6 +28,13 @@ type Server struct {
 	AppURL    string
 	Firebase  map[string]string
 	Assistant AssistantStore
+}
+
+func (s *Server) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return time.Now()
 }
 
 var requestIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`)
@@ -62,6 +70,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/tasks/{id}/start", s.protected(s.start))
 	mux.HandleFunc("POST /api/tasks/{id}/complete", s.protected(s.complete))
 	mux.HandleFunc("POST /api/session/pause", s.protected(s.pause))
+	mux.HandleFunc("POST /api/session/confirm", s.protected(s.confirmSession))
+	mux.HandleFunc("PUT /api/time-policy", s.protected(s.timePolicy))
+	mux.HandleFunc("POST /api/viewing/start", s.protected(s.beginViewing))
+	mux.HandleFunc("POST /api/viewing/end", s.protected(s.finishViewing))
 	mux.HandleFunc("POST /api/viewing", s.protected(s.viewing))
 	mux.HandleFunc("GET /api/tasks/{id}/draft", s.protected(s.draft))
 	mux.HandleFunc("POST /api/draft/adjust", s.protected(s.adjustDraft))
@@ -92,7 +104,7 @@ func (s *Server) config(w http.ResponseWriter, r *http.Request) {
 func (s *Server) state(w http.ResponseWriter, r *http.Request) {
 	state, err := s.Store.Read(r.Context(), uid(r))
 	if err == nil {
-		prepareDraft(&state, time.Now())
+		prepareDraft(&state, s.now())
 	}
 	respond(w, state, err)
 }
@@ -125,7 +137,7 @@ func (s *Server) addTask(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &input) {
 		return
 	}
-	if err := validateInput(input, time.Now()); err != nil {
+	if err := validateInput(input, s.now()); err != nil {
 		respond(w, nil, err)
 		return
 	}
@@ -159,7 +171,7 @@ func (s *Server) createTask(ctx context.Context, id string, input TaskInput) (St
 	if s.Calendar != nil && !current.CalendarConnected {
 		return State{}, errors.New("先にGoogleカレンダーを連携してください")
 	}
-	task := Task{ID: input.ID, Title: strings.TrimSpace(input.Title), Notes: input.Notes, Why: strings.TrimSpace(input.Why), Deadline: input.Deadline, Minutes: input.Minutes, URL: input.URL, Status: "pending", CreatedAt: time.Now()}
+	task := Task{ID: input.ID, Title: strings.TrimSpace(input.Title), Notes: input.Notes, Why: strings.TrimSpace(input.Why), Deadline: input.Deadline, Minutes: input.Minutes, URL: input.URL, Status: "pending", CreatedAt: s.now()}
 	task.Plan, err = s.Planner.Detail(ctx, id, task, current.Profile)
 	if err != nil {
 		return State{}, err
@@ -186,9 +198,9 @@ func (s *Server) createTask(ctx context.Context, id string, input TaskInput) (St
 		}
 		task.CalendarEventID = eventID
 		st.Tasks = append(st.Tasks, task)
-		st.grant("registration", input.ID, 600, time.Now())
+		st.grant("registration", input.ID, 300, s.now())
 		st.replan()
-		prepareDraft(st, time.Now())
+		prepareDraft(st, s.now())
 		if eventID != "" {
 			st.CalendarSync = "pending"
 		}
@@ -234,7 +246,7 @@ func (s *Server) deleteTask(w http.ResponseWriter, r *http.Request) {
 			st.Session = nil
 		}
 		st.replan()
-		prepareDraft(st, time.Now())
+		prepareDraft(st, s.now())
 		return nil
 	})
 	respond(w, st, err)
@@ -270,7 +282,7 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 			st.PlanRevision++
 		}
 		st.Settings = in
-		prepareDraft(st, time.Now())
+		prepareDraft(st, s.now())
 		return nil
 	})
 	respond(w, st, err)
@@ -290,7 +302,7 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	st, err := s.Store.Update(r.Context(), uid(r), func(st *State) error {
 		if st.Profile.Context != in.Context {
-			now := time.Now()
+			now := s.now()
 			st.AssistantContextSince = &now
 		}
 		st.Profile = in
@@ -311,11 +323,19 @@ func (s *Server) start(w http.ResponseWriter, r *http.Request) {
 			return errors.New("別の課題を進行中です。完了してから開始してください")
 		}
 		if st.Session == nil {
-			st.Session = &Session{TaskID: t.ID, StartedAt: time.Now()}
+			now := s.now()
+			if t.StartedAt == nil {
+				t.StartedAt, t.ScheduledStartAt = &now, &t.Plan.Start
+			}
+			limit := max(60, int(t.Plan.End.Sub(t.Plan.Start).Seconds()))
+			if st.TimePolicy != nil {
+				limit = min(limit, 25*60)
+			}
+			st.Session = &Session{ID: newID(), TaskID: t.ID, StartedAt: now, LimitSeconds: limit, RunningSince: &now}
 			st.PlanRevision++
 		}
 		t.Status = "active"
-		prepareDraft(st, time.Now())
+		prepareDraft(st, s.now())
 		return nil
 	})
 	respond(w, st, err)
@@ -325,12 +345,14 @@ func (s *Server) pause(w http.ResponseWriter, r *http.Request) {
 		if st.Session == nil {
 			return errors.New("進行中の課題がありません")
 		}
-		now := time.Now()
+		now := s.now()
 		if st.Session.PausedAt == nil {
+			st.closeWorkInterval(now)
 			st.Session.PausedAt = &now
 		} else {
 			st.Session.PausedSeconds += int(now.Sub(*st.Session.PausedAt).Seconds())
 			st.Session.PausedAt = nil
+			st.Session.RunningSince = &now
 		}
 		return nil
 	})
@@ -345,11 +367,11 @@ func (s *Server) complete(w http.ResponseWriter, r *http.Request) {
 		if t.Status == "completed" {
 			return nil
 		}
-		now := time.Now()
+		now := s.now()
 		t.Status = "completed"
 		t.CompletedAt = &now
-		st.grant("completion", t.ID, 1200, now)
 		if st.Session != nil && st.Session.TaskID == t.ID {
+			st.confirmWork(now)
 			st.Session = nil
 		}
 		st.PlanRevision++
@@ -360,8 +382,9 @@ func (s *Server) complete(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) viewing(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		ID      string `json:"id"`
-		Seconds int    `json:"seconds"`
+		ID        string `json:"id"`
+		Seconds   int    `json:"seconds"`
+		SessionID string `json:"sessionId"`
 	}
 	if !decode(w, r, &in) {
 		return
@@ -377,9 +400,20 @@ func (s *Server) viewing(w http.ResponseWriter, r *http.Request) {
 		if st.ViewingReceipts[in.ID] {
 			return nil
 		}
-		now := time.Now()
+		now := s.now()
 		seconds := in.Seconds
-		if st.LastViewingAt != nil {
+		if st.TimePolicy != nil && st.TimePolicy.Mode != "self" {
+			x := st.ViewingSession
+			if x == nil || x.ID != in.SessionID || x.EndedAt != nil {
+				return errors.New("視聴する長さを選んでから再生してください")
+			}
+			seconds = min(seconds, max(0, int(now.Sub(x.LastReportAt).Seconds())), x.PlannedSeconds-x.ConsumedSeconds, st.viewingAvailable())
+			x.ConsumedSeconds += seconds
+			x.LastReportAt = now
+			if x.ConsumedSeconds >= x.PlannedSeconds || st.viewingAvailable() <= seconds {
+				x.EndedAt, x.Reason = &now, "limit"
+			}
+		} else if st.LastViewingAt != nil {
 			delta := int(now.Sub(*st.LastViewingAt).Seconds())
 			if delta < seconds {
 				seconds = delta
@@ -388,10 +422,16 @@ func (s *Server) viewing(w http.ResponseWriter, r *http.Request) {
 		if seconds < 0 {
 			seconds = 0
 		}
-		if seconds > st.BalanceSeconds {
+		if st.TimePolicy != nil {
+			st.TimePolicy.ViewedSeconds += seconds
+		}
+		limited := st.TimePolicy == nil || st.TimePolicy.Mode == "rewards" || st.TimePolicy.Mode == "fixed"
+		if limited && seconds > st.BalanceSeconds {
 			seconds = st.BalanceSeconds
 		}
-		st.BalanceSeconds -= seconds
+		if limited {
+			st.BalanceSeconds -= seconds
+		}
 		st.LastViewingAt = &now
 		if night, ok := st.nightAt(now); ok && seconds > 0 {
 			st.Sleep.Watched = night
@@ -430,11 +470,11 @@ func (s *Server) draft(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, err)
 		return
 	}
-	start := time.Now().Add(time.Duration(st.Settings.SnoozeMinutes) * time.Minute)
+	start := s.now().Add(time.Duration(st.Settings.SnoozeMinutes) * time.Minute)
 	if r.URL.Query().Get("adjust") == "true" {
 		start = t.Plan.Start
-		if start.Before(time.Now()) {
-			start = time.Now().Add(time.Minute)
+		if start.Before(s.now()) {
+			start = s.now().Add(time.Minute)
 		}
 	}
 	if requested := r.URL.Query().Get("start"); requested != "" {
@@ -449,7 +489,7 @@ func (s *Server) draft(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	draft, err := MakeDraft(st, t.ID, start, time.Now())
+	draft, err := MakeDraft(st, t.ID, start, s.now())
 	respond(w, draft, err)
 }
 func (s *Server) adjustDraft(w http.ResponseWriter, r *http.Request) {
@@ -497,7 +537,7 @@ func (s *Server) adjustDraft(w http.ResponseWriter, r *http.Request) {
 			change.OriginalMinutes = task.Minutes
 			change.PlannedMinutes = change.After.End.Sub(change.After.Start).Minutes()
 		}
-		err = ValidateChanges(draft.Changes, st, time.Now())
+		err = ValidateChanges(draft.Changes, st, s.now())
 	}
 	respond(w, draft, err)
 }
@@ -516,7 +556,7 @@ func (s *Server) commitDraft(w http.ResponseWriter, r *http.Request) {
 		if draft.BaseRevision != st.PlanRevision {
 			return ErrConflict
 		}
-		if err := ValidateChanges(draft.Changes, *st, time.Now()); err != nil {
+		if err := ValidateChanges(draft.Changes, *st, s.now()); err != nil {
 			return err
 		}
 		for _, c := range draft.Changes {
@@ -524,7 +564,7 @@ func (s *Server) commitDraft(w http.ResponseWriter, r *http.Request) {
 			t.Plan = c.After
 		}
 		st.PlanRevision++
-		prepareDraft(st, time.Now())
+		prepareDraft(st, s.now())
 		if st.CalendarConnected {
 			st.CalendarSync = "pending"
 		}
@@ -540,7 +580,7 @@ func (s *Server) sample(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 403, errors.New("サンプルはデモ環境でのみ作成できます"))
 		return
 	}
-	now := time.Now()
+	now := s.now()
 	st, err := s.Store.Update(r.Context(), uid(r), func(st *State) error {
 		if len(st.Tasks) > 0 {
 			return errors.New("サンプルは課題がないときだけ追加できます")
@@ -548,7 +588,7 @@ func (s *Server) sample(w http.ResponseWriter, r *http.Request) {
 		for i, title := range []string{"レポートの構成をまとめる", "演習問題を解く", "見直して提出する"} {
 			id := newID()
 			st.Tasks = append(st.Tasks, Task{ID: id, Title: title, Minutes: []int{30, 30, 15}[i], Deadline: now.Add(90 * time.Minute), Status: "pending", CreatedAt: now})
-			st.grant("registration", id, 600, now)
+			st.grant("registration", id, 300, now)
 		}
 		st.replan()
 		prepareDraft(st, now)

@@ -313,6 +313,25 @@ button {
   border-radius: 8px;
   font-size: 13px;
 }
+.viewing-bar {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483645;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #f5f7f1;
+  color: #20251f;
+  font-size: 12px;
+}
+.viewing-bar button {
+  padding: 6px 12px;
+  border-color: #c9d1be;
+}
 .reduced {
   animation: none;
 }
@@ -349,10 +368,14 @@ button {
   }
   .timer {
     gap: 7px;
-    padding: 0 9px;
+    padding: 6px 9px;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 43px;
   }
   .timer strong {
-    max-width: 30%;
+    max-width: 100%;
+    flex: 1 1 100%;
   }
   .timer button {
     padding: 5px 8px;

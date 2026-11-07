@@ -1,4 +1,4 @@
-import { Draft, State, nightWindow } from '../../shared/models';
+import { Draft, State, nightWindow, rewardDescription } from '../../shared/models';
 import {
   Connection,
   ExtensionState,
@@ -35,7 +35,20 @@ async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> 
 async function apiState(path: string, method = 'GET', body?: unknown): Promise<ExtensionState> {
   const state = await api<State>(path, method, body);
   return {
+    revision: state.revision,
     balanceSeconds: state.balanceSeconds,
+    viewingSession: state.viewingSession,
+    timePolicy: state.timePolicy
+      ? {
+          version: state.timePolicy.version,
+          mode: state.timePolicy.mode,
+          dailyLimitSeconds: state.timePolicy.dailyLimitSeconds,
+          viewedSeconds: state.timePolicy.viewedSeconds,
+        }
+      : undefined,
+    workRewardSeconds: (state.ledger ?? [])
+      .filter((e) => e.kind === 'work')
+      .reduce((sum, e) => sum + e.seconds, 0),
     settings: state.settings,
     session: state.session,
     nextDraft: state.nextDraft,
@@ -53,6 +66,11 @@ async function apiState(path: string, method = 'GET', body?: unknown): Promise<E
 }
 async function publish(state: ExtensionState, version = connectionVersion) {
   if (version !== connectionVersion) return;
+  const owner = (await chrome.storage.local.get('viewingOwner'))['viewingOwner'] as
+    { tabId: number; sessionId: string } | undefined;
+  const previous = (await chrome.storage.local.get('state'))['state'] as ExtensionState | undefined;
+  if (version !== connectionVersion) return;
+  if (previous && previous.revision > state.revision) return;
   await chrome.storage.local.set({ state, lastError: '' });
   await chrome.alarms.clear('task-start');
   if (version !== connectionVersion) return;
@@ -72,13 +90,23 @@ async function publish(state: ExtensionState, version = connectionVersion) {
   await Promise.allSettled(
     tabs
       .filter((t) => t.id)
-      .map((t) => chrome.tabs.sendMessage(t.id!, { type: 'STATE_UPDATED', state })),
+      .map((t) =>
+        chrome.tabs.sendMessage(t.id!, {
+          type: 'STATE_UPDATED',
+          state,
+          viewingOwnerTabId: owner?.tabId,
+          tabId: t.id,
+        }),
+      ),
   );
   await chrome.action.setBadgeText({ text: state.session ? '▶' : '' });
   await chrome.action.setBadgeBackgroundColor({ color: '#2858eb' });
 }
 async function refresh() {
   const version = connectionVersion;
+  const settled = viewingChange.then(() => flushViewing());
+  viewingChange = settled.catch(() => {});
+  await settled;
   const state = await apiState('/state');
   await publish(state, version);
   void remindBedtime(state).catch(() => undefined);
@@ -136,7 +164,13 @@ function trustedPage(sender: chrome.runtime.MessageSender): boolean {
 }
 
 async function clearAccount() {
-  await chrome.storage.local.remove(['state', 'notifiedPlans', 'lastError']);
+  await chrome.storage.local.remove([
+    'state',
+    'notifiedPlans',
+    'lastError',
+    'viewingOwner',
+    'viewingPending',
+  ]);
   await chrome.alarms.clear('task-start');
   const notifications = await chrome.notifications.getAll();
   await Promise.all(
@@ -152,6 +186,110 @@ async function clearAccount() {
 }
 
 let connectionChange = Promise.resolve();
+
+type ViewingRequest = Extract<
+  Request,
+  { type: 'START_VIEWING' | 'CLAIM_VIEWING' | 'END_VIEWING' | 'VIEWING' }
+>;
+let viewingChange: Promise<unknown> = Promise.resolve();
+async function flushViewing(): Promise<ExtensionState | undefined> {
+  const version = connectionVersion;
+  const pending = (await chrome.storage.local.get('viewingPending'))['viewingPending'] as
+    | { id: string; seconds: number; sessionId?: string; accountId: string; policyVersion?: number }
+    | undefined;
+  if (!pending) return;
+  const account = await connection();
+  if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
+  if (pending.accountId !== account?.accountId) {
+    await chrome.storage.local.remove('viewingPending');
+    return;
+  }
+  const { accountId: _, policyVersion, ...report } = pending;
+  let state: ExtensionState;
+  try {
+    state = await apiState('/viewing', 'POST', report);
+  } catch (error) {
+    if (version !== connectionVersion) throw error;
+    state = await apiState('/state');
+    if ((state.timePolicy?.version ?? 0) <= (policyVersion ?? 0)) throw error;
+  }
+  if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
+  await chrome.storage.local.remove('viewingPending');
+  return state;
+}
+function changeViewing(
+  request: ViewingRequest,
+  sender: chrome.runtime.MessageSender,
+): Promise<Reply> {
+  const version = connectionVersion;
+  const change = viewingChange.then(async (): Promise<Reply> => {
+    if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
+    if (
+      !sender.tab?.id ||
+      !sender.tab.active ||
+      !sender.url ||
+      new URL(sender.url).hostname !== 'www.youtube.com' ||
+      !new URL(sender.url).pathname.startsWith('/shorts/')
+    )
+      throw new Error('視聴中のShortsから操作してください。');
+    const accountId = (await connection())?.accountId;
+    if (!accountId) throw new Error('管理画面から接続してください。');
+    let state = await flushViewing();
+    let owner = (await chrome.storage.local.get('viewingOwner'))['viewingOwner'] as
+      { tabId: number; sessionId: string } | undefined;
+    if (request.type === 'START_VIEWING') {
+      state = await apiState('/viewing/start', 'POST', {
+        id: request.id,
+        seconds: request.seconds,
+        extendFrom: request.extendFrom,
+      });
+      if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
+      owner = { tabId: sender.tab.id, sessionId: state.viewingSession!.id };
+      await chrome.storage.local.set({ viewingOwner: owner });
+    } else if (request.type === 'CLAIM_VIEWING') {
+      state = await apiState('/state');
+      if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
+      if (
+        !state.viewingSession ||
+        state.viewingSession.id !== request.sessionId ||
+        state.viewingSession.endedAt
+      )
+        throw new Error('この視聴の区切りは終了しています。');
+      owner = { tabId: sender.tab.id, sessionId: request.sessionId };
+      await chrome.storage.local.set({ viewingOwner: owner });
+    } else {
+      const cached = (await chrome.storage.local.get('state'))['state'] as
+        ExtensionState | undefined;
+      if (
+        cached?.timePolicy &&
+        cached.timePolicy.mode !== 'self' &&
+        (owner?.tabId !== sender.tab.id || owner.sessionId !== request.sessionId)
+      )
+        throw new Error('このタブで続ける場合は、視聴の区切りを引き継いでください。');
+      if (request.type === 'END_VIEWING') {
+        state = await apiState('/viewing/end', 'POST', {
+          id: request.sessionId,
+          reason: request.reason,
+        });
+      } else {
+        if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
+        const report = {
+          id: request.id,
+          seconds: request.seconds,
+          sessionId: request.sessionId,
+          accountId,
+          policyVersion: cached?.timePolicy?.version,
+        };
+        await chrome.storage.local.set({ viewingPending: report });
+        state = await flushViewing();
+      }
+    }
+    await publish(state!, version);
+    return { state, viewingOwnerTabId: owner?.tabId, tabId: sender.tab.id };
+  });
+  viewingChange = change.catch(() => {});
+  return change;
+}
 function replaceConnection(next?: Connection): Promise<void> {
   connectionVersion++;
   const change = connectionChange.then(async () => {
@@ -178,7 +316,14 @@ chrome.runtime.onMessage.addListener(
           !/^(Bearer |Demo )\S+$/.test(request.connection.auth)
         )
           throw new Error('接続元を確認してください。');
-        await replaceConnection(request.connection);
+        const current = await connection();
+        if (
+          !current ||
+          current.accountId !== request.connection.accountId ||
+          current.auth !== request.connection.auth ||
+          current.apiBase !== request.connection.apiBase
+        )
+          await replaceConnection(request.connection);
         return { state: await refresh(), connected: true };
       }
       if (request.type === 'DISCONNECT') {
@@ -196,8 +341,13 @@ chrome.runtime.onMessage.addListener(
       }
       if (request.type === 'STATE') {
         if (!(await connection())) return { connected: false };
-        return { state: await refresh(), connected: true };
+        const state = await refresh();
+        const owner = (await chrome.storage.local.get('viewingOwner'))['viewingOwner'] as
+          { tabId: number } | undefined;
+        return { state, connected: true, viewingOwnerTabId: owner?.tabId, tabId: sender.tab?.id };
       }
+      if (['START_VIEWING', 'CLAIM_VIEWING', 'END_VIEWING', 'VIEWING'].includes(request.type))
+        return changeViewing(request as ViewingRequest, sender);
       if (request.type === 'LINE')
         return { line: await companionLine(request.moment, request.taskId) };
       if (request.type === 'DRAFT')
@@ -224,23 +374,14 @@ chrome.runtime.onMessage.addListener(
         case 'PAUSE':
           state = await apiState('/session/pause', 'POST');
           break;
+        case 'CONFIRM_WORK':
+          state = await apiState('/session/confirm', 'POST', { id: request.id });
+          break;
         case 'COMMIT':
           state = await apiState('/draft/commit', 'POST', request.draft);
           break;
-        case 'VIEWING': {
-          if (
-            !sender.tab?.active ||
-            !sender.url ||
-            !new URL(sender.url).pathname.startsWith('/shorts/') ||
-            new URL(sender.url).hostname !== 'www.youtube.com'
-          )
-            throw new Error('視聴中のShorts以外は計測しません。');
-          state = await apiState('/viewing', 'POST', {
-            id: request.id,
-            seconds: request.seconds,
-          });
-          break;
-        }
+        default:
+          throw new Error('操作を確認してください。');
       }
       await publish(state);
       return { state };
@@ -284,7 +425,7 @@ async function notify() {
       type: 'basic',
       iconUrl: 'icon-128.png',
       title: 'DOPAGAKI · はじめる時間です',
-      message: `${task.title}\n${line || '完了で視聴時間 ＋20分'}`,
+      message: `${task.title}\n${line || rewardDescription(state)}`,
       buttons: [{ title: '作業をはじめる' }, { title: 'スヌーズの予定を確認' }],
       priority: 2,
       requireInteraction: true,
