@@ -2,7 +2,7 @@
 
 YouTube Shortsから、いま始める課題へ戻るためのChrome拡張と管理画面です。締切から逆算した作業予定を通知し、取り組んだ時間を記録すると視聴できる時間が増えます。
 
-公開環境：[DOPAGAKI](https://dopagaki-1032251723022.asia-northeast1.run.app/)。Googleログインして使います。Chrome拡張は、この公開先を指定してビルドしてください。
+公開環境：[DOPAGAKI](https://dopagaki-1032251723022.asia-northeast1.run.app/)。Googleログインして使います。Chrome拡張は[Releases](https://github.com/a-sumikawa/devfest-2026/releases/latest)から公開環境向けのZIPを取得できます。[導入手順](extension/INSTALL.txt)に従って読み込んでください。
 
 課題・予定・視聴時間はGoogleアカウントごとに保存します。カレンダー連携もログイン中と同じGoogleアカウントを使い、本人の専用DOPAGAKIカレンダーへ登録します。管理画面の「相談」で会話すると、編集できる予定カードや作業傾向の記憶候補が表示されます。登録・変更・記憶は本人が確認してから確定します。Google Chat連携は廃止しました。[一般ユーザー対応の現状](engineering/public-accounts.md)を参照してください。
 
@@ -32,6 +32,18 @@ npm run build:extension
 `chrome://extensions` でデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」から `dist/extension` を指定します。その後、管理画面を開き直すと同じユーザーのデータに接続されます。
 
 拡張のポップアップにある「この作業サイトにタイマーを表示」を押すと、そのサイトだけにタイマーを表示する権限を求めます。最初からすべてのサイトへのアクセスは要求しません。
+
+## Chrome拡張のリリース
+
+`vX.Y.Z` 形式のタグをGitHubへpushすると、[Release extension](.github/workflows/release-extension.yml) がタグのコードを型チェック・単体テストし、公開環境向けにビルドします。拡張のバージョンはタグから設定し、ZIP・導入手順・SHA-256チェックサムをGitHub Releasesへ公開します。各数値は0〜65535、先頭ゼロと `v0.0.0`、ベータ等の接尾辞は使えません。
+
+最新mainを取得した状態で、未使用のバージョンを指定して実行します。
+
+```bash
+git tag v0.1.2 && git push origin v0.1.2
+```
+
+失敗時はGitHub Actionsの実行結果を確認し、再実行できます。既に公開済みのReleaseは上書きしません。修正は新しいタグで公開してください。ローカルビルドは `package.json` のバージョンを使います。インストール済みの拡張の更新は手動です。
 
 ## 管理画面の構成
 
@@ -106,6 +118,8 @@ flowchart TD
 カレンダーの利用対象は、連携時に作成する専用の `DOPAGAKI` カレンダーです。他のカレンダーの予定は変更しません。手入力は「開始＝締切−必要時間、終了＝締切」の日時付き予定で登録します。終日・繰り返し予定は対象外です。Geminiでは「DOPAGAKIカレンダーに」と明示します（[Googleの案内](https://support.google.com/gemini/answer/15305236)）。既存メモは保持し、`[DOPAGAKI]` ブロック内に確定予定を記載します。
 
 ## Google Cloudで動かすための設定
+
+AIは初期値で1人5回/分・30回/日、全体30回/分・300回/日に制限します。失敗も回数に含み、日次はUTC 00:00（日本時間09:00）に切り替わります。上限時も手入力とCalendar同期は基本の時間割で続けられます。2026-11-07に本番へ反映済みです。[利用上限・CSP・追加監査](engineering/security-hardening-2026-11-07.md)、[本番での確認結果](engineering/security-rollout-2026-11-07.md)を参照してください。
 
 対象プロジェクトは `devfest-2026-513816`（番号 `1032251723022`）です。課金アカウントと予算はユーザー設定済みのものを使います。
 

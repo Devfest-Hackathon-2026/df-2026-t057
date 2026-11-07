@@ -1,16 +1,14 @@
 import {
   Draft,
-  State,
-  Task,
   displayTime,
   elapsedSeconds,
   plannedSeconds,
   workLimitSeconds,
   rewardDescription,
-  workRewardText,
+  workRewardMessage,
   viewingAvailable,
 } from '../../shared/models';
-import { MANAGEMENT_ORIGIN, Reply, Request, send } from './protocol';
+import { ExtensionState, ExtensionTask, MANAGEMENT_ORIGIN, Reply, Request, send } from './protocol';
 
 const runtimeWindow = window as Window & { dopagakiLoaded?: boolean };
 if (!runtimeWindow.dopagakiLoaded) {
@@ -18,7 +16,7 @@ if (!runtimeWindow.dopagakiLoaded) {
   initialize();
 }
 function initialize() {
-  let state: State | undefined;
+  let state: ExtensionState | undefined;
   let overlay: HTMLDialogElement | undefined;
   let root: ShadowRoot | undefined;
   let timer: HTMLElement | undefined;
@@ -208,7 +206,7 @@ function initialize() {
     overlay.oncancel = dismiss;
     overlay.showModal();
   }
-  function showNotice(task: Task, snapshot: State) {
+  function showNotice(task: ExtensionTask, snapshot: ExtensionState) {
     if (!shorts() || document.visibilityState !== 'visible') return false;
     state = snapshot;
     dismiss();
@@ -296,7 +294,7 @@ function initialize() {
     const date = new Date(value);
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   }
-  async function showDraft(task: Task, adjust: boolean, candidate?: Draft) {
+  async function showDraft(task: ExtensionTask, adjust: boolean, candidate?: Draft) {
     dismiss();
     overlay = element('dialog', '', 'overlay simple');
     overlay.setAttribute('role', 'dialog');
@@ -460,7 +458,13 @@ function initialize() {
       () => {
         const before = state!;
         void action({ type: 'COMPLETE', taskId: task.id }, timer!).then((reply) => {
-          if (reply?.state) showToast(workRewardText(before, reply.state));
+          if (reply?.state)
+            showToast(
+              workRewardMessage(
+                Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
+                !reply.state.timePolicy,
+              ),
+            );
         });
       },
       'primary',
@@ -474,7 +478,13 @@ function initialize() {
         button('ここまで取り組んだ', () => {
           const before = state!;
           void action({ type: 'CONFIRM_WORK', id: state!.session!.id! }, timer!).then((reply) => {
-            if (reply?.state) showToast(workRewardText(before, reply.state));
+            if (reply?.state)
+              showToast(
+                workRewardMessage(
+                  Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
+                  !reply.state.timePolicy,
+                ),
+              );
           });
         }),
       );

@@ -43,4 +43,10 @@
 | 時刻・再送・上限・移行の回帰確認 | [time_policy_test.go](../api/internal/app/time_policy_test.go) |
 | ブラウザーでの確認 | [time-policy.spec.ts](../tests/e2e/time-policy.spec.ts)、[extension.spec.ts](../tests/e2e/extension.spec.ts) |
 
-ローカルの型確認、TypeScript単体6件、Goのrace付きテスト・vet、本番ビルド、Playwright全16件が成功した。Geminiは既存のローカルHTTP fixture、Shortsは合成DOMを使い、有料APIや実YouTubeは呼ばない。実YouTube・実Firestoreでの新方式の確認と、長期的な習慣の変化は未検証。
+mainのセキュリティ修正と拡張リリース機能（`2be9301`まで）を取り込み、拡張へ渡すデータを限定する方針も維持した。区切りの状態・必要な上限・付与合計だけを追加し、プロフィールや付与履歴全体はcontent scriptへ渡さない。
+
+統合後、ローカルの型確認、TypeScript単体7件、Goのrace付きテスト・vet、本番ビルド、Playwright全19件が成功した。Playwrightは46.7秒で完了。Node.js 25.7.0、Go 1.27.3、Chromiumを使用した。
+
+ブラウザーでは選択前の停止、通信失敗時の保存・再送、再読み込み、別タブへの引き継ぎ、途中終了、延長、当日枠の終了を確認した。APIでは日替わり・同時再送・作業の端数と分割・一時停止・放置・日次上限・他ユーザーの拒否・既存残高の保持を確認した。
+
+Geminiは既存のローカルHTTP fixture、Shortsは合成DOMを使い、有料APIや実YouTubeは呼ばない。実YouTube・実Firestoreでの新方式の確認と、長期的な習慣の変化は未検証。実サービス用のsecurity-smokeコマンドは実行していない。

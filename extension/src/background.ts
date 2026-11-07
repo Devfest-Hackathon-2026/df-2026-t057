@@ -1,5 +1,5 @@
 import { Draft, State, rewardDescription } from '../../shared/models';
-import { Connection, MANAGEMENT_ORIGIN, Reply, Request } from './protocol';
+import { Connection, ExtensionState, MANAGEMENT_ORIGIN, Reply, Request } from './protocol';
 
 let connectionVersion = 0;
 
@@ -24,11 +24,41 @@ async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> 
     throw new Error(result.error ?? '通信に失敗しました。管理画面から再接続できます。');
   return result as T;
 }
-async function publish(state: State, version = connectionVersion) {
+async function apiState(path: string, method = 'GET', body?: unknown): Promise<ExtensionState> {
+  const state = await api<State>(path, method, body);
+  return {
+    revision: state.revision,
+    balanceSeconds: state.balanceSeconds,
+    viewingSession: state.viewingSession,
+    timePolicy: state.timePolicy
+      ? {
+          mode: state.timePolicy.mode,
+          dailyLimitSeconds: state.timePolicy.dailyLimitSeconds,
+          viewedSeconds: state.timePolicy.viewedSeconds,
+        }
+      : undefined,
+    workRewardSeconds: (state.ledger ?? [])
+      .filter((e) => e.kind === 'work')
+      .reduce((sum, e) => sum + e.seconds, 0),
+    settings: state.settings,
+    session: state.session,
+    nextDraft: state.nextDraft,
+    tasks: state.tasks.map(({ id, title, why, minutes, url, status, plan }) => ({
+      id,
+      title,
+      why,
+      minutes,
+      url,
+      status,
+      plan,
+    })),
+  };
+}
+async function publish(state: ExtensionState, version = connectionVersion) {
   if (version !== connectionVersion) return;
   const owner = (await chrome.storage.local.get('viewingOwner'))['viewingOwner'] as
     { tabId: number; sessionId: string } | undefined;
-  const previous = (await chrome.storage.local.get('state'))['state'] as State | undefined;
+  const previous = (await chrome.storage.local.get('state'))['state'] as ExtensionState | undefined;
   if (version !== connectionVersion) return;
   if (previous && previous.revision > state.revision) return;
   await chrome.storage.local.set({ state, lastError: '' });
@@ -65,7 +95,7 @@ async function refresh() {
   const settled = viewingChange.then(() => flushViewing());
   viewingChange = settled.catch(() => {});
   await settled;
-  const state = await api<State>('/state');
+  const state = await apiState('/state');
   await publish(state, version);
   return state;
 }
@@ -109,7 +139,7 @@ type ViewingRequest = Extract<
   { type: 'START_VIEWING' | 'CLAIM_VIEWING' | 'END_VIEWING' | 'VIEWING' }
 >;
 let viewingChange: Promise<unknown> = Promise.resolve();
-async function flushViewing(): Promise<State | undefined> {
+async function flushViewing(): Promise<ExtensionState | undefined> {
   const pending = (await chrome.storage.local.get('viewingPending'))['viewingPending'] as
     { id: string; seconds: number; sessionId?: string; accountId: string } | undefined;
   if (!pending) return;
@@ -118,7 +148,7 @@ async function flushViewing(): Promise<State | undefined> {
     return;
   }
   const { accountId: _, ...report } = pending;
-  const state = await api<State>('/viewing', 'POST', report);
+  const state = await apiState('/viewing', 'POST', report);
   await chrome.storage.local.remove('viewingPending');
   return state;
 }
@@ -143,7 +173,7 @@ function changeViewing(
     let owner = (await chrome.storage.local.get('viewingOwner'))['viewingOwner'] as
       { tabId: number; sessionId: string } | undefined;
     if (request.type === 'START_VIEWING') {
-      state = await api<State>('/viewing/start', 'POST', {
+      state = await apiState('/viewing/start', 'POST', {
         id: request.id,
         seconds: request.seconds,
         extendFrom: request.extendFrom,
@@ -152,7 +182,7 @@ function changeViewing(
       owner = { tabId: sender.tab.id, sessionId: state.viewingSession!.id };
       await chrome.storage.local.set({ viewingOwner: owner });
     } else if (request.type === 'CLAIM_VIEWING') {
-      state = await api<State>('/state');
+      state = await apiState('/state');
       if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
       if (
         !state.viewingSession ||
@@ -163,7 +193,8 @@ function changeViewing(
       owner = { tabId: sender.tab.id, sessionId: request.sessionId };
       await chrome.storage.local.set({ viewingOwner: owner });
     } else {
-      const cached = (await chrome.storage.local.get('state'))['state'] as State | undefined;
+      const cached = (await chrome.storage.local.get('state'))['state'] as
+        ExtensionState | undefined;
       if (
         cached?.timePolicy &&
         cached.timePolicy.mode !== 'self' &&
@@ -171,7 +202,7 @@ function changeViewing(
       )
         throw new Error('このタブで続ける場合は、視聴の区切りを引き継いでください。');
       if (request.type === 'END_VIEWING') {
-        state = await api<State>('/viewing/end', 'POST', {
+        state = await apiState('/viewing/end', 'POST', {
           id: request.sessionId,
           reason: request.reason,
         });
@@ -260,22 +291,22 @@ chrome.runtime.onMessage.addListener(
             instruction: request.instruction,
           }),
         };
-      let state: State;
+      let state: ExtensionState;
       switch (request.type) {
         case 'START':
-          state = await api<State>(`/tasks/${encodeURIComponent(request.taskId)}/start`, 'POST');
+          state = await apiState(`/tasks/${encodeURIComponent(request.taskId)}/start`, 'POST');
           break;
         case 'COMPLETE':
-          state = await api<State>(`/tasks/${encodeURIComponent(request.taskId)}/complete`, 'POST');
+          state = await apiState(`/tasks/${encodeURIComponent(request.taskId)}/complete`, 'POST');
           break;
         case 'PAUSE':
-          state = await api<State>('/session/pause', 'POST');
+          state = await apiState('/session/pause', 'POST');
           break;
         case 'CONFIRM_WORK':
-          state = await api<State>('/session/confirm', 'POST', { id: request.id });
+          state = await apiState('/session/confirm', 'POST', { id: request.id });
           break;
         case 'COMMIT':
-          state = await api<State>('/draft/commit', 'POST', request.draft);
+          state = await apiState('/draft/commit', 'POST', request.draft);
           break;
         default:
           throw new Error('操作を確認してください。');
@@ -345,7 +376,7 @@ chrome.notifications.onButtonClicked.addListener((id, index) => {
     void openApp(`?snooze=${encodeURIComponent(taskId)}`);
     return;
   }
-  void api<State>(`/tasks/${encodeURIComponent(taskId)}/start`, 'POST')
+  void apiState(`/tasks/${encodeURIComponent(taskId)}/start`, 'POST')
     .then(async (state) => {
       await publish(state);
       const task = state.tasks.find((t) => t.id === taskId);
@@ -355,6 +386,7 @@ chrome.notifications.onButtonClicked.addListener((id, index) => {
     .catch(() => openApp());
 });
 async function setup() {
+  await chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
   await chrome.alarms.create('sync', { periodInMinutes: 0.5 });
 }
 chrome.runtime.onInstalled.addListener(() => {

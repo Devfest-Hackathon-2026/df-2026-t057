@@ -33,10 +33,10 @@ func TestLiveGeminiPlanning(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	planner := Planner{Client: client, Model: "gemini-3.8-flash"}
+	planner := Planner{Client: client, Model: "gemini-3.8-flash", Usage: NewMemoryAIUsageStore(), Limits: DefaultAILimits()}
 	deadline := time.Now().Add(24 * time.Hour).Truncate(time.Minute)
 	profile := Profile{Name: "接続確認", TimeZone: "Asia/Tokyo", Context: "最初に構成を5分考え、その後に本文を書きたい。架空の課題による接続テスト。"}
-	inputs, err := planner.Parse(ctx, fmt.Sprintf("架空のレポートを%sまでに仕上げる。必要時間は30分。作業URLはなし。", deadline.Format(time.RFC3339)), profile)
+	inputs, err := planner.Parse(ctx, "fixture-user", fmt.Sprintf("架空のレポートを%sまでに仕上げる。必要時間は30分。作業URLはなし。", deadline.Format(time.RFC3339)), profile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestLiveGeminiPlanning(t *testing.T) {
 		t.Fatal("task extraction did not preserve the explicit time and deadline")
 	}
 	task := Task{Title: inputs[0].Title, Notes: inputs[0].Notes, Minutes: inputs[0].Minutes, Deadline: inputs[0].Deadline}
-	plan, err := planner.Detail(ctx, task, profile)
+	plan, err := planner.Detail(ctx, "fixture-user", task, profile)
 	if err != nil {
 		t.Fatal(err)
 	}

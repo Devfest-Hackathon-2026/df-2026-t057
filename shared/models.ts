@@ -94,13 +94,16 @@ export interface ViewingSession {
   endedAt?: string;
   reason?: 'stop' | 'limit';
 }
-export function viewingAvailable(state: State): number {
+export function viewingAvailable(state: {
+  balanceSeconds: number;
+  timePolicy?: Pick<TimePolicy, 'mode' | 'dailyLimitSeconds' | 'viewedSeconds'>;
+}): number {
   const p = state.timePolicy;
   if (!p) return state.balanceSeconds;
   if (p.mode === 'reminder' || p.mode === 'self') return 600;
   return Math.max(0, Math.min(state.balanceSeconds, p.dailyLimitSeconds - p.viewedSeconds));
 }
-export function workLimitSeconds(state: State, task: Task): number {
+export function workLimitSeconds(state: Pick<State, 'session'>, task: Pick<Task, 'plan'>): number {
   return state.session?.limitSeconds ?? plannedSeconds(task);
 }
 export function workRewardText(before: State, after: State): string {
@@ -109,6 +112,10 @@ export function workRewardText(before: State, after: State): string {
   const seconds = after.ledger
     .filter((e) => e.kind === 'work' && !ids.has(e.id))
     .reduce((sum, e) => sum + e.seconds, 0);
+  return workRewardMessage(seconds);
+}
+export function workRewardMessage(seconds: number, legacy = false): string {
+  if (legacy) return '課題完了！ 視聴時間 ＋20分';
   return seconds
     ? `作業を記録しました。視聴時間 ＋${durationLabel(seconds)}`
     : '作業を記録しました';
@@ -118,7 +125,7 @@ export function durationLabel(seconds: number): string {
     rest = seconds % 60;
   return `${minutes ? `${minutes}分` : ''}${rest || !minutes ? `${rest}秒` : ''}`;
 }
-export function rewardDescription(state?: State): string {
+export function rewardDescription(state?: { timePolicy?: Pick<TimePolicy, 'mode'> }): string {
   if (!state?.timePolicy) return '完了で視聴時間 ＋20分';
   return state.timePolicy.mode === 'rewards'
     ? '取り組んだ5分で視聴1分。記録した分だけ増えます'
@@ -203,6 +210,6 @@ export function displayTime(seconds: number): string {
     .toString()
     .padStart(2, '0')}:${(value % 60).toString().padStart(2, '0')}`;
 }
-export function plannedSeconds(task: Task): number {
+export function plannedSeconds(task: Pick<Task, 'plan'>): number {
   return Math.max(60, (Date.parse(task.plan.end) - Date.parse(task.plan.start)) / 1000);
 }
