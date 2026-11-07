@@ -63,7 +63,9 @@ test('deadline is chosen from quick days, a calendar and a time list', async ({ 
   // Calendar popup.
   await dialog.getByLabel('締切日').click();
   await expect(page.locator('mat-calendar')).toBeVisible();
-  await page.keyboard.press('Escape');
+  // Choosing a day closes the popup (Escape can race the popup's focus on slow CI).
+  await page.locator('mat-calendar .mat-calendar-body-selected').click();
+  await expect(page.locator('mat-calendar')).toHaveCount(0);
   await dialog.getByRole('button', { name: '登録する', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   const state = await (await page.request.get('/api/state')).json();
