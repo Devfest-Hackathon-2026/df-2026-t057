@@ -45,3 +45,30 @@ func TestGeminiDetailUsesProfileAndRejectsWrongDuration(t *testing.T) {
 		})
 	}
 }
+
+func TestGeminiFailureDetailsAreNotReturned(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]any{
+			"code": 400, "status": "INVALID_ARGUMENT", "message": "private-upstream-detail",
+		}})
+	}))
+	defer server.Close()
+	client, err := genai.NewClient(t.Context(), &genai.ClientConfig{Backend: genai.BackendGeminiAPI, APIKey: "test-only", HTTPOptions: genai.HTTPOptions{BaseURL: server.URL}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	planner := &Planner{Client: client, Model: "test"}
+	for _, operation := range []string{"parse", "adjust"} {
+		t.Run(operation, func(t *testing.T) {
+			var err error
+			if operation == "parse" {
+				_, err = planner.Parse(t.Context(), "課題", Profile{})
+			} else {
+				_, err = planner.Adjust(t.Context(), Draft{}, "調整して", Profile{})
+			}
+			if err == nil || strings.Contains(err.Error(), "private-upstream-detail") || !strings.Contains(err.Error(), "もう一度") {
+				t.Fatalf("unsafe error: %v", err)
+			}
+		})
+	}
+}

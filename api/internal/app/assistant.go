@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -31,7 +30,7 @@ func (s *Server) assistantMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in.Text = strings.TrimSpace(in.Text)
-	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`).MatchString(in.ID) || in.Text == "" || utf8.RuneCountInString(in.Text) > 2000 {
+	if !requestIDPattern.MatchString(in.ID) || in.Text == "" || utf8.RuneCountInString(in.Text) > 2000 {
 		respond(w, nil, errors.New("相談を2000文字以内で入力してください"))
 		return
 	}
@@ -86,7 +85,7 @@ func (s *Server) remember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in.Text = strings.TrimSpace(in.Text)
-	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`).MatchString(in.ID) || in.Text == "" || utf8.RuneCountInString(in.Text) > 500 {
+	if !requestIDPattern.MatchString(in.ID) || in.Text == "" || utf8.RuneCountInString(in.Text) > 500 {
 		respond(w, nil, errors.New("覚える内容を500文字以内で入力してください"))
 		return
 	}

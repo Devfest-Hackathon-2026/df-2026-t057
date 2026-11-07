@@ -93,6 +93,9 @@ func (c *Calendar) connect(ctx context.Context, uid, googleID, email string) (st
 	return c.OAuth.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent select_account"), oauth2.SetAuthURLParam("login_hint", email)), nil
 }
 func (c *Calendar) callback(ctx context.Context, state, code string) error {
+	if !tokenIDPattern.MatchString(state) || code == "" {
+		return errors.New("連携の有効期限が切れました。もう一度連携してください")
+	}
 	ref := c.DB.Collection("oauthStates").Doc(state)
 	var uid string
 	var googleID string
@@ -542,6 +545,10 @@ func (s *Server) calendarWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.Header.Get("X-Goog-Channel-ID")
+	if !tokenIDPattern.MatchString(id) || !tokenIDPattern.MatchString(r.Header.Get("X-Goog-Channel-Token")) {
+		w.WriteHeader(403)
+		return
+	}
 	doc, err := s.Calendar.DB.Collection("calendarChannels").Doc(id).Get(r.Context())
 	if err != nil {
 		w.WriteHeader(403)

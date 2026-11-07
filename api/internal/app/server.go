@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -30,6 +29,9 @@ type Server struct {
 	Firebase  map[string]string
 	Assistant AssistantStore
 }
+
+var requestIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`)
+var tokenIDPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 
 func newID() string {
 	var b [16]byte
@@ -85,85 +87,6 @@ func (s *Server) config(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"mode": s.Mode, "projectId": s.Project, "firebase": s.Firebase, "aiEnabled": s.Planner != nil && s.Planner.Client != nil, "calendarEnabled": s.Calendar != nil})
 }
 
-type userKey struct{}
-type googleAccountKey struct{}
-type googleAccount struct{ Subject, Email string }
-
-func tokenGoogleAccount(token *firebaseauth.Token) googleAccount {
-	identities, _ := token.Firebase.Identities["google.com"].([]interface{})
-	var subject string
-	if len(identities) == 1 {
-		subject, _ = identities[0].(string)
-	}
-	email, _ := token.Claims["email"].(string)
-	return googleAccount{Subject: subject, Email: email}
-}
-
-func uid(r *http.Request) string { return r.Context().Value(userKey{}).(string) }
-func (s *Server) protected(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var id string
-		if s.Mode == "demo" {
-			token := strings.TrimPrefix(r.Header.Get("Authorization"), "Demo ")
-			cookie, err := r.Cookie("dopagaki_demo")
-			if r.Header.Get("Authorization") != "" && regexp.MustCompile(`^[a-f0-9]{32}$`).MatchString(token) {
-				id = "demo-" + token
-			} else if err == nil && len(cookie.Value) == 32 {
-				id = "demo-" + cookie.Value
-			} else {
-				id = "demo-" + newID()
-				http.SetCookie(w, &http.Cookie{Name: "dopagaki_demo", Value: strings.TrimPrefix(id, "demo-"), Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: r.TLS != nil, MaxAge: 7 * 24 * 60 * 60})
-			}
-		} else {
-			token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-			if token == "" || s.Auth == nil {
-				writeError(w, 401, errors.New("Googleアカウントでログインしてください"))
-				return
-			}
-			verified, err := s.Auth.VerifyIDToken(r.Context(), token)
-			if err != nil {
-				writeError(w, 401, errors.New("ログインの有効期限が切れました。再度ログインしてください"))
-				return
-			}
-			id = verified.UID
-			r = r.WithContext(context.WithValue(r.Context(), googleAccountKey{}, tokenGoogleAccount(verified)))
-		}
-		next(w, r.WithContext(context.WithValue(r.Context(), userKey{}, id)))
-	}
-}
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
-}
-func writeError(w http.ResponseWriter, status int, err error) {
-	writeJSON(w, status, map[string]string{"error": err.Error()})
-}
-func decode(w http.ResponseWriter, r *http.Request, v any) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
-	d := json.NewDecoder(r.Body)
-	d.DisallowUnknownFields()
-	if err := d.Decode(v); err != nil {
-		writeError(w, 400, errors.New("入力の形式を確認してください"))
-		return false
-	}
-	return true
-}
-func respond(w http.ResponseWriter, value any, err error) {
-	if err != nil {
-		status := 400
-		if errors.Is(err, ErrConflict) {
-			status = 409
-		}
-		if errors.Is(err, ErrNotFound) {
-			status = 404
-		}
-		slog.Warn("operation failed", "error", err)
-		writeError(w, status, err)
-		return
-	}
-	writeJSON(w, 200, value)
-}
 func (s *Server) state(w http.ResponseWriter, r *http.Request) {
 	state, err := s.Store.Read(r.Context(), uid(r))
 	if err == nil {
@@ -207,7 +130,7 @@ func (s *Server) addTask(w http.ResponseWriter, r *http.Request) {
 	if input.ID == "" {
 		input.ID = newID()
 	}
-	if !regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`).MatchString(input.ID) {
+	if !requestIDPattern.MatchString(input.ID) {
 		respond(w, nil, errors.New("課題IDの形式を確認してください"))
 		return
 	}
