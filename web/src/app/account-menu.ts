@@ -4,6 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Api } from './api';
+import { TutorialService } from './tutorial';
 
 @Component({
   selector: 'app-account-menu',
@@ -13,6 +14,7 @@ import { Api } from './api';
 })
 export class AccountMenu {
   readonly api = inject(Api);
+  readonly tutorial = inject(TutorialService);
   readonly openSettings = output<void>();
   readonly trigger = viewChild(MatMenuTrigger);
   readonly photoError = signal('');

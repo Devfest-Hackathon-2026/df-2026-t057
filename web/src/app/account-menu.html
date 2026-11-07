@@ -107,6 +107,12 @@
             設定
           </span>
         </button>
+        <button mat-menu-item (click)="tutorial.start(); accountTrigger.closeMenu()">
+          <span class="action-content">
+            <span class="material-symbols-rounded" aria-hidden="true">info</span>
+            使い方を見る
+          </span>
+        </button>
         <button mat-menu-item (click)="api.login()" [disabled]="api.busy()">
           <span class="action-content">
             <span class="material-symbols-rounded" aria-hidden="true">person_add</span>

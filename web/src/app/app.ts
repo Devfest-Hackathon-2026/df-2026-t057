@@ -12,6 +12,7 @@ import { Api, message } from './api';
 import { AccountMenu } from './account-menu';
 import { LoginScreen } from './login-screen';
 import { TaskActions } from './task-actions';
+import { Tutorial, TutorialService } from './tutorial';
 import {
   Morning,
   State,
@@ -34,6 +35,7 @@ import {
     MatSnackBarModule,
     AccountMenu,
     LoginScreen,
+    Tutorial,
     RouterLink,
     RouterLinkActive,
     RouterOutlet,
@@ -43,6 +45,7 @@ import {
 export class App implements OnDestroy {
   readonly api = inject(Api);
   readonly actions = inject(TaskActions);
+  readonly tutorial = inject(TutorialService);
   private readonly router = inject(Router);
   readonly page = toSignal(
     this.router.events.pipe(
@@ -132,6 +135,19 @@ export class App implements OnDestroy {
       notificationOpened = true;
       if (params.has('snooze')) this.actions.plan(task);
       else this.preview.set(task);
+    });
+    // `?tutorial` replays the tour; otherwise it opens once on an account's first login.
+    let tutorialChecked = false;
+    effect(() => {
+      if (tutorialChecked || !this.api.state() || this.api.loading()) return;
+      tutorialChecked = true;
+      if (params.has('tutorial')) {
+        const url = new URL(location.href);
+        url.searchParams.delete('tutorial');
+        history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+        this.tutorial.start();
+      } else if (this.api.config()?.mode === 'live' && !taskId && !this.tutorial.seen())
+        this.tutorial.start();
     });
     void this.api.init().then(() => {
       if (params.get('calendar') === 'error')

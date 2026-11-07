@@ -9,6 +9,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { Assistant } from './assistant';
 import { TaskChange } from './task-change';
+import { DeadlineField } from './deadline-field';
 import { TaskEdit, TaskInput } from '../../../shared/models';
 import { Api, localDate, message } from './api';
 
@@ -17,6 +18,7 @@ import { Api, localDate, message } from './api';
   imports: [
     Assistant,
     TaskChange,
+    DeadlineField,
     MatButtonToggleModule,
     FormsModule,
     MatDialogModule,
@@ -36,6 +38,43 @@ import { Api, localDate, message } from './api';
       font-size: 11px;
       color: #626a5c;
       margin: 0 auto 0 0;
+    }
+    app-deadline-field {
+      margin-bottom: 4px;
+    }
+    .minutes-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .minutes-field {
+      width: 150px;
+    }
+    .minute-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding-top: 12px;
+    }
+    .minute-presets button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .minute-presets button[aria-pressed='true'] {
+      background: #e8eeff;
+      border-color: var(--blue);
+      color: var(--blue);
+      font-weight: 700;
+    }
+    .minute-presets button:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
     }
     mat-dialog-actions {
       gap: 4px;
@@ -89,19 +128,13 @@ import { Api, localDate, message } from './api';
               required
             />
           </mat-form-field>
-          <div class="form-row">
-            <mat-form-field appearance="outline">
-              <mat-label>締切</mat-label>
-              <input
-                matInput
-                type="datetime-local"
-                [disabled]="busy() || api.busy()"
-                (ngModelChange)="change.set(null)"
-                [(ngModel)]="form.deadline"
-                required
-              />
-            </mat-form-field>
-            <mat-form-field appearance="outline">
+          <app-deadline-field
+            [(value)]="form.deadline"
+            (valueChange)="change.set(null)"
+            [disabled]="busy() || api.busy()"
+          />
+          <div class="minutes-row">
+            <mat-form-field appearance="outline" class="minutes-field">
               <mat-label>必要時間（分）</mat-label>
               <input
                 matInput
@@ -114,6 +147,18 @@ import { Api, localDate, message } from './api';
                 required
               />
             </mat-form-field>
+            <div class="minute-presets" role="group" aria-label="必要時間をすばやく選ぶ">
+              @for (m of minutePresets; track m) {
+                <button
+                  type="button"
+                  [attr.aria-pressed]="form.minutes === m"
+                  [disabled]="busy() || api.busy()"
+                  (click)="form.minutes = m; change.set(null)"
+                >
+                  {{ m < 60 ? m + '分' : m / 60 + '時間' }}
+                </button>
+              }
+            </div>
           </div>
           <details class="disclosure optional-fields" [open]="!!data?.taskId">
             <summary>詳細を追加</summary>
@@ -207,12 +252,13 @@ export class TaskDialog {
   private readonly dialog = inject(MatDialogRef<TaskDialog>);
   busy = signal(false);
   error = signal('');
+  readonly minutePresets = [15, 30, 60, 90, 120];
   form: TaskInput = {
     id: crypto.randomUUID(),
     title: '',
     notes: '',
     why: '',
-    deadline: localDate(new Date(Date.now() + 86400_000).toISOString()),
+    deadline: defaultDeadline(),
     minutes: 30,
     url: '',
   };
@@ -220,6 +266,7 @@ export class TaskDialog {
     return (
       this.form.title.trim() &&
       this.form.deadline &&
+      (this.data?.taskId || Date.parse(this.form.deadline) > Date.now()) &&
       this.form.minutes >= 1 &&
       this.form.minutes <= 720
     );
@@ -266,4 +313,10 @@ export class TaskDialog {
       this.busy.set(false);
     }
   }
+}
+
+/** Tomorrow at 23:59, the usual "by the end of the day" deadline. */
+function defaultDeadline() {
+  const d = new Date(Date.now() + 86400_000);
+  return localDate(d.toISOString()).slice(0, 10) + 'T23:59';
 }
