@@ -132,11 +132,17 @@ test('extension account switch removes old notices and rejects an in-flight resp
   const held = deferred<ReturnType<typeof json>>();
   const started = deferred<void>();
   let delay = false;
+  let resetPolicy = false;
+  let slowViewing = false;
+  let switched = deferred<void>();
+  const viewingStarted = deferred<void>();
+  const viewingHeld = deferred<ReturnType<typeof json>>();
   let listener!: (request: any, sender: any, respond: (reply: any) => void) => void;
   const storage = (data: Record<string, any>) => ({
     get: async (key: string) => ({ [key]: data[key] }),
     set: async (values: any) => {
       Object.assign(data, values);
+      if (values.connection?.accountId === 'b') switched.resolve();
     },
     remove: async (keys: string | string[]) => {
       for (const k of [keys].flat()) delete data[k];
@@ -194,11 +200,20 @@ test('extension account switch removes old notices and rejects an in-flight resp
       URL,
       console,
       fetch: async (_url: string, options: any) => {
+        if (slowViewing && _url.endsWith('/viewing')) {
+          viewingStarted.resolve();
+          return viewingHeld.promise;
+        }
         if (delay && options.headers.Authorization === 'Bearer a') {
           started.resolve();
           return held.promise;
         }
+        if (resetPolicy && _url.endsWith('/viewing'))
+          return { ok: false, json: async () => ({ error: '視聴する長さを選んでください' }) };
         return json({
+          timePolicy: resetPolicy
+            ? { version: 2, mode: 'rewards', dailyLimitSeconds: 1800, viewedSeconds: 0 }
+            : undefined,
           tasks: [
             {
               id: 'completed',
@@ -247,6 +262,57 @@ test('extension account switch removes old notices and rejects an in-flight resp
   assert.ok(cleared.includes('task:old'));
   assert.ok(!cleared.includes('unrelated'));
   assert.equal(local.notifiedPlans, undefined);
+  local.viewingPending = {
+    accountId: 'a',
+    id: 'foreign-receipt',
+    seconds: 10,
+    sessionId: 'a-session',
+  };
+  await call({ type: 'STATE' });
+  assert.equal(local.viewingPending, undefined);
+  assert.equal(local.state.balanceSeconds, 7200);
+  local.notifiedPlans = { current: 'start' };
+  await connect('b');
+  assert.deepEqual(local.notifiedPlans, { current: 'start' });
+  resetPolicy = true;
+  local.viewingPending = {
+    accountId: 'b',
+    id: 'old-policy-report',
+    seconds: 10,
+    sessionId: 'old-session',
+    policyVersion: 1,
+  };
+  await call({ type: 'STATE' });
+  assert.equal(local.viewingPending, undefined);
+  assert.equal(local.state.timePolicy.version, 2);
+  local.viewingPending = {
+    accountId: 'b',
+    id: 'current-policy-report',
+    seconds: 10,
+    sessionId: 'current-session',
+    policyVersion: 2,
+  };
+  assert.match((await call({ type: 'STATE' })).error, /視聴する長さ/);
+  assert.equal(local.viewingPending.id, 'current-policy-report');
+  delay = false;
+  await connect('a');
+  slowViewing = true;
+  local.viewingPending = {
+    accountId: 'a',
+    id: 'in-flight-old-report',
+    seconds: 10,
+    policyVersion: 1,
+  };
+  const oldReport = call({ type: 'STATE' });
+  await viewingStarted.promise;
+  switched = deferred<void>();
+  const changedAccount = connect('b');
+  await switched.promise;
+  viewingHeld.resolve(json({ tasks: [], balanceSeconds: 9999 }));
+  assert.match((await oldReport).error, /アカウントが切り替わりました/);
+  await changedAccount;
+  assert.equal(local.state.balanceSeconds, 7200);
+  assert.equal(local.viewingPending, undefined);
   await call({ type: 'DISCONNECT' });
   assert.equal(local.state, undefined);
   assert.equal(session.connection, undefined);

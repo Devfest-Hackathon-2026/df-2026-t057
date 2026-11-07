@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Api } from './api';
-import { Task } from '../../../shared/models';
+import { Task, workRewardText } from '../../../shared/models';
 import { PlanDialog } from './plan-dialog';
 import { TaskDialog } from './task-dialog';
 
@@ -45,15 +45,14 @@ export class TaskActions {
     }
   }
   async complete(task: Task) {
-    if (!(await this.api.mutate(`/tasks/${task.id}/complete`))) return;
-    const deferred = this.api
-      .state()
-      ?.ledger.some((e) => e.id === `completion:${task.id}` && e.deferred);
-    this.snack.open(
-      deferred ? '課題完了！ ＋20分は朝に受け取れます' : '課題完了！ 視聴時間 ＋20分',
-      '閉じる',
-      { duration: 5000 },
-    );
+    const before = this.api.state()!;
+    if (await this.api.mutate(`/tasks/${task.id}/complete`))
+      this.snack.open(workRewardText(before, this.api.state()!), '閉じる', { duration: 5000 });
+  }
+  async confirmWork() {
+    const before = this.api.state()!;
+    if (await this.api.mutate('/session/confirm', { id: before.session?.id }))
+      this.snack.open(workRewardText(before, this.api.state()!), '閉じる', { duration: 5000 });
   }
   async connect() {
     await this.api.run(async () => {

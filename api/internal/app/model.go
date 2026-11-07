@@ -22,6 +22,8 @@ type Plan struct {
 	Reason string    `json:"reason"`
 }
 type Task struct {
+	StartedAt            *time.Time `json:"startedAt,omitempty"`
+	ScheduledStartAt     *time.Time `json:"scheduledStartAt,omitempty"`
 	ID                   string     `json:"id"`
 	Title                string     `json:"title"`
 	Notes                string     `json:"notes"`
@@ -51,38 +53,46 @@ type Settings struct {
 	Grime         bool   `json:"grime"`
 }
 type Session struct {
-	TaskID        string     `json:"taskId"`
-	StartedAt     time.Time  `json:"startedAt"`
-	PausedAt      *time.Time `json:"pausedAt,omitempty"`
-	PausedSeconds int        `json:"pausedSeconds"`
+	PriorSeconds  int            `json:"priorSeconds,omitempty"`
+	ID            string         `json:"id,omitempty"`
+	LimitSeconds  int            `json:"limitSeconds,omitempty"`
+	RunningSince  *time.Time     `json:"runningSince,omitempty"`
+	Intervals     []WorkInterval `json:"intervals,omitempty"`
+	TaskID        string         `json:"taskId"`
+	StartedAt     time.Time      `json:"startedAt"`
+	PausedAt      *time.Time     `json:"pausedAt,omitempty"`
+	PausedSeconds int            `json:"pausedSeconds"`
 }
 type LedgerEntry struct {
-	ID      string    `json:"id"`
-	Kind    string    `json:"kind"`
-	Seconds int       `json:"seconds"`
-	TaskID  string    `json:"taskId,omitempty"`
-	At      time.Time `json:"at"`
-	// Deferred rewards were earned during the night and are added to the balance in the morning.
-	Deferred bool `json:"deferred,omitempty"`
+	Deferred    bool      `json:"deferred,omitempty"`
+	WorkSeconds int       `json:"workSeconds,omitempty"`
+	ID          string    `json:"id"`
+	Kind        string    `json:"kind"`
+	Seconds     int       `json:"seconds"`
+	TaskID      string    `json:"taskId,omitempty"`
+	At          time.Time `json:"at"`
 }
 type State struct {
-	Revision              int             `json:"revision"`
-	PlanRevision          int             `json:"planRevision"`
-	Profile               Profile         `json:"profile"`
-	Settings              Settings        `json:"settings"`
-	BalanceSeconds        int             `json:"balanceSeconds"`
-	Tasks                 []Task          `json:"tasks"`
-	Session               *Session        `json:"session,omitempty"`
-	Ledger                []LedgerEntry   `json:"ledger"`
-	CalendarConnected     bool            `json:"calendarConnected"`
-	CalendarSync          string          `json:"calendarSync"`
-	LastSync              *time.Time      `json:"lastSync,omitempty"`
-	NextDraft             *Draft          `json:"nextDraft,omitempty"`
-	LastViewingAt         *time.Time      `json:"lastViewingAt,omitempty"`
-	ViewingReceipts       map[string]bool `json:"viewingReceipts,omitempty"`
-	MemoryReceipts        map[string]bool `json:"memoryReceipts,omitempty"`
-	AssistantContextSince *time.Time      `json:"assistantContextSince,omitempty"`
-	Sleep                 *Sleep          `json:"sleep,omitempty"`
+	Sleep                 *Sleep           `json:"sleep,omitempty"`
+	TimePolicy            *TimePolicy      `json:"timePolicy,omitempty"`
+	ViewingSession        *ViewingSession  `json:"viewingSession,omitempty"`
+	ViewingHistory        []ViewingSession `json:"viewingHistory,omitempty"`
+	Revision              int              `json:"revision"`
+	PlanRevision          int              `json:"planRevision"`
+	Profile               Profile          `json:"profile"`
+	Settings              Settings         `json:"settings"`
+	BalanceSeconds        int              `json:"balanceSeconds"`
+	Tasks                 []Task           `json:"tasks"`
+	Session               *Session         `json:"session,omitempty"`
+	Ledger                []LedgerEntry    `json:"ledger"`
+	CalendarConnected     bool             `json:"calendarConnected"`
+	CalendarSync          string           `json:"calendarSync"`
+	LastSync              *time.Time       `json:"lastSync,omitempty"`
+	NextDraft             *Draft           `json:"nextDraft,omitempty"`
+	LastViewingAt         *time.Time       `json:"lastViewingAt,omitempty"`
+	ViewingReceipts       map[string]bool  `json:"viewingReceipts,omitempty"`
+	MemoryReceipts        map[string]bool  `json:"memoryReceipts,omitempty"`
+	AssistantContextSince *time.Time       `json:"assistantContextSince,omitempty"`
 }
 type PlanChange struct {
 	TaskID          string  `json:"taskId"`
@@ -106,10 +116,11 @@ func NewState(now time.Time) State {
 	return State{
 		Revision: 1, PlanRevision: 1,
 		Profile:        Profile{Name: "あなた", TimeZone: "Asia/Tokyo"},
-		Settings:       Settings{SnoozeMinutes: 10, Mode: "pachinko", Grime: true},
-		BalanceSeconds: 3600,
+		Settings:       Settings{SnoozeMinutes: 10, Mode: "pachinko"},
+		TimePolicy:     newTimePolicy(now, "Asia/Tokyo"),
+		BalanceSeconds: initialSeconds,
 		Tasks:          []Task{},
-		Ledger:         []LedgerEntry{{ID: "initial", Kind: "initial", Seconds: 3600, At: now}},
+		Ledger:         []LedgerEntry{{ID: "initial", Kind: "initial", Seconds: initialSeconds, At: now}},
 		CalendarSync:   "disconnected", ViewingReceipts: map[string]bool{},
 	}
 }
@@ -121,13 +132,23 @@ func (s *State) task(id string) (*Task, error) {
 	}
 	return nil, ErrNotFound
 }
-func (s *State) grant(kind, taskID string, seconds int, now time.Time) {
+func (s *State) pendingRewardSeconds() int {
+	seconds := 0
+	for _, entry := range s.Ledger {
+		if entry.Deferred {
+			seconds += entry.Seconds
+		}
+	}
+	return seconds
+}
+func (s *State) grant(kind, taskID string, seconds int, now time.Time) int {
 	id := kind + ":" + taskID
 	for _, entry := range s.Ledger {
 		if entry.ID == id {
-			return
+			return 0
 		}
 	}
+	seconds = max(0, min(seconds, balanceCapSeconds-s.BalanceSeconds-s.pendingRewardSeconds()))
 	entry := LedgerEntry{ID: id, Kind: kind, Seconds: seconds, TaskID: taskID, At: now}
 	if _, night := s.nightAt(now); night && kind != "sleep" {
 		entry.Deferred = true
@@ -135,6 +156,7 @@ func (s *State) grant(kind, taskID string, seconds int, now time.Time) {
 		s.BalanceSeconds += seconds
 	}
 	s.Ledger = append(s.Ledger, entry)
+	return seconds
 }
 func (s *State) pending() []Task {
 	tasks := []Task{}

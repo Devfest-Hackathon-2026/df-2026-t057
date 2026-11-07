@@ -59,7 +59,7 @@ func run(ctx context.Context, project, id string) error {
 	if err != nil {
 		return err
 	}
-	if state.BalanceSeconds != 3600 || len(state.Tasks) != 0 {
+	if state.BalanceSeconds != 600 || len(state.Tasks) != 0 {
 		return errors.New("unexpected smoke fixture state")
 	}
 	if _, err = store.Update(ctx, owner, func(s *app.State) error { s.Profile.Name = "接続確認用"; return nil }); err != nil {

@@ -116,8 +116,7 @@ func (st *State) settleMorning(now time.Time) *Morning {
 	morning := &Morning{Night: key, Released: st.releaseDeferred()}
 	if st.Sleep.Since.Before(start) && st.Sleep.Watched != key {
 		morning.Kept = true
-		morning.Bonus = sleepBonus
-		st.grant("sleep", key, sleepBonus, now)
+		morning.Bonus = st.grant("sleep", key, sleepBonus, now)
 		st.Sleep.Kept++
 	} else {
 		st.Sleep.Kept = 0
@@ -126,14 +125,15 @@ func (st *State) settleMorning(now time.Time) *Morning {
 	return morning
 }
 
-// releaseDeferred adds the rewards held overnight to the balance and returns how much was added.
+// releaseDeferred adds the rewards held overnight to the balance, up to the cap, and returns how much was added.
 func (st *State) releaseDeferred() int {
 	released := 0
 	for i := range st.Ledger {
 		if st.Ledger[i].Deferred {
 			st.Ledger[i].Deferred = false
-			st.BalanceSeconds += st.Ledger[i].Seconds
-			released += st.Ledger[i].Seconds
+			seconds := max(0, min(st.Ledger[i].Seconds, balanceCapSeconds-st.BalanceSeconds))
+			st.BalanceSeconds += seconds
+			released += seconds
 		}
 	}
 	return released

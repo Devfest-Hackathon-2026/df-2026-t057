@@ -10,6 +10,8 @@ export interface Plan {
   reason: string;
 }
 export interface Task {
+  startedAt?: string;
+  scheduledStartAt?: string;
   id: string;
   title: string;
   notes: string;
@@ -36,6 +38,8 @@ export interface Settings {
   grime: boolean;
 }
 export interface Session {
+  id?: string;
+  limitSeconds?: number;
   taskId: string;
   startedAt: string;
   pausedAt?: string;
@@ -43,7 +47,9 @@ export interface Session {
 }
 export interface LedgerEntry {
   id: string;
-  kind: 'initial' | 'registration' | 'completion' | 'viewing' | 'sleep';
+  kind:
+    'initial' | 'registration' | 'completion' | 'viewing' | 'daily' | 'work' | 'reset' | 'sleep';
+  workSeconds?: number;
   seconds: number;
   taskId?: string;
   at: string;
@@ -68,6 +74,9 @@ export interface Morning {
   releasedSeconds: number;
 }
 export interface State {
+  timePolicy?: TimePolicy;
+  viewingSession?: ViewingSession;
+  viewingHistory?: ViewingSession[];
   revision: number;
   planRevision: number;
   profile: Profile;
@@ -82,6 +91,68 @@ export interface State {
   nextDraft?: Draft;
   memoryReceipts?: Record<string, boolean>;
   sleep?: Sleep;
+}
+export interface TimePolicy {
+  version: number;
+  effectiveAt: string;
+  mode: 'rewards' | 'fixed' | 'reminder' | 'self';
+  dailyLimitSeconds: number;
+  timeZone: string;
+  day: string;
+  dayStartedAt: string;
+  resetAt: string;
+  viewedSeconds: number;
+  rewardSeconds: number;
+  workSeconds: number;
+  history: { day: string; viewedSeconds: number; workSeconds: number }[];
+}
+export interface ViewingSession {
+  extendFrom?: string;
+  id: string;
+  startedAt: string;
+  plannedSeconds: number;
+  consumedSeconds: number;
+  lastReportAt: string;
+  endedAt?: string;
+  reason?: 'stop' | 'limit' | 'reset';
+}
+export function viewingAvailable(state: {
+  balanceSeconds: number;
+  timePolicy?: Pick<TimePolicy, 'mode' | 'dailyLimitSeconds' | 'viewedSeconds'>;
+}): number {
+  const p = state.timePolicy;
+  if (!p) return state.balanceSeconds;
+  if (p.mode === 'reminder' || p.mode === 'self') return 600;
+  return Math.max(0, Math.min(state.balanceSeconds, p.dailyLimitSeconds - p.viewedSeconds));
+}
+export function workLimitSeconds(state: Pick<State, 'session'>, task: Pick<Task, 'plan'>): number {
+  return state.session?.limitSeconds ?? plannedSeconds(task);
+}
+export function workRewardText(before: State, after: State): string {
+  const ids = new Set(before.ledger.map((e) => e.id));
+  const seconds = after.ledger
+    .filter((e) => e.kind === 'work' && !ids.has(e.id))
+    .reduce((sum, e) => sum + e.seconds, 0);
+  return workRewardMessage(
+    seconds,
+    after.ledger.some((e) => e.kind === 'work' && !ids.has(e.id) && e.deferred),
+  );
+}
+export function workRewardMessage(seconds: number, deferred = false): string {
+  return seconds
+    ? `作業を記録しました。視聴時間 ＋${durationLabel(seconds)}${deferred ? '（朝に受け取れます）' : ''}`
+    : '作業を記録しました';
+}
+export function durationLabel(seconds: number): string {
+  const minutes = Math.floor(seconds / 60),
+    rest = seconds % 60;
+  return `${minutes ? `${minutes}分` : ''}${rest || !minutes ? `${rest}秒` : ''}`;
+}
+export function rewardDescription(state?: { timePolicy?: Pick<TimePolicy, 'mode'> }): string {
+  if (!state?.timePolicy) return '取り組んだ時間を記録しましょう';
+  return state.timePolicy.mode === 'rewards'
+    ? '取り組んだ5分で視聴1分。記録した分だけ増えます'
+    : '区切りまで、ひとつずつ取り組みましょう';
 }
 export interface PlanChange {
   taskId: string;
@@ -148,13 +219,13 @@ export const DEFAULT_SETTINGS: Settings = {
   mode: 'pachinko',
   sound: false,
   reducedMotion: false,
-  grime: true,
+  grime: false,
 };
 export function elapsedSeconds(session: Session, now = Date.now()): number {
   const end = session.pausedAt ? Date.parse(session.pausedAt) : now;
-  return Math.max(
-    0,
-    Math.floor((end - Date.parse(session.startedAt)) / 1000) - session.pausedSeconds,
+  return Math.min(
+    session.limitSeconds ?? Infinity,
+    Math.max(0, Math.floor((end - Date.parse(session.startedAt)) / 1000) - session.pausedSeconds),
   );
 }
 export function displayTime(seconds: number): string {

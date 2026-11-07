@@ -4,6 +4,10 @@ import {
   elapsedSeconds,
   nightWindow,
   plannedSeconds,
+  workLimitSeconds,
+  rewardDescription,
+  workRewardMessage,
+  viewingAvailable,
 } from '../../shared/models';
 import {
   ExtensionState,
@@ -27,10 +31,14 @@ function initialize() {
   let timer: HTMLElement | undefined;
   let requestPending = false;
   let consumed = 0;
-  let receipt: { id: string; seconds: number } | undefined;
+  let receipt:
+    { id: string; seconds: number; sessionId?: string; consumedBefore?: number } | undefined;
   let lastTick = performance.now();
   let previousPlaying = false;
   let retryAfter = 0;
+  let ownsViewing = false;
+  let viewingBar: HTMLElement | undefined;
+  let stopRequested: string | undefined;
   const shorts = () =>
     location.hostname === 'www.youtube.com' && location.pathname.startsWith('/shorts/');
   function shortsVideo(): HTMLVideoElement | undefined {
@@ -106,6 +114,7 @@ function initialize() {
       }
       if (reply.state) {
         state = reply.state;
+        if (reply.tabId !== undefined) ownsViewing = reply.tabId === reply.viewingOwnerTabId;
         renderTimer();
       }
       return reply;
@@ -122,6 +131,89 @@ function initialize() {
     overlay?.close();
     overlay?.remove();
     overlay = undefined;
+  }
+  function showViewingChoice(offline = false) {
+    if (!state || overlay) return;
+    shortsVideo()?.pause();
+    const current = state.viewingSession;
+    const active = current && !current.endedAt;
+    overlay = element('dialog', '', 'overlay simple reduced');
+    overlay.setAttribute('aria-label', offline ? '視聴時間の接続を確認' : '視聴の区切り');
+    const panel = element('div', '', 'panel');
+    panel.append(
+      element(
+        'h2',
+        offline
+          ? '接続を確認してから再開しましょう'
+          : active
+            ? '同じ区切りを引き継ぎますか'
+            : current
+              ? '決めた区切りになりました'
+              : '今回は、何分見ますか',
+      ),
+    );
+    const available = viewingAvailable(state);
+    panel.append(
+      element(
+        'p',
+        state.timePolicy?.mode === 'reminder'
+          ? '見る長さを決めてから再生します。'
+          : `今日の残り枠 ${displayTime(available)}。再生中の時間だけを数えます。`,
+      ),
+    );
+    const actions = element('div', '', 'actions');
+    const resume = (request: Request) => {
+      void action(request, panel).then((reply) => {
+        if (!reply) return;
+        dismiss();
+        previousPlaying = false;
+        void shortsVideo()
+          ?.play()
+          .catch(() => showToast('動画の再生ボタンから再開できます。'));
+      });
+    };
+    if (offline) {
+      actions.append(button('再接続して続ける', () => resume({ type: 'STATE' }), 'primary'));
+    } else if (active && available > 0) {
+      actions.append(
+        button(
+          `このタブで続ける（残り${displayTime(current.plannedSeconds - current.consumedSeconds)}）`,
+          () => resume({ type: 'CLAIM_VIEWING', sessionId: current.id }),
+          'primary',
+        ),
+      );
+    } else if (available > 0) {
+      for (const seconds of current ? [300] : [300, 600]) {
+        const id = crypto.randomUUID();
+        actions.append(
+          button(
+            current
+              ? '残り枠からもう5分'
+              : `${seconds / 60}分にする${available < seconds ? `（残り${displayTime(available)}まで）` : ''}`,
+            () => resume({ type: 'START_VIEWING', id, seconds, extendFrom: current?.id }),
+            seconds === 300 ? 'primary' : '',
+          ),
+        );
+      }
+    } else
+      panel.append(element('p', '今日の視聴枠を使い切りました。休憩や次の作業へ移りましょう。'));
+    actions.append(
+      button(current && !active ? 'ここで終える' : '今は見ない', () => {
+        if (active && ownsViewing) void stopViewing(panel);
+        else dismiss();
+      }),
+    );
+    actions.append(
+      button('次の作業へ', () => {
+        void send({ type: 'OPEN_APP' });
+        dismiss();
+      }),
+    );
+    panel.append(actions);
+    overlay.append(panel);
+    mount().append(overlay);
+    overlay.oncancel = dismiss;
+    overlay.showModal();
   }
   function showNotice(task: ExtensionTask, snapshot: ExtensionState, line = '') {
     if (!shorts() || document.visibilityState !== 'visible') return false;
@@ -153,7 +245,7 @@ function initialize() {
     }
     card.append(
       element('p', `${Math.ceil(plannedSeconds(task) / 60)}分の作業`),
-      element('strong', '完了で視聴時間 ＋20分'),
+      element('strong', rewardDescription(snapshot)),
     );
     panel.append(card);
     const actions = element('div', '', 'actions');
@@ -225,7 +317,7 @@ function initialize() {
         `就寝 ${snapshot.sleep?.bedtime} ・ 起床 ${snapshot.sleep?.wake}。今夜の課題の報酬は、朝に受け取れます。`,
         'muted',
       ),
-      element('strong', 'このまま寝ると、朝に視聴時間 ＋15分'),
+      element('strong', 'このまま寝ると、朝に視聴時間 最大15分'),
     );
     const actions = element('div', '', 'actions');
     actions.append(
@@ -411,32 +503,145 @@ function initialize() {
       void action({ type: 'PAUSE' }, timer!);
     });
     const complete = button(
-      state.sleep && nightWindow(state.sleep, state.timeZone)
-        ? '完了（＋20分は朝に）'
-        : '完了 ＋20分',
+      '課題を完了',
       () => {
+        const before = state!;
         void action({ type: 'COMPLETE', taskId: task.id }, timer!).then((reply) => {
-          if (reply)
-            void say('complete', '課題完了！視聴時間 ＋20分', task.id).then((text) =>
-              showToast(
-                `${text}（${state?.sleep && nightWindow(state.sleep, state.timeZone) ? '＋20分は朝に受け取れます' : '＋20分'}）`,
-              ),
+          if (reply?.state) {
+            const reward = workRewardMessage(
+              Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
+              !!state?.sleep && !!nightWindow(state.sleep, state.timeZone),
             );
+            void say('complete', '', task.id).then((line) =>
+              showToast(line ? `${line}（${reward}）` : reward),
+            );
+          }
         });
       },
       'primary',
     );
     const progress = element('progress');
-    progress.max = plannedSeconds(task);
+    progress.max = workLimitSeconds(state, task);
     progress.setAttribute('aria-label', '作業の進捗');
-    timer.append(title, time, pause, complete, progress);
+    timer.append(title, time, pause);
+    if (state.timePolicy)
+      timer.append(
+        button('ここまで取り組んだ', () => {
+          const before = state!;
+          void action({ type: 'CONFIRM_WORK', id: state!.session!.id! }, timer!).then((reply) => {
+            if (reply?.state)
+              showToast(
+                workRewardMessage(
+                  Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
+                  !!state?.sleep && !!nightWindow(state.sleep, state.timeZone),
+                ),
+              );
+          });
+        }),
+      );
+    timer.append(complete, progress);
     mount().append(timer);
     updateTimer();
+  }
+  function updateViewingBar() {
+    const current = state?.viewingSession;
+    if (
+      !shorts() ||
+      !current ||
+      current.endedAt ||
+      !ownsViewing ||
+      !state?.timePolicy ||
+      state.timePolicy.mode === 'self'
+    ) {
+      viewingBar?.remove();
+      viewingBar = undefined;
+      return;
+    }
+    if (!viewingBar) {
+      viewingBar = element('section', '', 'viewing-bar');
+      viewingBar.setAttribute('aria-label', '視聴タイマー');
+      viewingBar.append(
+        element('span', '', 'remaining'),
+        button('ここで終える', () => {
+          void stopViewing(viewingBar!);
+        }),
+      );
+      mount().append(viewingBar);
+    }
+    viewingBar.querySelector('.remaining')!.textContent =
+      `今回あと ${displayTime(current.plannedSeconds - current.consumedSeconds - consumed)}`;
+    viewingBar.querySelector('button')!.disabled = !!stopRequested || requestPending;
+  }
+  async function saveViewing(): Promise<boolean> {
+    if (requestPending) return false;
+    receipt ??= {
+      id: crypto.randomUUID(),
+      seconds: Math.min(60, Math.floor(consumed)),
+      sessionId: state?.viewingSession?.id,
+      consumedBefore: state?.viewingSession?.consumedSeconds,
+    };
+    const current = receipt;
+    requestPending = true;
+    try {
+      const reply = await send({
+        type: 'VIEWING',
+        id: current.id,
+        seconds: current.seconds,
+        sessionId: current.sessionId,
+      });
+      if (reply.error || !reply.state) throw new Error(reply.error);
+      const saved = reply.state.viewingSession;
+      const charged =
+        current.consumedBefore !== undefined &&
+        saved &&
+        saved.id === current.sessionId &&
+        reply.state.timePolicy?.mode !== 'self'
+          ? Math.max(0, Math.min(current.seconds, saved.consumedSeconds - current.consumedBefore))
+          : current.seconds;
+      consumed = Math.max(0, consumed - charged);
+      receipt = undefined;
+      state = reply.state;
+      if (state.timePolicy && state.viewingSession?.endedAt) {
+        consumed = 0;
+        if (!overlay && !stopRequested) showViewingChoice();
+      }
+      return true;
+    } catch {
+      retryAfter = Date.now() + 10000;
+      shortsVideo()?.pause();
+      showViewingChoice(true);
+      return false;
+    } finally {
+      requestPending = false;
+    }
+  }
+  async function stopViewing(container: HTMLElement) {
+    if (requestPending || stopRequested || !state?.viewingSession) return;
+    stopRequested = state.viewingSession.id;
+    shortsVideo()?.pause();
+    previousPlaying = false;
+    updateViewingBar();
+    try {
+      while (receipt || consumed >= 1) {
+        if (!(await saveViewing())) return;
+        if (consumed >= 1) await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      if (
+        await action({ type: 'END_VIEWING', sessionId: stopRequested, reason: 'stop' }, container)
+      ) {
+        dismiss();
+        showToast('決めたところで、視聴を終えました。');
+      }
+    } finally {
+      stopRequested = undefined;
+      updateViewingBar();
+    }
   }
   function updateTimer() {
     if (!timer || !state?.session) return;
     const elapsed = elapsedSeconds(state.session);
-    timer.querySelector('.elapsed')!.textContent = displayTime(elapsed);
+    timer.querySelector('.elapsed')!.textContent =
+      `${displayTime(Math.min(elapsed, timer.querySelector('progress')!.max))} / ${displayTime(timer.querySelector('progress')!.max)}`;
     timer.querySelector('progress')!.value = elapsed;
   }
   let balanceLine: Promise<string> | undefined;
@@ -449,6 +654,7 @@ function initialize() {
   }
   function showToast(text: string) {
     const toast = element('div', text, 'toast');
+    toast.setAttribute('role', 'status');
     mount().append(toast);
     setTimeout(() => toast.remove(), 4500);
   }
@@ -467,6 +673,7 @@ function initialize() {
         previousPlaying = false;
       }
       state = message.state;
+      ownsViewing = message.tabId !== undefined && message.tabId === message.viewingOwnerTabId;
       renderTimer();
     }
   });
@@ -474,17 +681,19 @@ function initialize() {
     .then((reply) => {
       if (reply.state) {
         state = reply.state;
+        ownsViewing = reply.tabId !== undefined && reply.tabId === reply.viewingOwnerTabId;
         renderTimer();
       }
     })
     .catch((error) => console.debug('DOPAGAKI connection unavailable', error));
   setInterval(() => {
     updateTimer();
+    updateViewingBar();
     const now = performance.now();
     const delta = Math.min(2, (now - lastTick) / 1000);
     lastTick = now;
     const video = shortsVideo();
-    const playing =
+    let playing =
       shorts() &&
       document.visibilityState === 'visible' &&
       document.hasFocus() &&
@@ -493,38 +702,52 @@ function initialize() {
       !video.ended &&
       video.readyState >= 2 &&
       !overlay;
+    if (playing && stopRequested) {
+      video?.pause();
+      playing = false;
+    }
+    if (
+      playing &&
+      state?.timePolicy &&
+      state.timePolicy.mode !== 'self' &&
+      (!state.viewingSession ||
+        state.viewingSession.endedAt ||
+        !ownsViewing ||
+        viewingAvailable(state) <= 0)
+    ) {
+      video?.pause();
+      playing = false;
+      showViewingChoice();
+    }
     if (playing && previousPlaying) consumed += delta;
     previousPlaying = playing;
-    if (state && state.balanceSeconds - Math.floor(consumed) <= 0 && playing) {
+    const sessionRemaining = state?.viewingSession
+      ? state.viewingSession.plannedSeconds - state.viewingSession.consumedSeconds
+      : Infinity;
+    if (
+      state &&
+      playing &&
+      state.timePolicy?.mode !== 'self' &&
+      Math.min(viewingAvailable(state), state.timePolicy ? sessionRemaining : Infinity) -
+        Math.floor(consumed) <=
+        0
+    ) {
       video?.pause();
+      playing = false;
+      previousPlaying = false;
       balanceLine ??= say(
         'balance_zero',
-        '視聴時間がなくなりました。課題を登録・完了して時間を増やしましょう。',
+        '今日の視聴枠を使い切りました。休憩や次の作業へ移りましょう。',
       );
       void balanceLine.then(showToast);
     }
     if (
       !requestPending &&
+      !stopRequested &&
       Date.now() >= retryAfter &&
       (receipt || consumed >= 10 || (!playing && consumed >= 1))
     ) {
-      receipt ??= { id: crypto.randomUUID(), seconds: Math.min(60, Math.floor(consumed)) };
-      const current = receipt;
-      requestPending = true;
-      void send({ type: 'VIEWING', ...current })
-        .then((reply) => {
-          if (!reply.error && reply.state) {
-            consumed = Math.max(0, consumed - current.seconds);
-            receipt = undefined;
-            state = reply.state;
-          } else retryAfter = Date.now() + 10000;
-        })
-        .catch(() => {
-          retryAfter = Date.now() + 10000;
-        })
-        .finally(() => {
-          requestPending = false;
-        });
+      void saveViewing();
     }
   }, 1000);
 }

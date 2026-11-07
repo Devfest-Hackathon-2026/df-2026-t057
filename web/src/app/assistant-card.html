@@ -11,7 +11,7 @@
       </div>
       <h3>{{ card().sleep?.bedtime }} 就寝 ・ {{ card().sleep?.wake }} 起床</h3>
       <p class="card-note">
-        就寝1時間前からの課題の報酬は翌朝に受け取り。ショートを見ずに寝られた朝は ＋15分。
+        就寝1時間前からの課題の報酬は翌朝に受け取り。ショートを見ずに寝られた朝は最大15分（残高30分まで）。
       </p>
       @if (!sleepSet()) {
         <button mat-flat-button (click)="setSleep()" [disabled]="busy() || api.busy()">
@@ -206,7 +206,7 @@
                   (api.config()?.mode !== 'demo' && !api.state()?.calendarConnected)
                 "
               >
-                {{ night() ? 'カレンダーに登録（＋10分は朝に）' : 'カレンダーに登録 ＋10分' }}
+                {{ night() ? 'カレンダーに登録（＋5分は朝に）' : 'カレンダーに登録 ＋5分' }}
               </button>
             }
           </div>

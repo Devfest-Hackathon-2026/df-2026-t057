@@ -59,7 +59,7 @@ test('conversation cards require confirmation, preserve edits, and update real t
   await expect(composer).toHaveValue('4時間後までにレポートを30分で。区切って進めたい');
   const before = await (await page.request.get('/api/state')).json();
   expect(before.tasks).toHaveLength(0);
-  expect(before.balanceSeconds).toBe(3600);
+  expect(before.balanceSeconds).toBe(600);
   expect(before.profile.context).toBe('');
   release();
   const card = page.locator('app-assistant-card').filter({ hasText: '予定カード（デモ）' });
@@ -78,7 +78,7 @@ test('conversation cards require confirmation, preserve edits, and update real t
     .getByRole('button', { name: 'キャンセル', exact: true })
     .click();
   await expect(edited.getByRole('heading')).toHaveText('編集したレポート');
-  await edited.getByRole('button', { name: 'カレンダーに登録 ＋10分', exact: true }).click();
+  await edited.getByRole('button', { name: 'カレンダーに登録 ＋5分', exact: true }).click();
   await expect(edited.getByRole('button', { name: '予定・手順を調整', exact: true })).toBeVisible();
   const memory = page.locator('app-assistant-card').filter({ hasText: '覚えておくこと' });
   await memory.getByLabel('覚える内容を確認・編集').fill('25分ずつ区切ると進めやすい');
@@ -86,7 +86,7 @@ test('conversation cards require confirmation, preserve edits, and update real t
   await expect(memory).toContainText('確認済み');
   await expect(page.locator('.known-context')).toHaveText('25分ずつ区切ると進めやすい');
   let state = await (await page.request.get('/api/state')).json();
-  expect(state.balanceSeconds).toBe(4200);
+  expect(state.balanceSeconds).toBe(900);
   expect(state.tasks).toHaveLength(1);
   expect(state.tasks[0].title).toBe('編集したレポート');
   expect(state.tasks[0].minutes).toBe(15);
@@ -105,7 +105,7 @@ test('conversation cards require confirmation, preserve edits, and update real t
   await page.getByRole('button', { name: '保存', exact: true }).click();
   state = await (await page.request.get('/api/state')).json();
   expect(state.profile.context).toBe('');
-  expect(state.balanceSeconds).toBe(4200);
+  expect(state.balanceSeconds).toBe(900);
   expect(state.tasks).toHaveLength(1);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect

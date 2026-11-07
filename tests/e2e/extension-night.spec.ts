@@ -55,7 +55,7 @@ test('watching Shorts after bedtime shows one quiet bedtime reminder per night',
       timeout: 15000,
     });
     await expect(host.locator('.companion')).toContainText('寝る準備');
-    await expect(host.getByText('このまま寝ると、朝に視聴時間 ＋15分')).toBeVisible();
+    await expect(host.getByText('このまま寝ると、朝に視聴時間 最大15分')).toBeVisible();
     await host.getByRole('button', { name: 'あと少しだけ', exact: true }).click();
     await expect(host.getByRole('heading', { name: 'そろそろ、寝る準備。' })).not.toBeVisible();
     await youtube.reload();

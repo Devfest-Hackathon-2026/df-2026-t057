@@ -72,5 +72,5 @@ test('an AI limit preserves the message and existing tasks', async ({ page }) =>
   await expect(composer).toHaveValue('この相談を消さずに残しておく');
   const state = await (await page.request.get('/api/state')).json();
   expect(state.tasks).toEqual([]);
-  expect(state.balanceSeconds).toBe(3600);
+  expect(state.balanceSeconds).toBe(600);
 });

@@ -103,7 +103,7 @@ func TestAssistantRequiresConfirmationAndIsolatesAccounts(t *testing.T) {
 		t.Fatalf("invalid cards: %+v", turn)
 	}
 	before := c.state("GET", "/api/state", nil)
-	if len(before.Tasks) != 0 || before.BalanceSeconds != 3600 || before.Profile.Context != "" {
+	if len(before.Tasks) != 0 || before.BalanceSeconds != initialSeconds || before.Profile.Context != "" {
 		t.Fatal("a proposal changed tasks, rewards, or memory")
 	}
 	repeated := consultation(t, c, "first", turn.Text)
@@ -116,7 +116,7 @@ func TestAssistantRequiresConfirmationAndIsolatesAccounts(t *testing.T) {
 	memory := turn.Cards[1]
 	state := c.state("POST", "/api/assistant/memory", map[string]string{"id": memory.ID, "text": memory.Memory})
 	state = c.state("POST", "/api/assistant/memory", map[string]string{"id": memory.ID, "text": memory.Memory})
-	if state.Profile.Context != memory.Memory || !state.MemoryReceipts[memory.ID] || state.BalanceSeconds != 3600 {
+	if state.Profile.Context != memory.Memory || !state.MemoryReceipts[memory.ID] || state.BalanceSeconds != initialSeconds {
 		t.Fatal("memory was duplicated or granted a reward")
 	}
 	input := *turn.Cards[0].Input
@@ -124,7 +124,7 @@ func TestAssistantRequiresConfirmationAndIsolatesAccounts(t *testing.T) {
 	input.BaseRevision = &revision
 	state = c.state("POST", "/api/tasks", input)
 	state = c.state("POST", "/api/tasks", input)
-	if len(state.Tasks) != 1 || state.BalanceSeconds != 4200 {
+	if len(state.Tasks) != 1 || state.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("registering a card twice duplicated the task or credit")
 	}
 	b := c
@@ -268,7 +268,7 @@ func TestAssistantRevisesUnregisteredProposalWithoutDuplicatingTask(t *testing.T
 		t.Fatal("the revision lost the stable task ID or the updated duration")
 	}
 	state := c.state("GET", "/api/state", nil)
-	if len(state.Tasks) != 0 || state.BalanceSeconds != 3600 {
+	if len(state.Tasks) != 0 || state.BalanceSeconds != initialSeconds {
 		t.Fatal("revising a proposal registered a task")
 	}
 }

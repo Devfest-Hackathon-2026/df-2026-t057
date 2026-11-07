@@ -29,14 +29,19 @@
           <span class="status-dot" [class.paused]="session.pausedAt"></span>
           <strong>{{ active()?.title }}</strong>
           <span class="mono">{{ displayTime(elapsed()) }}</span>
-          <span class="muted">/ {{ active() ? plannedMinutes(active()!) : 0 }}分</span>
+          <span class="muted">/ {{ workMinutes() }}分</span>
         </div>
         <div>
           <button mat-button (click)="api.mutate('/session/pause')" [disabled]="api.busy()">
             {{ session.pausedAt ? '再開' : '一時停止' }}
           </button>
+          @if (api.state()?.timePolicy) {
+            <button mat-button (click)="actions.confirmWork()" [disabled]="api.busy()">
+              ここまで取り組んだ
+            </button>
+          }
           <button mat-flat-button (click)="actions.complete(active()!)" [disabled]="api.busy()">
-            完了 ＋20分
+            課題を完了
           </button>
         </div>
         <mat-progress-bar mode="determinate" [value]="progress()" aria-label="作業の進捗" />
@@ -82,7 +87,7 @@
       } @else if (!api.signedIn()) {
         <section class="login-card">
           <h1>やることを、ひとつずつ。</h1>
-          <p>課題を終えると、動画を楽しめる時間が増えます。</p>
+          <p>見る時間を決めて、次の作業へ。</p>
           <details class="disclosure">
             <summary>このアプリについて</summary>
             <p>
@@ -141,7 +146,7 @@
           {{ task.plan.start | date: 'HH:mm' }}–{{ task.plan.end | date: 'HH:mm' }} ·
           {{ plannedMinutes(task) }}分
         </p>
-        <strong>完了で視聴時間 ＋20分</strong>
+        <strong>{{ rewardDescription(api.state()!) }}</strong>
       </div>
       <div class="notice-buttons">
         <button mat-flat-button (click)="actions.start(task)" [disabled]="api.busy()">
