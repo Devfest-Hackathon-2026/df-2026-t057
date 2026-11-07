@@ -2,63 +2,228 @@
   <div class="workspace-title">
     <h1>カレンダー</h1>
     <button
-      mat-fab
+      mat-flat-button
       class="create-button"
       aria-label="課題を登録"
       matTooltip="課題を登録"
       (click)="actions.add()"
     >
       <span class="material-symbols-rounded" aria-hidden="true">add</span>
+      課題を登録
     </button>
   </div>
-  <div class="workspace-summary">
+  <section class="workspace-summary" aria-label="視聴できる時間と次の課題">
     <div class="workspace-credit">
-      <span>{{ state.timePolicy ? '今日、視聴できる時間' : '視聴できる時間' }}</span>
-      <strong class="credit-number">
-        @if (state.timePolicy?.mode === 'reminder' || state.timePolicy?.mode === 'self') {
+      <p class="summary-label">{{ unlimited() ? '視聴の支援' : '今日、視聴できる時間' }}</p>
+      <strong class="credit-number" [class.unlimited]="unlimited()">
+        @if (unlimited()) {
           制限なし
         } @else {
-          {{ (viewingAvailable(state) / 60).toFixed(0) }}
-          <small>分</small>
+          {{ credit().value }}
+          <small>{{ credit().unit }}</small>
+          @if (credit().seconds) {
+            <small>{{ credit().seconds }}秒</small>
+          }
         }
       </strong>
+      <button
+        mat-button
+        class="credit-help"
+        cdkOverlayOrigin
+        #creditOrigin="cdkOverlayOrigin"
+        (click)="creditInfoOpen.set(true)"
+        aria-haspopup="dialog"
+        [attr.aria-expanded]="creditInfoOpen()"
+        aria-controls="viewing-time-info"
+      >
+        <span class="credit-help-content">
+          <span class="material-symbols-rounded" aria-hidden="true">info</span>
+          視聴時間について
+          <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+        </span>
+      </button>
     </div>
-    @if (next(); as task) {
-      <button mat-button class="next-task" (click)="select(task)">
-        <span>次の課題</span>
-        <strong>{{ task.title }}</strong>
-        <span>{{ task.plan.start | date: 'M/d HH:mm' }}</span>
-      </button>
-      <button
-        mat-stroked-button
-        aria-label="次の課題を開始"
-        (click)="actions.start(task)"
-        [disabled]="api.busy()"
-      >
-        はじめる
-      </button>
-      <button
-        mat-icon-button
-        aria-label="通知を試す"
-        matTooltip="通知を試す"
-        (click)="actions.preview.set(task)"
-      >
-        <span class="material-symbols-rounded" aria-hidden="true">notifications</span>
-      </button>
-    }
-    <details class="disclosure credit-help">
-      <summary>視聴時間について</summary>
-      @if (state.timePolicy; as policy) {
-        <p>初回10分。毎日、残高を10分まで補充。課題の登録で5分増えます。</p>
-        <p>作業5分の記録で視聴1分増え、作業による追加は1日20分まで。</p>
+    <div class="workspace-next">
+      @if (next(); as task) {
+        <p class="summary-label">
+          次の課題
+          <span>· {{ task.plan.start | date: 'M/d' }}</span>
+        </p>
+        <button mat-button class="next-task" (click)="select(task)">
+          <span class="next-task-content">
+            <strong>{{ task.title }}</strong>
+            <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+          </span>
+        </button>
+        <div class="next-task-footer">
+          <p class="next-task-time">
+            <span class="material-symbols-rounded" aria-hidden="true">schedule</span>
+            <time>
+              {{ task.plan.start | date: 'HH:mm' }}–
+              @if (
+                (task.plan.start | date: 'yyyy-MM-dd') !== (task.plan.end | date: 'yyyy-MM-dd')
+              ) {
+                {{ task.plan.end | date: 'M/d' }}
+              }
+              {{ task.plan.end | date: 'HH:mm' }}
+            </time>
+            <span>{{ plannedMinutes(task) }}分</span>
+          </p>
+          <div class="next-task-actions">
+            <button
+              mat-icon-button
+              aria-label="通知を試す"
+              matTooltip="通知を試す"
+              (click)="actions.preview.set(task)"
+            >
+              <span class="material-symbols-rounded" aria-hidden="true">notifications</span>
+            </button>
+            <button
+              mat-flat-button
+              aria-label="次の課題を開始"
+              (click)="actions.start(task)"
+              [disabled]="api.busy() || !!state.session"
+            >
+              はじめる
+              <span class="material-symbols-rounded" aria-hidden="true">play_arrow</span>
+            </button>
+          </div>
+        </div>
+      } @else {
+        <p class="summary-label">次の課題</p>
+        <h2 class="next-task-empty">次の課題はまだありません</h2>
+        <p class="summary-note">課題を登録すると、取りかかる予定がここに並びます。</p>
+      }
+    </div>
+  </section>
+  <ng-template
+    cdkConnectedOverlay
+    [cdkConnectedOverlayOrigin]="creditOrigin"
+    [cdkConnectedOverlayOpen]="creditInfoOpen()"
+    [cdkConnectedOverlayPositions]="creditInfoPositions"
+    [cdkConnectedOverlayWidth]="'min(420px, calc(100vw - 32px))'"
+    [cdkConnectedOverlayViewportMargin]="16"
+    [cdkConnectedOverlayPush]="true"
+    [cdkConnectedOverlayHasBackdrop]="true"
+    cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+    (backdropClick)="creditInfoOpen.set(false)"
+    (overlayKeydown)="$event.key === 'Escape' && creditInfoOpen.set(false)"
+    (detach)="creditInfoOpen.set(false)"
+  >
+    <section
+      class="credit-info-panel"
+      id="viewing-time-info"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="credit-info-title"
+      cdkTrapFocus
+      [cdkTrapFocusAutoCapture]="true"
+    >
+      <div class="credit-info-heading">
+        <h2 id="credit-info-title">視聴時間について</h2>
+        <button
+          mat-icon-button
+          aria-label="視聴時間の説明を閉じる"
+          (click)="creditInfoOpen.set(false)"
+        >
+          <span class="material-symbols-rounded" aria-hidden="true">close</span>
+        </button>
+      </div>
+      <div class="credit-info-balance">
+        <div>
+          <p>{{ unlimited() ? '視聴の支援' : '今日、視聴できる時間' }}</p>
+          <strong>{{ unlimited() ? '制限なし' : durationLabel(viewingAvailable(state)) }}</strong>
+        </div>
         <p>
-          視聴の上限は1日{{ policy.dailyLimitSeconds / 60 }}分。残高{{
-            (state.balanceSeconds / 60).toFixed(1)
-          }}分は繰り越せます。設定で支援の段階と上限を選べます。
+          持っている時間 {{ durationLabel(state.balanceSeconds) }}
+          <br />
+          @if (state.timePolicy; as policy) {
+            今日の視聴 {{ durationLabel(policy.viewedSeconds) }}
+            @if (!unlimited()) {
+              / {{ durationLabel(policy.dailyLimitSeconds) }}
+            }
+          }
+        </p>
+      </div>
+      @switch (state.timePolicy?.mode ?? 'rewards') {
+        @case ('rewards') {
+          <div class="credit-rule">
+            <span class="material-symbols-rounded" aria-hidden="true">calendar_today</span>
+            <div>
+              <h3>毎日の補充</h3>
+              <p>
+                初回10分。残高が少ない日は10分まで。
+                <br />
+                受け取り操作は不要です。
+              </p>
+            </div>
+          </div>
+          <div class="credit-rule">
+            <span class="material-symbols-rounded" aria-hidden="true">timer</span>
+            <div>
+              <h3>作業を記録すると、5分につき視聴1分</h3>
+              <p>
+                作業による追加は1日20分まで。
+                <br />
+                タイマーの終了だけでは増えません。
+              </p>
+            </div>
+          </div>
+        }
+        @case ('fixed') {
+          <div class="credit-rule">
+            <span class="material-symbols-rounded" aria-hidden="true">calendar_today</span>
+            <div>
+              <h3>自分で決めた固定枠</h3>
+              <p>
+                毎日、残高を{{
+                  (state.timePolicy?.dailyLimitSeconds ?? 0) / 60
+                }}分まで補充します。作業時間に応じた追加はありません。
+              </p>
+            </div>
+          </div>
+        }
+        @case ('reminder') {
+          <div class="credit-rule">
+            <span class="material-symbols-rounded" aria-hidden="true">notifications</span>
+            <div>
+              <h3>区切りの通知だけ</h3>
+              <p>1日の上限と作業報酬を止め、5分・10分の区切りを知らせます。</p>
+            </div>
+          </div>
+        }
+        @case ('self') {
+          <div class="credit-rule">
+            <span class="material-symbols-rounded" aria-hidden="true">person</span>
+            <div>
+              <h3>自分で管理する</h3>
+              <p>視聴枠と区切りの表示はありません。課題の開始通知と作業タイマーは使えます。</p>
+            </div>
+          </div>
+        }
+      }
+      <div class="credit-rule">
+        <span class="material-symbols-rounded" aria-hidden="true">add_task</span>
+        <div>
+          <h3>新しい課題の登録で＋5分</h3>
+          <p>残高の上限30分まで。編集・再送では増えません。</p>
+        </div>
+      </div>
+      @if (!unlimited()) {
+        <p class="credit-info-note">
+          残高は翌日に繰り越せます。今日使える時間は、残高と1日の残り枠の小さい方です。
         </p>
       }
-    </details>
-  </div>
+      <details class="disclosure">
+        <summary>夜の報酬・支援の段階</summary>
+        <p>就寝の予定を設定すると、就寝1時間前から起床までの課題・作業報酬は翌朝に受け取ります。</p>
+        <p>支援の段階と1日の上限は、設定の「視聴ルール」で変更できます。</p>
+        <button mat-button (click)="creditInfoOpen.set(false); routerSettings()">
+          視聴ルールの設定を開く
+        </button>
+      </details>
+    </section>
+  </ng-template>
   <mat-button-toggle-group
     class="mobile-switch"
     [value]="mobilePart()"
