@@ -91,6 +91,7 @@ export interface State {
   nextDraft?: Draft;
   memoryReceipts?: Record<string, boolean>;
   sleep?: Sleep;
+  shortcut?: { keyHash: string; createdAt: string };
 }
 export interface TimePolicy {
   version: number;
