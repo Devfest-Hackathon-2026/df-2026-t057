@@ -13,6 +13,7 @@
             { id: 'calendar', icon: 'calendar_month', text: 'カレンダー' },
             { id: 'tasks', icon: 'assignment', text: '課題' },
             { id: 'records', icon: 'grass', text: '記録' },
+            { id: 'about', icon: 'info', text: 'アプリについて' },
           ];
           track nav.id
         ) {
@@ -51,11 +52,12 @@
         </section>
       }
       <header class="topbar">
-        <div class="topbar-right">
+        <div class="topbar-right" data-tour="settings">
           @if (api.config()?.mode === 'demo') {
             <span class="demo-badge">デモ</span>
           }
           <span class="today-date">{{ now() | date: 'M月d日 EEEE' : '' : 'ja' }}</span>
+          <button mat-button class="tour-button" (click)="tutorial.start()">使い方</button>
           @if (api.config()?.mode === 'demo') {
             <button
               mat-icon-button
@@ -97,6 +99,7 @@
             </div>
           }
           <router-outlet />
+          <app-tutorial />
         }
       </main>
     </div>

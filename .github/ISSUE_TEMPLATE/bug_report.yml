@@ -1,0 +1,61 @@
+name: 不具合の報告
+description: 期待どおりに動かないことを報告する
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        トークン・個人の予定・メールアドレスなどの個人情報は書かないでください。スクリーンショットも同様です。
+  - type: dropdown
+    id: area
+    attributes:
+      label: 場所
+      multiple: true
+      options:
+        - 管理画面
+        - Chrome拡張
+        - API
+        - Googleカレンダー連携
+        - AI（相談・予定作成）
+        - 配信・CI
+        - わからない
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: 環境
+      options:
+        - 公開環境（Cloud Run）
+        - ローカル（デモ）
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      placeholder: |
+        1. 課題を登録する
+        2. 通知で「スヌーズ」を押す
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した動作
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+      description: エラー表示、コンソールのログ、スクリーンショットなど
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: バージョン
+      description: 拡張のバージョン、またはコミット
+      placeholder: v0.1.2 / 431313b

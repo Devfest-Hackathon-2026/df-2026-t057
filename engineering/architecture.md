@@ -20,7 +20,7 @@ YouTube Shortsを見ている利用者が、締切から逆算した開始時刻
 | 派手な通知、静かな作業 | 通知は提供された金色背景。作業中はタイマーと上部の細いバー |
 | 既存部品を利用 | Angular Material、Material Symbols、Google公式SDK、Go標準ライブラリを優先 |
 
-「google notebook」と呼ばれていた別の連携は採用していない。既存 `docs/` の別案の機能も取り込まない。
+「google notebook」と呼ばれていた別の連携は採用していない。
 
 ## コンポーネント
 

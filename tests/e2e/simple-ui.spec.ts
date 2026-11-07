@@ -13,13 +13,14 @@ test('collapsed task details preserve drafts and are saved only on confirmation'
   expect(await emptyIcon.evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(
     32,
   );
-  const help = page.locator('.credit-help');
-  await expect(help.getByText('初回10分。', { exact: false })).not.toBeVisible();
-  await help.locator('summary').focus();
+  const help = page.getByRole('button', { name: '視聴時間について', exact: true });
+  await help.focus();
   await page.keyboard.press('Enter');
-  await expect(help).toContainText('作業5分の記録で視聴1分');
-  await page.keyboard.press('Enter');
-  await expect(help.getByText('初回10分。', { exact: false })).not.toBeVisible();
+  const explanation = page.getByRole('dialog', { name: '視聴時間について' });
+  await expect(explanation).toContainText('作業を記録すると、5分につき視聴1分');
+  await page.keyboard.press('Escape');
+  await expect(explanation).not.toBeVisible();
+  await expect(help).toBeFocused();
 
   await page.getByRole('button', { name: '課題を登録', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -32,7 +33,7 @@ test('collapsed task details preserve drafts and are saved only on confirmation'
   await dialog.getByLabel('やること・メモ').fill('構成から書き始める');
   await dialog.getByLabel('目的（任意）').fill('発表に備える');
   await details.locator('summary').click();
-  await dialog.getByRole('radio', { name: '相談', exact: true }).click();
+  await dialog.getByRole('radio', { name: 'AIに相談', exact: true }).click();
   await dialog.getByRole('radio', { name: '手入力', exact: true }).click();
   await details.locator('summary').click();
   await expect(dialog.getByLabel('やること・メモ')).toHaveValue('構成から書き始める');
@@ -51,7 +52,7 @@ test('collapsed task details preserve drafts and are saved only on confirmation'
 
 test('calendar adapts to mobile while preserving an explicit view choice', async ({ page }) => {
   await page.request.get('/api/state');
-  await page.request.post('/api/tasks', {
+  const created = await page.request.post('/api/tasks', {
     data: {
       id: 'simple-ui-task',
       title: 'レポートの構成を考える',
@@ -61,7 +62,15 @@ test('calendar adapts to mobile while preserving an explicit view choice', async
       url: '',
     },
   });
+  // The plan ends at the deadline, so near midnight it starts on the next day; open that day.
+  const start = (await created.json()).tasks.find((t: { id: string }) => t.id === 'simple-ui-task')
+    .plan.start;
   await page.goto('/calendar');
+  const day = await page.evaluate((iso) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, start);
+  await page.goto(`/calendar?date=${day}`);
   await expect(page.getByRole('heading', { name: '何から始めましょう？' })).toBeVisible();
   await page.getByRole('button', { name: '予定を見直す', exact: true }).click();
   await expect(page.getByLabel('相談する', { exact: true })).toHaveValue('予定を見直す');

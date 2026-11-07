@@ -3,6 +3,8 @@ import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BreakpointObserver } from '@angular/cdk/layout';
+import { A11yModule } from '@angular/cdk/a11y';
+import { OverlayModule, ConnectedPosition } from '@angular/cdk/overlay';
 import { map } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -16,12 +18,20 @@ import { Api, localDate } from './api';
 import { TaskActions } from './task-actions';
 import { Assistant } from './assistant';
 import { AssistantCard } from './assistant-card';
-import { Task, AssistantCard as Card, viewingAvailable } from '../../../shared/models';
+import {
+  Task,
+  AssistantCard as Card,
+  viewingAvailable,
+  durationLabel,
+  plannedSeconds,
+} from '../../../shared/models';
 
 @Component({
   selector: 'app-calendar-workspace',
   imports: [
     DatePipe,
+    A11yModule,
+    OverlayModule,
     MatButtonModule,
     MatTooltipModule,
     MatButtonToggleModule,
@@ -34,6 +44,7 @@ import { Task, AssistantCard as Card, viewingAvailable } from '../../../shared/m
 })
 export class CalendarWorkspace {
   viewingAvailable = viewingAvailable;
+  durationLabel = durationLabel;
   readonly api = inject(Api);
   readonly actions = inject(TaskActions);
   private readonly router = inject(Router);
@@ -46,6 +57,25 @@ export class CalendarWorkspace {
   readonly ready = signal(false);
   readonly panel = signal<'assistant' | 'detail'>('assistant');
   readonly mobilePart = signal('calendar');
+  readonly creditInfoOpen = signal(false);
+  readonly creditInfoPositions: ConnectedPosition[] = [
+    { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
+    { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -8 },
+  ];
+  readonly unlimited = computed(() =>
+    ['reminder', 'self'].includes(this.api.state()?.timePolicy?.mode ?? ''),
+  );
+  readonly credit = computed(() => {
+    const seconds = viewingAvailable(this.api.state()!);
+    return {
+      value: seconds < 60 ? seconds : Math.floor(seconds / 60),
+      unit: seconds < 60 ? '秒' : '分',
+      seconds: seconds >= 60 ? seconds % 60 : 0,
+    };
+  });
+  plannedMinutes(task: Task) {
+    return Math.ceil(plannedSeconds(task) / 60);
+  }
   readonly selected = computed(
     () => this.api.state()?.tasks.find((t) => t.id === this.params().get('task')) ?? null,
   );
