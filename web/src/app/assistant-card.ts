@@ -7,7 +7,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { AssistantCard as Card, Draft, Plan, TaskInput } from '../../../shared/models';
+import { AssistantCard as Card, Draft, Plan, TaskInput, nightWindow } from '../../../shared/models';
 import { Api, localDate, message } from './api';
 import { TaskChange } from './task-change';
 import { PlanDialog } from './plan-dialog';
@@ -46,6 +46,11 @@ export class AssistantCard {
         ?.ledger.some((e) => e.kind === 'registration' && e.taskId === this.card().input?.id),
   );
   readonly remembered = computed(() => !!this.api.state()?.memoryReceipts?.[this.card().id]);
+  // At night the registration reward waits until morning; recomputed whenever state refreshes.
+  readonly night = computed(() => {
+    const sleep = this.api.state()?.sleep;
+    return !!sleep && !!nightWindow(sleep, this.api.state()!.profile.timeZone);
+  });
   readonly sleepSet = computed(() => {
     const sleep = this.api.state()?.sleep;
     const proposed = this.card().sleep;

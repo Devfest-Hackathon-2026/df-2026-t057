@@ -85,8 +85,12 @@ func TestCompanionLineRejectsUnsafeWording(t *testing.T) {
 	if _, out := line(t, c, "complete", ""); out["generated"] != true || out["line"] != text {
 		t.Fatalf("generated line: %v", out)
 	}
+	text = "別の一言"
+	if _, out := line(t, c, "complete", ""); out["line"] != "よし、まず資料を開こう。" {
+		t.Fatalf("the same moment was generated again: %v", out)
+	}
 	text = "それは依存症ですね"
-	if _, out := line(t, c, "complete", ""); out["generated"] != false || strings.Contains(out["line"].(string), "依存症") {
+	if _, out := line(t, c, "balance_zero", ""); out["generated"] != false || strings.Contains(out["line"].(string), "依存症") {
 		t.Fatalf("banned wording was shown: %v", out)
 	}
 }
@@ -105,5 +109,41 @@ func TestStreakDaysUsesLocalCalendarDays(t *testing.T) {
 	state.Tasks = append(state.Tasks, Task{Status: "completed", CompletedAt: &now})
 	if got := streakDays(state, now); got != 3 {
 		t.Fatalf("streak including today: %d", got)
+	}
+}
+
+func TestSupportFadesWithStreak(t *testing.T) {
+	now := time.Now()
+	state := NewState(now)
+	for back, want := range map[int]string{0: "full", 3: "light", 7: "hands-off"} {
+		state.Tasks = nil
+		for d := 0; d < back; d++ {
+			at := now.AddDate(0, 0, -d)
+			state.Tasks = append(state.Tasks, Task{Status: "completed", CompletedAt: &at})
+		}
+		if got := supportLevel(state, now); got != want {
+			t.Errorf("%d days: %s", back, got)
+		}
+	}
+}
+
+func TestCompanionUpdateKeepsFieldsTheModelLeftOut(t *testing.T) {
+	_, c := assistantClient(t, func(raw string) any {
+		if !strings.Contains(raw, "入力JSON") {
+			return map[string]any{"steps": []map[string]any{{"title": "資料を開く", "minutes": 30}}}
+		}
+		return map[string]any{"reply": "45分にしてみたよ。", "cards": []any{map[string]any{"kind": "update", "taskId": "one", "input": map[string]any{
+			"title": "レポート", "deadline": time.Now().Add(6 * time.Hour).Format(time.RFC3339), "minutes": 45,
+		}}}}
+	})
+	existing := input()
+	existing.Notes, existing.Why, existing.URL = "参考文献は3冊", "単位を落とさない", "https://example.com/report"
+	c.state("POST", "/api/tasks", existing)
+	turn := consultation(t, c, "keep", "レポート45分にして")
+	if turn.Status != "ready" || len(turn.Cards) != 1 || turn.Cards[0].Change == nil {
+		t.Fatalf("update card: %+v", turn)
+	}
+	if got := turn.Cards[0].Change.Input; got.Notes != existing.Notes || got.Why != existing.Why || got.URL != existing.URL || got.Minutes != 45 {
+		t.Fatalf("omitted fields were cleared: %+v", got)
 	}
 }

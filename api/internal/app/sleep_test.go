@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -78,8 +79,16 @@ func TestSleepEndpointsInDemo(t *testing.T) {
 	if state.Sleep == nil || state.Sleep.Bedtime != "23:30" {
 		t.Fatalf("bedtime not saved: %+v", state.Sleep)
 	}
-	if code, _ := c.call("POST", "/api/sleep/morning", nil); code != 200 {
-		t.Fatal("morning check-in failed")
+	code, raw := c.call("POST", "/api/sleep/morning", nil)
+	var out struct {
+		State   State    `json:"state"`
+		Morning *Morning `json:"morning"`
+	}
+	if code != 200 || json.Unmarshal(raw, &out) != nil || out.Morning != nil {
+		t.Fatalf("morning check-in: %d %s", code, raw)
+	}
+	if out.State.Revision != state.Revision {
+		t.Fatal("a check-in with nothing to settle wrote the state")
 	}
 	if state := c.state("PUT", "/api/sleep", map[string]string{"bedtime": "", "wake": ""}); state.Sleep != nil {
 		t.Fatal("bedtime not cleared")
@@ -96,6 +105,23 @@ func TestCompanionProposesBedtimeAsCard(t *testing.T) {
 	}
 	if state := c.state("GET", "/api/state", nil); state.Sleep != nil {
 		t.Fatal("bedtime saved without confirmation")
+	}
+}
+
+func TestRemovingBedtimeReleasesHeldRewards(t *testing.T) {
+	c := client(t)
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+	bed := time.Now().In(loc).Add(30 * time.Minute)
+	c.state("PUT", "/api/sleep", map[string]string{"bedtime": bed.Format("15:04"), "wake": bed.Add(8 * time.Hour).Format("15:04")})
+	c.state("POST", "/api/tasks", input())
+	held := c.state("POST", "/api/tasks/one/complete", nil)
+	if held.Ledger[len(held.Ledger)-1].Deferred != true {
+		t.Skip("bedtime before noon falls on the next day; the window is not now")
+	}
+	state := c.state("PUT", "/api/sleep", map[string]string{"bedtime": "", "wake": ""})
+	want := min(balanceCapSeconds, held.BalanceSeconds+held.pendingRewardSeconds())
+	if held.pendingRewardSeconds() == 0 || state.BalanceSeconds != want || state.pendingRewardSeconds() != 0 {
+		t.Fatalf("held reward lost when the bedtime was removed: %d -> %d", held.BalanceSeconds, state.BalanceSeconds)
 	}
 }
 

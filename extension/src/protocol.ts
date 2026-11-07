@@ -12,6 +12,7 @@ export type ExtensionState = Pick<
   timePolicy?: Pick<TimePolicy, 'version' | 'mode' | 'dailyLimitSeconds' | 'viewedSeconds'>;
   workRewardSeconds: number;
   sleep?: SleepTime;
+  timeZone: string;
 };
 
 export interface Connection {

@@ -109,7 +109,19 @@ func companionProgress(state State, now time.Time) map[string]any {
 	for i := 0; i < len(recent) && i < 3; i++ {
 		titles = append(titles, recent[i].Title)
 	}
-	return map[string]any{"streakDays": streakDays(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "timePolicy": state.TimePolicy, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
+	return map[string]any{"streakDays": streakDays(state, now), "support": supportLevel(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "timePolicy": state.TimePolicy, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
+}
+
+// supportLevel fades the companion as the user keeps going on their own: full, light, then hands-off.
+func supportLevel(state State, now time.Time) string {
+	days := streakDays(state, now)
+	switch {
+	case days >= 7:
+		return "hands-off"
+	case days >= 3:
+		return "light"
+	}
+	return "full"
 }
 
 // sleepSummary is what the companion may know about the user's bedtime.
@@ -254,6 +266,11 @@ func proposalCard(call *genai.FunctionCall) (consultationCard, error) {
 			return card, errors.New("課題の変更候補を読み取れませんでした")
 		}
 		card.Input, card.TaskID = &args.TaskInput, args.TaskID
+		for _, field := range []string{"notes", "why", "url"} {
+			if _, ok := call.Args[field]; !ok {
+				card.Omitted = append(card.Omitted, field)
+			}
+		}
 	case toolSleep:
 		_ = json.Unmarshal(raw, &card.Sleep)
 	default:
@@ -356,10 +373,30 @@ func fallbackLine(moment string, task *Task) string {
 var lineTimeout = 6 * time.Second
 
 // Line asks the companion for one short remark at a moment, falling back to fixed text.
+// lineReuse is how long a generated remark is reused for the same moment, task and plan.
+const lineReuse = 6 * time.Hour
+
+type cachedLine struct {
+	text    string
+	expires time.Time
+}
+
+func lineKey(owner, moment string, state State, task *Task, now time.Time) string {
+	key := owner + "|" + moment + "|" + now.In(location(state)).Format(time.DateOnly)
+	if task != nil {
+		key += "|" + task.ID + "|" + task.Plan.Start.Format(time.RFC3339)
+	}
+	return key
+}
+
 func (p *Planner) Line(ctx context.Context, owner, moment string, state State, task *Task) (string, bool) {
 	fallback := fallbackLine(moment, task)
 	if p == nil || p.Client == nil {
 		return fallback, false
+	}
+	key := lineKey(owner, moment, state, task, time.Now())
+	if cached, ok := p.lines.Load(key); ok && time.Now().Before(cached.(cachedLine).expires) {
+		return cached.(cachedLine).text, true
 	}
 	ctx, cancel := context.WithTimeout(ctx, lineTimeout)
 	defer cancel()
@@ -379,6 +416,13 @@ func (p *Planner) Line(ctx context.Context, owner, moment string, state State, t
 	if !speakable(line, 60) {
 		return fallback, false
 	}
+	p.lines.Range(func(k, v any) bool {
+		if time.Now().After(v.(cachedLine).expires) {
+			p.lines.Delete(k)
+		}
+		return true
+	})
+	p.lines.Store(key, cachedLine{line, time.Now().Add(lineReuse)})
 	return line, true
 }
 

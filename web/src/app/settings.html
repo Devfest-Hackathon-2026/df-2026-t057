@@ -127,6 +127,11 @@
           現在：{{ current.bedtime }} 就寝・{{ current.wake }} 起床 ・ ショートなしの夜
           {{ current.keptNights }}日連続
         </p>
+        @if (current.calendarPending) {
+          <p class="muted" role="status">
+            カレンダーへの登録がまだです。時間をおいて「就寝の予定を保存」を押すと再試行します。
+          </p>
+        }
       }
       <div class="card-actions">
         <button

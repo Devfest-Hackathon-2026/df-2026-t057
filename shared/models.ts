@@ -65,6 +65,7 @@ export interface Sleep extends SleepTime {
   watchedNight?: string;
   settledNight?: string;
   keptNights: number;
+  calendarPending?: boolean;
 }
 export interface Morning {
   night: string;
@@ -237,25 +238,63 @@ export function plannedSeconds(task: Pick<Task, 'plan'>): number {
   return Math.max(60, (Date.parse(task.plan.end) - Date.parse(task.plan.start)) / 1000);
 }
 
-// The night window in local time: from one hour before bedtime until wake, as on the server.
-export function nightWindow(sleep: SleepTime, now = Date.now()) {
+// Wall-clock parts of an instant in a time zone; an unknown zone falls back to the browser's own.
+function zoned(timeZone: string, at: number) {
+  let format: Intl.DateTimeFormat;
+  try {
+    format = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+    });
+  } catch {
+    format = new Intl.DateTimeFormat('en-US', {
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+    });
+  }
+  const parts = Object.fromEntries(format.formatToParts(at).map((p) => [p.type, Number(p.value)]));
+  return {
+    y: parts['year'],
+    m: parts['month'],
+    d: parts['day'],
+    h: parts['hour'],
+    mi: parts['minute'],
+  };
+}
+// The instant at which the wall clock in timeZone reads the given time. Overflowing days roll over.
+function instant(timeZone: string, y: number, m: number, d: number, h: number, mi: number) {
+  const wall = Date.UTC(y, m - 1, d, h, mi);
+  let guess = wall;
+  for (let i = 0; i < 2; i++) {
+    const shown = zoned(timeZone, guess);
+    guess += wall - Date.UTC(shown.y, shown.m - 1, shown.d, shown.h, shown.mi);
+  }
+  return guess;
+}
+// The night window in the profile's time zone, as on the server: one hour before bedtime until wake.
+export function nightWindow(sleep: SleepTime, timeZone: string, now = Date.now()) {
   const [bh, bm] = sleep.bedtime.split(':').map(Number);
   const [wh, wm] = sleep.wake.split(':').map(Number);
+  const today = zoned(timeZone, now);
   for (const back of [0, -1]) {
-    const day = new Date(now);
-    day.setDate(day.getDate() + back);
-    const bed = new Date(
-      day.getFullYear(),
-      day.getMonth(),
-      day.getDate() + (bh < 12 ? 1 : 0),
-      bh,
-      bm,
-    );
-    const end = new Date(bed.getFullYear(), bed.getMonth(), bed.getDate(), wh, wm);
-    if (end <= bed) end.setDate(end.getDate() + 1);
-    const start = bed.getTime() - 3600000;
-    const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-    if (now >= start && now < end.getTime()) return { key, start, end: end.getTime() };
+    const day = new Date(Date.UTC(today.y, today.m - 1, today.d + back));
+    const [y, m, d] = [day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate()];
+    const bedDay = d + (bh < 12 ? 1 : 0);
+    const bed = instant(timeZone, y, m, bedDay, bh, bm);
+    let end = instant(timeZone, y, m, bedDay, wh, wm);
+    if (end <= bed) end = instant(timeZone, y, m, bedDay + 1, wh, wm);
+    const start = bed - 3600000;
+    const key = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    if (now >= start && now < end) return { key, start, end };
   }
   return undefined;
 }

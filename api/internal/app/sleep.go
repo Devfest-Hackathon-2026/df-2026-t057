@@ -21,6 +21,8 @@ type Sleep struct {
 	Watched string    `json:"watchedNight,omitempty"`
 	Settled string    `json:"settledNight,omitempty"`
 	Kept    int       `json:"keptNights"`
+	// CalendarPending means the bedtime is saved but the calendar event could not be written yet.
+	CalendarPending bool `json:"calendarPending,omitempty"`
 }
 
 // sleepWindDown is how long before bedtime the night starts.
@@ -111,15 +113,7 @@ func (st *State) settleMorning(now time.Time) *Morning {
 	if st.Sleep.Settled == key {
 		return nil
 	}
-	morning := &Morning{Night: key}
-	for i := range st.Ledger {
-		if st.Ledger[i].Deferred {
-			st.Ledger[i].Deferred = false
-			seconds := max(0, min(st.Ledger[i].Seconds, balanceCapSeconds-st.BalanceSeconds))
-			st.BalanceSeconds += seconds
-			morning.Released += seconds
-		}
-	}
+	morning := &Morning{Night: key, Released: st.releaseDeferred()}
 	if st.Sleep.Since.Before(start) && st.Sleep.Watched != key {
 		morning.Kept = true
 		morning.Bonus = st.grant("sleep", key, sleepBonus, now)
@@ -129,6 +123,20 @@ func (st *State) settleMorning(now time.Time) *Morning {
 	}
 	st.Sleep.Settled = key
 	return morning
+}
+
+// releaseDeferred adds the rewards held overnight to the balance, up to the cap, and returns how much was added.
+func (st *State) releaseDeferred() int {
+	released := 0
+	for i := range st.Ledger {
+		if st.Ledger[i].Deferred {
+			st.Ledger[i].Deferred = false
+			seconds := max(0, min(st.Ledger[i].Seconds, balanceCapSeconds-st.BalanceSeconds))
+			st.BalanceSeconds += seconds
+			released += seconds
+		}
+	}
+	return released
 }
 
 func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
@@ -151,6 +159,7 @@ func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
 		}
 		st, err := s.Store.Update(ctx, id, func(st *State) error {
 			st.Sleep = nil
+			st.releaseDeferred()
 			return nil
 		})
 		respond(w, st, err)
@@ -166,11 +175,21 @@ func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
 		if current.Sleep.Bedtime != in.Bedtime || current.Sleep.Wake != in.Wake {
 			next.Since = time.Now()
 		}
+	} else {
+		// A new bedtime starts tonight; the night already over is not a missed one.
+		preview := current
+		preview.Sleep = &next
+		next.Settled, _, _ = preview.lastNight(time.Now())
 	}
+	// The bedtime is saved even when the calendar is unavailable; saving again retries the event.
+	next.CalendarPending = false
 	if s.Calendar != nil && current.CalendarConnected {
-		if next.EventID, err = s.Calendar.UpsertSleep(ctx, id, next, location(current)); err != nil {
-			respond(w, nil, err)
-			return
+		eventID, err := s.Calendar.UpsertSleep(ctx, id, next, location(current))
+		if err != nil {
+			LogFailure("bedtime calendar event failed", err)
+			next.CalendarPending = true
+		} else {
+			next.EventID = eventID
 		}
 	}
 	st, err := s.Store.Update(ctx, id, func(st *State) error {
@@ -180,7 +199,37 @@ func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
 	respond(w, st, err)
 }
 
+// moveSleepEvent rewrites the bedtime event in the profile's new time zone. A calendar failure only marks it pending.
+func (s *Server) moveSleepEvent(ctx context.Context, id string, current State) (State, error) {
+	if current.Sleep == nil || s.Calendar == nil || !current.CalendarConnected {
+		return current, nil
+	}
+	eventID, err := s.Calendar.UpsertSleep(ctx, id, *current.Sleep, location(current))
+	if err != nil {
+		LogFailure("bedtime calendar event failed", err)
+	}
+	return s.Store.Update(ctx, id, func(st *State) error {
+		if st.Sleep != nil {
+			st.Sleep.CalendarPending = err != nil
+			if err == nil {
+				st.Sleep.EventID = eventID
+			}
+		}
+		return nil
+	})
+}
+
 func (s *Server) morning(w http.ResponseWriter, r *http.Request) {
+	current, err := s.Store.Read(r.Context(), uid(r))
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	// Most page loads have nothing to settle; skip the write for them.
+	if preview := clone(current); preview.settleMorning(time.Now()) == nil {
+		respond(w, map[string]any{"state": current, "morning": nil}, nil)
+		return
+	}
 	var morning *Morning
 	st, err := s.Store.Update(r.Context(), uid(r), func(st *State) error {
 		morning = st.settleMorning(time.Now())
@@ -207,7 +256,8 @@ func (c *Calendar) UpsertSleep(ctx context.Context, uid string, sleep Sleep, loc
 		Description: fmt.Sprintf("%sに寝て%sに起きる予定です。就寝1時間前からは、課題の報酬を翌朝に受け取ります。", sleep.Bedtime, sleep.Wake),
 		Start:       &calendar.EventDateTime{DateTime: start.Format(time.RFC3339), TimeZone: loc.String()},
 		End:         &calendar.EventDateTime{DateTime: end.Format(time.RFC3339), TimeZone: loc.String()},
-		Recurrence:  []string{"RRULE:FREQ=DAILY"}, Transparency: "transparent",
+		// Status restores an event the user deleted in Google Calendar when the bedtime is saved again.
+		Recurrence: []string{"RRULE:FREQ=DAILY"}, Transparency: "transparent", Status: "confirmed",
 		ExtendedProperties: &calendar.EventExtendedProperties{Private: map[string]string{"dopagakiSleep": "1"}},
 	}
 	if sleep.EventID != "" {

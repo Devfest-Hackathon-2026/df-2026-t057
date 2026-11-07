@@ -470,7 +470,14 @@ function initialize() {
           'OK・この予定に変更',
           () => {
             void action({ type: 'COMMIT', draft: current }, panel).then((reply) => {
-              if (reply) dismiss();
+              if (!reply) return;
+              dismiss();
+              if (!adjust)
+                void say(
+                  'snooze',
+                  '了解、少し後ろにずらそう。次の時間に、また声かけるね。',
+                  task.id,
+                ).then(showToast);
             });
           },
           'primary',
@@ -503,7 +510,7 @@ function initialize() {
           if (reply?.state) {
             const reward = workRewardMessage(
               Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
-              !!state?.sleep && !!nightWindow(state.sleep),
+              !!state?.sleep && !!nightWindow(state.sleep, state.timeZone),
             );
             void say('complete', '', task.id).then((line) =>
               showToast(line ? `${line}（${reward}）` : reward),
@@ -526,7 +533,7 @@ function initialize() {
               showToast(
                 workRewardMessage(
                   Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
-                  !!state?.sleep && !!nightWindow(state.sleep),
+                  !!state?.sleep && !!nightWindow(state.sleep, state.timeZone),
                 ),
               );
           });
