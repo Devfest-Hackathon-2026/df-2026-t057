@@ -95,7 +95,7 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request) {
 	updated := *task
 	setTaskInput(&updated, change.Input)
 	updated.Plan = Plan{}
-	updated.Plan, err = s.Planner.Detail(r.Context(), updated, current.Profile)
+	updated.Plan, err = s.Planner.Detail(r.Context(), uid(r), updated, current.Profile)
 	if err != nil {
 		respond(w, nil, err)
 		return

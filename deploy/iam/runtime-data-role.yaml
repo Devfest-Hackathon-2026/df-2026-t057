@@ -1,0 +1,10 @@
+title: DOPAGAKI application data
+description: Read and transact on existing application data without console or database administration.
+stage: GA
+includedPermissions:
+  - datastore.databases.get
+  - datastore.entities.create
+  - datastore.entities.delete
+  - datastore.entities.get
+  - datastore.entities.list
+  - datastore.entities.update

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -23,6 +23,14 @@ func env(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+func envLimit(key string, fallback int) int {
+	value, err := strconv.Atoi(env(key, strconv.Itoa(fallback)))
+	if err != nil || value < 1 {
+		slog.Error("invalid AI limit configuration", "variable", key)
+		os.Exit(1)
+	}
+	return value
 }
 func main() {
 	ctx := context.Background()
@@ -46,6 +54,14 @@ func main() {
 		}
 		defer db.Close()
 		store := &app.FirestoreStore{DB: db}
+		limits := app.DefaultAILimits()
+		server.Planner.Limits = app.AILimits{
+			UserPerMinute:   envLimit("AI_USER_PER_MINUTE", limits.UserPerMinute),
+			UserPerDay:      envLimit("AI_USER_PER_DAY", limits.UserPerDay),
+			GlobalPerMinute: envLimit("AI_GLOBAL_PER_MINUTE", limits.GlobalPerMinute),
+			GlobalPerDay:    envLimit("AI_GLOBAL_PER_DAY", limits.GlobalPerDay),
+		}
+		server.Planner.Usage = &app.FirestoreAIUsageStore{DB: db}
 		server.Store = store
 		server.Assistant = &app.FirestoreAssistantStore{DB: db}
 		firebaseApp, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: project})
@@ -69,26 +85,19 @@ func main() {
 			server.Calendar = app.NewCalendar(db, secrets, project, appURL, store, server.Planner)
 		}
 	}
-	mux := http.NewServeMux()
-	mux.Handle("/api/", server.Handler())
 	static := env("STATIC_DIR", "../dist/web/browser")
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if _, err := os.Stat(filepath.Join(static, filepath.Clean(r.URL.Path))); err != nil {
-			http.ServeFile(w, r, filepath.Join(static, "index.html"))
-			return
+	var handler http.Handler = server.Handler()
+	if mode != "demo" || os.Getenv("DEV_API_ONLY") != "true" {
+		var err error
+		handler, err = app.WebHandler(handler, static, server.Firebase["authDomain"])
+		if err != nil {
+			fatal(err)
 		}
-		http.FileServer(http.Dir(static)).ServeHTTP(w, r)
-	})
+	}
 	address := ":" + env("PORT", "8080")
 	if mode == "demo" && os.Getenv("DEMO_PUBLIC") != "true" {
 		address = "127.0.0.1" + address
 	}
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		mux.ServeHTTP(w, r)
-	})
 	httpServer := &http.Server{Addr: address, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 60 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 60 * time.Second}
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -103,4 +112,4 @@ func main() {
 		fatal(err)
 	}
 }
-func fatal(err error) { slog.Error("startup failed", "error", err); os.Exit(1) }
+func fatal(err error) { app.LogFailure("startup failed", err); os.Exit(1) }

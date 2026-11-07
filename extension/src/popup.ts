@@ -1,5 +1,5 @@
-import { displayTime, elapsedSeconds, State } from '../../shared/models';
-import { MANAGEMENT_ORIGIN, send } from './protocol';
+import { displayTime, elapsedSeconds } from '../../shared/models';
+import { ExtensionState, MANAGEMENT_ORIGIN, send } from './protocol';
 
 const status = document.querySelector<HTMLElement>('#status')!;
 const balance = document.querySelector<HTMLElement>('#balance')!;
@@ -33,7 +33,7 @@ document.querySelector<HTMLButtonElement>('#permission')!.onclick = async () => 
       error instanceof Error ? error.message : 'タイマーを表示できませんでした。';
   }
 };
-function render(state: State) {
+function render(state: ExtensionState) {
   balance.textContent = `${Math.floor(state.balanceSeconds / 60)} min`;
   if (state.session) {
     const task = state.tasks.find((t) => t.id === state.session!.taskId);

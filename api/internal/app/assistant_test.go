@@ -28,7 +28,7 @@ func assistantClient(t *testing.T, reply func(string) any) (*Server, testClient)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &Server{Mode: "demo", Store: NewMemoryStore(), Assistant: NewMemoryAssistantStore(), Planner: &Planner{Client: model, Model: "fixture"}}
+	s := &Server{Mode: "demo", Store: NewMemoryStore(), Assistant: NewMemoryAssistantStore(), Planner: &Planner{Client: model, Model: "fixture", Usage: NewMemoryAIUsageStore(), Limits: DefaultAILimits()}}
 	c := testClient{handler: s.Handler(), cookie: &http.Cookie{Name: "dopagaki_demo", Value: "abcdef0123456789abcdef0123456789"}, t: t}
 	return s, c
 }

@@ -142,6 +142,6 @@ export function displayTime(seconds: number): string {
     .toString()
     .padStart(2, '0')}:${(value % 60).toString().padStart(2, '0')}`;
 }
-export function plannedSeconds(task: Task): number {
+export function plannedSeconds(task: Pick<Task, 'plan'>): number {
   return Math.max(60, (Date.parse(task.plan.end) - Date.parse(task.plan.start)) / 1000);
 }
