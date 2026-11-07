@@ -64,7 +64,7 @@ test('snooze commit, settings and responsive layout', async ({ page }) => {
   await expect(page.locator('.credit-number')).toContainText('25');
   await page.getByRole('button', { name: '設定を開く', exact: true }).click();
   await page.getByLabel('分', { exact: true }).fill('15');
-  await page.getByRole('button', { name: '設定を保存', exact: true }).click();
+  await page.getByRole('button', { name: '変更を保存', exact: true }).click();
   await expect(page.getByText('設定を保存しました')).toBeVisible();
   await page.getByRole('link', { name: 'カレンダー', exact: true }).click();
   await page.getByRole('button', { name: '通知を試す' }).click();
