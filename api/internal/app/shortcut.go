@@ -73,6 +73,34 @@ func parseShortcutKey(key string) (id, hash string, ok bool) {
 	return string(raw), hex.EncodeToString(sum[:]), true
 }
 
+func (st *State) recordAppOpen(now time.Time) {
+	kept := []time.Time{}
+	for _, at := range st.AppOpens {
+		if now.Sub(at) < 14*24*time.Hour {
+			kept = append(kept, at)
+		}
+	}
+	st.AppOpens = append(kept, now)
+	if len(st.AppOpens) > 500 {
+		st.AppOpens = st.AppOpens[len(st.AppOpens)-500:]
+	}
+}
+
+// appOpenCounts counts YouTube app opens reported by the shortcut today and over the last 7 days.
+func appOpenCounts(state State, now time.Time) (today, week int) {
+	loc := location(state)
+	day := now.In(loc).Format(time.DateOnly)
+	for _, at := range state.AppOpens {
+		if now.Sub(at) < 7*24*time.Hour {
+			week++
+		}
+		if at.In(loc).Format(time.DateOnly) == day {
+			today++
+		}
+	}
+	return today, week
+}
+
 func (s *Server) issueShortcut(w http.ResponseWriter, r *http.Request) {
 	key, hash := shortcutKey(uid(r))
 	_, err := s.Store.Update(r.Context(), uid(r), func(st *State) error {
@@ -91,7 +119,7 @@ func (s *Server) revokeShortcut(w http.ResponseWriter, r *http.Request) {
 }
 
 // shortcutOpen answers the Shortcuts automation that runs when the YouTube app opens:
-// the companion's remark about the next task, for a notification. It reads only; nothing is saved.
+// the companion's remark about the next task, for a notification. Only the time of the open is saved.
 func (s *Server) shortcutOpen(w http.ResponseWriter, r *http.Request) {
 	key, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Shortcut ")
 	id, hash, valid := parseShortcutKey(key)
@@ -108,6 +136,13 @@ func (s *Server) shortcutOpen(w http.ResponseWriter, r *http.Request) {
 	if err != nil || !found || state.Shortcut == nil || subtle.ConstantTimeCompare([]byte(state.Shortcut.Hash), []byte(hash)) != 1 {
 		writeError(w, 401, errors.New("ショートカットの接続キーが無効です。管理画面で発行し直してください"))
 		return
+	}
+	// Each open is kept for two weeks so the user and the companion can look back on it.
+	if _, err := s.Store.Update(r.Context(), id, func(st *State) error {
+		st.recordAppOpen(now)
+		return nil
+	}); err != nil {
+		LogFailure("shortcut open record failed", err)
 	}
 	var next *Task
 	if pending := state.pending(); len(pending) > 0 {

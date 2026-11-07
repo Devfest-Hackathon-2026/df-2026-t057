@@ -75,6 +75,7 @@ type LedgerEntry struct {
 type State struct {
 	Sleep                 *Sleep           `json:"sleep,omitempty"`
 	Shortcut              *Shortcut        `json:"shortcut,omitempty"`
+	AppOpens              []time.Time      `json:"appOpens,omitempty"`
 	TimePolicy            *TimePolicy      `json:"timePolicy,omitempty"`
 	ViewingSession        *ViewingSession  `json:"viewingSession,omitempty"`
 	ViewingHistory        []ViewingSession `json:"viewingHistory,omitempty"`

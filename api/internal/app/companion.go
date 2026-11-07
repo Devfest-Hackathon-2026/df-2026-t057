@@ -109,7 +109,12 @@ func companionProgress(state State, now time.Time) map[string]any {
 	for i := 0; i < len(recent) && i < 3; i++ {
 		titles = append(titles, recent[i].Title)
 	}
-	return map[string]any{"streakDays": streakDays(state, now), "support": supportLevel(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "timePolicy": state.TimePolicy, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
+	progress := map[string]any{"streakDays": streakDays(state, now), "support": supportLevel(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "timePolicy": state.TimePolicy, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
+	if state.Shortcut != nil {
+		opensToday, opensWeek := appOpenCounts(state, now)
+		progress["youtubeAppOpens"] = map[string]int{"today": opensToday, "last7Days": opensWeek}
+	}
+	return progress
 }
 
 // supportLevel fades the companion as the user keeps going on their own: full, light, then hands-off.

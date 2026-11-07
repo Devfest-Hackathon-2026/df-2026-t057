@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // open calls the Shortcuts endpoint the way the iPhone automation does: no cookie, only the key.
@@ -44,8 +45,12 @@ func TestShortcutKeyOpensWithTheNextTaskAndStoresOnlyAHash(t *testing.T) {
 	if code != 200 || !strings.Contains(out["message"], in.Why) || !strings.HasSuffix(out["url"], "?notification=one") {
 		t.Fatalf("open: %d %v", code, out)
 	}
-	if after := c.state("GET", "/api/state", nil); after.Revision != state.Revision {
-		t.Fatal("opening from the shortcut wrote the state")
+	after := c.state("GET", "/api/state", nil)
+	if len(after.AppOpens) != 1 || after.Shortcut.Hash != state.Shortcut.Hash || len(after.Tasks) != len(state.Tasks) {
+		t.Fatal("an open was not recorded, or it changed anything else")
+	}
+	if today, week := appOpenCounts(after, time.Now()); today != 1 || week != 1 {
+		t.Fatalf("open counts: %d %d", today, week)
 	}
 }
 
@@ -56,7 +61,11 @@ func TestShortcutKeyRejectsWrongRevokedAndUnknownKeys(t *testing.T) {
 	if code, _ := open(c, old); code != 401 {
 		t.Fatal("a replaced key still works")
 	}
-	if code, _ := open(c, key[:len(key)-1]+"0"); code != 401 {
+	wrong := key[:len(key)-1] + "0"
+	if strings.HasSuffix(key, "0") {
+		wrong = key[:len(key)-1] + "1"
+	}
+	if code, _ := open(c, wrong); code != 401 {
 		t.Fatal("a wrong secret was accepted")
 	}
 	stranger := base64.RawURLEncoding.EncodeToString([]byte("demo-0123456789abcdef0123456789abcdef")) + "." + strings.Repeat("a", 64)
