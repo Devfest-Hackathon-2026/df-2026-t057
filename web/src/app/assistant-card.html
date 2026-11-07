@@ -206,7 +206,7 @@
                   (api.config()?.mode !== 'demo' && !api.state()?.calendarConnected)
                 "
               >
-                カレンダーに登録 ＋10分
+                {{ night() ? 'カレンダーに登録（＋10分は朝に）' : 'カレンダーに登録 ＋10分' }}
               </button>
             }
           </div>

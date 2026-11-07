@@ -411,7 +411,7 @@ function initialize() {
       void action({ type: 'PAUSE' }, timer!);
     });
     const complete = button(
-      '完了 ＋20分',
+      state.sleep && nightWindow(state.sleep) ? '完了（＋20分は朝に）' : '完了 ＋20分',
       () => {
         void action({ type: 'COMPLETE', taskId: task.id }, timer!).then((reply) => {
           if (reply)
