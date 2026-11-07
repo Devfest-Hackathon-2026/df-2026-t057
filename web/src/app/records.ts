@@ -1,16 +1,35 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { Api } from './api';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { durationLabel } from '../../../shared/models';
+import { buildActivity } from '../../../shared/activity';
+import { Api } from './api';
 
-@Component({ selector: 'app-records', imports: [DatePipe], templateUrl: './records.html' })
+@Component({
+  selector: 'app-records',
+  imports: [DatePipe, MatTooltipModule],
+  templateUrl: './records.html',
+  styleUrl: './records.scss',
+})
 export class Records {
-  durationLabel = durationLabel;
   readonly api = inject(Api);
-  readonly completed = computed(() =>
-    this.api.state()!.tasks.filter((t) => t.status === 'completed'),
+  durationLabel = durationLabel;
+  readonly activity = computed(() => {
+    const state = this.api.state()!;
+    return buildActivity(state.tasks, state.ledger);
+  });
+  readonly selectedKey = signal(new Date().toDateString());
+  readonly selectedDay = computed(
+    () =>
+      this.activity().days.find((day) => day.key === this.selectedKey()) ??
+      this.activity().days[83],
   );
-  readonly cells = Array.from({ length: 84 }, (_, i) => i);
+  readonly weeks = computed(() => Math.ceil((this.activity().days[0].date.getDay() + 84) / 7));
+  readonly cells = computed(() => {
+    const days = this.activity().days;
+    const offset = days[0].date.getDay();
+    return Array.from({ length: this.weeks() * 7 }, (_, index) => days[index - offset] ?? null);
+  });
   readonly viewing = computed(() =>
     [
       ...(this.api.state()!.viewingHistory ?? []),
@@ -54,20 +73,25 @@ export class Records {
           completion: '課題を完了',
           daily: '毎日の補充',
           work: '作業を記録',
+          sleep: '睡眠の報酬',
+          viewing: '視聴',
         } as Record<string, string>
       )[kind] ?? kind
     );
   }
-  activity(index: number) {
-    const date = new Date();
-    date.setDate(date.getDate() - (83 - index));
-    return this.completed().filter(
-      (t) => t.completedAt && new Date(t.completedAt).toDateString() === date.toDateString(),
-    ).length;
-  }
-  dayLabel(index: number) {
-    const date = new Date();
-    date.setDate(date.getDate() - (83 - index));
-    return `${date.toLocaleDateString('ja-JP')}: ${this.activity(index)}件完了`;
+  readonly history = computed(() => {
+    const state = this.api.state()!;
+    const titles = new Map(state.tasks.map((task) => [task.id, task.title]));
+    return state.ledger
+      .slice()
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+      .map((entry) => ({
+        ...entry,
+        title: titles.get(entry.taskId ?? '') ?? this.entryLabel(entry.kind),
+        action: this.entryLabel(entry.kind),
+      }));
+  });
+  dayLabel(day: ReturnType<typeof buildActivity>['days'][number]) {
+    return `${day.date.toLocaleDateString('ja-JP')}: ${day.completed}件完了、視聴時間 ＋${durationLabel(day.earnedSeconds)}`;
   }
 }

@@ -529,9 +529,6 @@ main {
 .activity-footer i.filled {
   background: #a4cd5e;
 }
-.grass-grid.large {
-  grid-template-rows: repeat(7, 17px);
-}
 .activity-footer {
   display: flex;
   justify-content: space-between;
@@ -708,92 +705,6 @@ main {
 }
 .timeline-card > button {
   margin-top: 15px;
-}
-.settings-card {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 28px;
-  margin-bottom: 24px;
-}
-.settings-card > p {
-  font-size: 12px;
-}
-.mode-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
-  margin: 25px 0;
-}
-.mode-card {
-  text-align: left;
-  align-content: center;
-  padding: 22px 18px;
-  border: 2px solid transparent;
-  border-radius: 10px;
-  display: grid;
-  gap: 10px;
-  min-height: 108px;
-  background: #f3f4ee;
-}
-.mode-card.pachinko {
-  background:
-    linear-gradient(#442b17bb, #2b1c10dd),
-    url('/gold-light.png') center/cover;
-  color: #fff2ba;
-}
-.mode-card.mahjong {
-  background: #175d44;
-  color: #e7f8e9;
-}
-.mode-card.chosen {
-  border-color: var(--blue);
-  outline: 2px solid #fff;
-  outline-offset: -5px;
-}
-
-.setting-row {
-  border-top: 1px solid var(--line);
-  padding: 23px 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 25px;
-}
-.setting-row p {
-  font-size: 11px;
-  margin: 5px 0 0;
-  color: var(--muted);
-}
-.minutes-field {
-  max-width: 100px;
-}
-.settings-card > mat-form-field {
-  display: block;
-}
-.ledger-row {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 22px;
-  border-bottom: 1px solid var(--line);
-}
-.ledger-row > div {
-  flex: 1;
-}
-.ledger-row strong {
-  font-size: 12px;
-}
-.ledger-row p {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: 10px;
-}
-.ledger-credit {
-  color: #54782d;
-}
-.ledger-row > .material-symbols-rounded {
-  color: #93a77c;
 }
 .error-banner {
   display: flex;
@@ -1145,12 +1056,6 @@ mat-dialog-content {
   h1 {
     font-size: 31px;
   }
-  .mode-grid {
-    gap: 8px;
-  }
-  .mode-card {
-    padding: 18px 12px;
-  }
   .focus-bar {
     flex-wrap: wrap;
   }
@@ -1222,15 +1127,6 @@ mat-dialog-content {
   .calendar-status > div {
     min-width: 130px;
   }
-  .mode-grid {
-    grid-template-columns: 1fr;
-  }
-  .mode-card {
-    min-height: 110px;
-  }
-  .settings-card {
-    padding: 23px 18px;
-  }
   .form-row {
     flex-direction: column;
     gap: 0;
@@ -1272,11 +1168,6 @@ mat-dialog-content {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-}
-.settings-card .card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 /* Shared calendar shell; detailed page styles live with their components. */

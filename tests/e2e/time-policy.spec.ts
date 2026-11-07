@@ -4,6 +4,7 @@ test('viewing policy changes preserve balance, failures and the selected support
   page,
 }) => {
   await page.goto('/settings');
+  await page.locator('mat-expansion-panel-header').filter({ hasText: '視聴ルール' }).click();
   await expect(page.getByRole('button', { name: '新しい方式を使う', exact: true })).toHaveCount(0);
   const before = await (await page.request.get('/api/state')).json();
   expect(before.balanceSeconds).toBe(600);
@@ -32,6 +33,7 @@ test('viewing policy changes preserve balance, failures and the selected support
   expect(after.timePolicy.dailyLimitSeconds).toBe(1200);
   expect(after.timePolicy.mode).toBe('fixed');
   await page.reload();
+  await page.locator('mat-expansion-panel-header').filter({ hasText: '視聴ルール' }).click();
   await expect(page.getByRole('combobox', { name: '支援の段階' })).toContainText(
     '自分で決めた固定枠',
   );

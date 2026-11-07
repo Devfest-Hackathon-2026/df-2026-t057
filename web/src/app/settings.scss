@@ -1,0 +1,225 @@
+@use '@angular/material' as mat;
+
+:host {
+  display: block;
+}
+.settings-list {
+  max-width: 1000px;
+}
+.settings-group-title {
+  margin: 28px 0 8px;
+  color: #626a5c;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.settings-expansion {
+  border-bottom: 1px solid var(--line);
+  margin: 0;
+  @include mat.expansion-overrides(
+    (
+      container-background-color: transparent,
+      container-elevation-shadow: none,
+      container-shape: 0,
+      header-collapsed-state-height: 76px,
+      header-expanded-state-height: 76px,
+    )
+  );
+  mat-expansion-panel-header {
+    padding: 0 4px 0 0;
+    gap: 12px;
+  }
+  mat-panel-title {
+    gap: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-right: 0;
+  }
+  mat-panel-description {
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    color: #626a5c;
+    font-size: 12px;
+    max-width: 40%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  mat-form-field {
+    display: block;
+    margin-top: 16px;
+  }
+  p {
+    font-size: 12px;
+  }
+  .connected {
+    color: #48652c;
+  }
+}
+.setting-icon {
+  color: #6e7866;
+  font-size: 22px;
+  flex-shrink: 0;
+  width: 34px;
+  text-align: center;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 80px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.setting-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  strong {
+    font-size: 13px;
+  }
+  p {
+    margin: 5px 0 0;
+    color: #626a5c;
+    font-size: 11px;
+  }
+}
+.minutes-field {
+  width: 100px;
+  flex-shrink: 0;
+}
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 10px 0 20px;
+}
+.mode-card {
+  height: auto;
+  min-height: 130px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-align: left;
+  white-space: normal;
+  color: var(--ink);
+  background: #f3f4ee;
+  &.pachinko {
+    background: #f7edcf;
+    color: #5d4117;
+  }
+  &.mahjong {
+    background: #e3eee5;
+    color: #2d5b40;
+  }
+  &.chosen {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+}
+.mode-content {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  strong {
+    font-size: 13px;
+  }
+  small {
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+}
+.mode-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.mode-check {
+  font-size: 17px;
+}
+.settings-hint {
+  margin: 10px 0;
+  font-size: 12px;
+  color: #626a5c;
+}
+.account-email {
+  overflow-wrap: anywhere;
+}
+.account-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 18px;
+  a {
+    font-size: 12px;
+    color: var(--blue);
+  }
+}
+.settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 20px;
+}
+@media (max-width: 550px) {
+  .setting-row {
+    gap: 10px;
+  }
+  .setting-label {
+    gap: 8px;
+  }
+  .setting-icon {
+    width: 24px;
+    font-size: 20px;
+  }
+  .settings-expansion mat-panel-title {
+    gap: 8px;
+    font-size: 12px;
+  }
+  .settings-expansion mat-panel-description {
+    font-size: 11px;
+  }
+  .minutes-field {
+    width: 80px;
+  }
+  .mode-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .mode-card {
+    min-height: 96px;
+  }
+  .mode-top {
+    margin-bottom: 0;
+  }
+}
+
+.eyebrow {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.title-dot {
+  color: var(--blue);
+}
+.page-title h1 {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

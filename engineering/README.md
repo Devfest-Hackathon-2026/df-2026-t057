@@ -19,6 +19,7 @@
 | [カレンダー中心の管理画面](calendar-workspace.md) | 採用した③の実装、日・週表示と相談パネル、URL、選択対象の分離、実画面 |
 | [課題の登録と内容調整](task-registration-and-editing.md) | 登録・編集のAI／手入力、変更前後の確認、報酬・権限・Google同期の検証 |
 | [管理画面のAI相談](assistant.md) | 編集できる予定カード、会話の保存、確認して覚える作業傾向、Google Chatの廃止 |
+| [設定と記録の画面](settings-and-records.md) | コンパクトな設定一覧、直近12週間の積み上げ、保存失敗の再試行と日付・報酬の集計 |
 | [Chrome風プロフィールメニュー](chrome-account-menu.md) | 採用デザイン、実装、認証中とキャンセル、表示確認と本番配信 |
 | [一般ユーザー対応](public-accounts.md) | 本人のGoogleアカウント照合、旧個別DM、アカウント切替、運営者と利用者の区別、配布上の制約 |
 | [発表用の1枚図](complete-flow.md) | 3つの入口から課題完了までを統合、16:9の4K PNGとSVG |
