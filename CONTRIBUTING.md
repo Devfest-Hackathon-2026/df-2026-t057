@@ -1,6 +1,6 @@
 # 開発の進め方
 
-DOPAGAKIの開発に参加するときの手順と決まりごとです。アプリの概要と動作は [README](README.md)、設計判断や検証の記録は [engineering/](engineering/README.md) を参照してください。`docs/` は別案の資料で、このアプリの仕様ではありません。
+DOPAGAKIの開発に参加するときの手順と決まりごとです。アプリの概要と動作は [README](README.md)、設計判断や検証の記録は [engineering/](engineering/README.md) を参照してください。
 
 ## 準備
 
