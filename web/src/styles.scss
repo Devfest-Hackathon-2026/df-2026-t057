@@ -161,11 +161,12 @@ nav {
   display: grid;
   gap: 8px;
 }
-nav button {
+.sidebar nav a {
   display: flex;
   align-items: center;
   width: 100%;
   text-align: left;
+  text-decoration: none;
   gap: 13px;
   padding: 16px 13px;
   border: 0;
@@ -174,14 +175,14 @@ nav button {
   font-size: 13px;
   border-radius: 9px;
 }
-nav button.selected {
+.sidebar nav a.selected {
   background: #30382a;
   color: var(--lime);
 }
 nav .nav-dot {
   margin-left: auto;
 }
-nav button.selected .nav-dot {
+.sidebar nav a.selected .nav-dot {
   height: 5px;
   width: 5px;
   border-radius: 50%;
@@ -270,9 +271,9 @@ nav button.selected .nav-dot {
   color: #6e795e;
 }
 main {
-  max-width: 1370px;
+  max-width: 1700px;
   margin: 0 auto;
-  padding: 44px 48px 0;
+  padding: 28px 28px 0;
 }
 .page-title {
   display: flex;
@@ -1098,9 +1099,6 @@ mat-dialog-content {
   }
 }
 @media (min-width: 1500px) {
-  main {
-    padding-top: 55px;
-  }
   .dashboard-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -1164,13 +1162,13 @@ mat-dialog-content {
   nav {
     margin-top: 35px;
   }
-  nav button {
+  .sidebar nav a {
     overflow: hidden;
     font-size: 0;
     padding: 16px;
     gap: 0;
   }
-  nav button .material-symbols-rounded {
+  .sidebar nav a .material-symbols-rounded {
     font-size: 23px;
   }
   .main-shell {
@@ -1324,5 +1322,34 @@ mat-dialog-content {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Shared calendar shell; detailed page styles live with their components. */
+.task-filter {
+  margin-bottom: 24px;
+}
+.calendar-surface {
+  --fc-classic-primary: #2858eb;
+  --fc-classic-today: #edf3ff;
+  --fc-classic-border: #e3e6df;
+  --fc-classic-background: #fff;
+}
+.calendar-surface .workspace-event.completed {
+  opacity: 0.55;
+}
+.calendar-surface .workspace-event.active {
+  --fc-classic-event: #4b743c;
+}
+.calendar-surface .workspace-event.selected {
+  outline: 2px solid #182c76;
+  outline-offset: 1px;
+}
+@media (max-width: 550px) {
+  main {
+    padding: 20px 12px 0;
+  }
+  .task-row .task-actions {
+    flex-wrap: wrap;
   }
 }

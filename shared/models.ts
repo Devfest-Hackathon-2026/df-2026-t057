@@ -87,10 +87,15 @@ export interface Config {
   projectId: string;
   firebase?: Record<string, string>;
 }
+export interface TaskEdit {
+  input: TaskInput;
+  draft: Draft;
+}
 export interface TaskInput {
   id: string;
   title: string;
   notes: string;
+  why?: string;
   deadline: string;
   minutes: number;
   url: string;
@@ -98,7 +103,8 @@ export interface TaskInput {
 }
 export interface AssistantCard {
   id: string;
-  kind: 'create' | 'task' | 'memory';
+  kind: 'create' | 'task' | 'update' | 'memory';
+  change?: TaskEdit;
   input?: TaskInput;
   taskId?: string;
   preview?: Plan;
@@ -106,6 +112,7 @@ export interface AssistantCard {
   memory?: string;
 }
 export interface AssistantTurn {
+  taskId?: string;
   id: string;
   text: string;
   reply: string;

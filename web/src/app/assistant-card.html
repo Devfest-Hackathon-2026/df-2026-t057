@@ -3,7 +3,9 @@
     <mat-progress-bar mode="indeterminate" aria-label="カードを処理中" />
   }
   <mat-card-content>
-    @if (card().kind === 'memory') {
+    @if (card().kind === 'update' && card().change) {
+      <app-task-change [change]="card().change!" />
+    } @else if (card().kind === 'memory') {
       <div class="card-heading">
         <span class="material-symbols-rounded" aria-hidden="true">psychology</span>
         <span>覚えておくこと</span>
@@ -40,13 +42,23 @@
             card().kind === 'create' && !registered()
               ? '登録前'
               : task()
-                ? '現在の予定'
+                ? task()?.status === 'completed'
+                  ? '完了'
+                  : task()?.status === 'active'
+                    ? '作業中'
+                    : '現在の予定'
                 : '削除済み'
           }}
         </span>
       </div>
       @if (task(); as task) {
         <h3>{{ task.title }}</h3>
+        @if (task.why) {
+          <p class="card-note">なぜ：{{ task.why }}</p>
+        }
+        @if (task.notes) {
+          <p class="memory-text">{{ task.notes }}</p>
+        }
         <p class="event-time">
           {{ task.plan.start | date: 'M/d HH:mm' }} — {{ task.plan.end | date: 'HH:mm' }}
         </p>
@@ -74,7 +86,7 @@
         }
         @if (api.state()?.calendarSync === 'pending') {
           <p class="card-note">
-            Googleカレンダーへの同期待ちです。設定・スケジュールから再同期できます。
+            Googleカレンダーへの同期待ちです。カレンダーの「Googleと同期」から再試行できます。
           </p>
         }
         <button
