@@ -199,6 +199,26 @@ func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
 	respond(w, st, err)
 }
 
+// moveSleepEvent rewrites the bedtime event in the profile's new time zone. A calendar failure only marks it pending.
+func (s *Server) moveSleepEvent(ctx context.Context, id string, current State) (State, error) {
+	if current.Sleep == nil || s.Calendar == nil || !current.CalendarConnected {
+		return current, nil
+	}
+	eventID, err := s.Calendar.UpsertSleep(ctx, id, *current.Sleep, location(current))
+	if err != nil {
+		LogFailure("bedtime calendar event failed", err)
+	}
+	return s.Store.Update(ctx, id, func(st *State) error {
+		if st.Sleep != nil {
+			st.Sleep.CalendarPending = err != nil
+			if err == nil {
+				st.Sleep.EventID = eventID
+			}
+		}
+		return nil
+	})
+}
+
 func (s *Server) morning(w http.ResponseWriter, r *http.Request) {
 	current, err := s.Store.Read(r.Context(), uid(r))
 	if err != nil {
@@ -236,7 +256,8 @@ func (c *Calendar) UpsertSleep(ctx context.Context, uid string, sleep Sleep, loc
 		Description: fmt.Sprintf("%sに寝て%sに起きる予定です。就寝1時間前からは、課題の報酬を翌朝に受け取ります。", sleep.Bedtime, sleep.Wake),
 		Start:       &calendar.EventDateTime{DateTime: start.Format(time.RFC3339), TimeZone: loc.String()},
 		End:         &calendar.EventDateTime{DateTime: end.Format(time.RFC3339), TimeZone: loc.String()},
-		Recurrence:  []string{"RRULE:FREQ=DAILY"}, Transparency: "transparent",
+		// Status restores an event the user deleted in Google Calendar when the bedtime is saved again.
+		Recurrence: []string{"RRULE:FREQ=DAILY"}, Transparency: "transparent", Status: "confirmed",
 		ExtendedProperties: &calendar.EventExtendedProperties{Private: map[string]string{"dopagakiSleep": "1"}},
 	}
 	if sleep.EventID != "" {

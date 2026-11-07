@@ -288,14 +288,19 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, errors.New("タイムゾーンを確認してください"))
 		return
 	}
+	zoneChanged := false
 	st, err := s.Store.Update(r.Context(), uid(r), func(st *State) error {
 		if st.Profile.Context != in.Context {
 			now := time.Now()
 			st.AssistantContextSince = &now
 		}
+		zoneChanged = st.Profile.TimeZone != in.TimeZone
 		st.Profile = in
 		return nil
 	})
+	if err == nil && zoneChanged {
+		st, err = s.moveSleepEvent(r.Context(), uid(r), st)
+	}
 	respond(w, st, err)
 }
 func (s *Server) start(w http.ResponseWriter, r *http.Request) {
