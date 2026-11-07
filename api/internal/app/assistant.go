@@ -121,6 +121,8 @@ type consultationCard struct {
 	Memory     string     `json:"memory,omitempty"`
 	Sleep      *SleepTime `json:"sleep,omitempty"`
 	ProposalID string     `json:"proposalId,omitempty"`
+	// Omitted lists optional fields the model left out of an update; they keep the task's current values.
+	Omitted []string `json:"-"`
 }
 
 func previewTask(state State, input TaskInput) Plan {
@@ -242,6 +244,16 @@ selectedTaskがあるとき「この予定」「この課題」はその課題�
 				return "", nil, errors.New("変更する課題の内容がありません")
 			}
 			candidate.Input.ID = task.ID
+			for _, field := range candidate.Omitted {
+				switch field {
+				case "notes":
+					candidate.Input.Notes = task.Notes
+				case "why":
+					candidate.Input.Why = task.Why
+				case "url":
+					candidate.Input.URL = task.URL
+				}
+			}
 			change, err := previewTaskEdit(state, *candidate.Input)
 			if err != nil {
 				return "", nil, err

@@ -126,3 +126,24 @@ func TestSupportFadesWithStreak(t *testing.T) {
 		}
 	}
 }
+
+func TestCompanionUpdateKeepsFieldsTheModelLeftOut(t *testing.T) {
+	_, c := assistantClient(t, func(raw string) any {
+		if !strings.Contains(raw, "入力JSON") {
+			return map[string]any{"steps": []map[string]any{{"title": "資料を開く", "minutes": 30}}}
+		}
+		return map[string]any{"reply": "45分にしてみたよ。", "cards": []any{map[string]any{"kind": "update", "taskId": "one", "input": map[string]any{
+			"title": "レポート", "deadline": time.Now().Add(6 * time.Hour).Format(time.RFC3339), "minutes": 45,
+		}}}}
+	})
+	existing := input()
+	existing.Notes, existing.Why, existing.URL = "参考文献は3冊", "単位を落とさない", "https://example.com/report"
+	c.state("POST", "/api/tasks", existing)
+	turn := consultation(t, c, "keep", "レポート45分にして")
+	if turn.Status != "ready" || len(turn.Cards) != 1 || turn.Cards[0].Change == nil {
+		t.Fatalf("update card: %+v", turn)
+	}
+	if got := turn.Cards[0].Change.Input; got.Notes != existing.Notes || got.Why != existing.Why || got.URL != existing.URL || got.Minutes != 45 {
+		t.Fatalf("omitted fields were cleared: %+v", got)
+	}
+}

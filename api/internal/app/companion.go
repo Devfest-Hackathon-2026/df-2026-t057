@@ -266,6 +266,11 @@ func proposalCard(call *genai.FunctionCall) (consultationCard, error) {
 			return card, errors.New("課題の変更候補を読み取れませんでした")
 		}
 		card.Input, card.TaskID = &args.TaskInput, args.TaskID
+		for _, field := range []string{"notes", "why", "url"} {
+			if _, ok := call.Args[field]; !ok {
+				card.Omitted = append(card.Omitted, field)
+			}
+		}
 	case toolSleep:
 		_ = json.Unmarshal(raw, &card.Sleep)
 	default:
