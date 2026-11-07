@@ -344,6 +344,7 @@ var companionMoments = map[string]string{
 	"snooze":       "本人がスヌーズを選んだ。責めずに受け止め、次に始める時刻へ気持ちをつなぐ",
 	"complete":     "本人が課題を完了した。具体的に認めて、続いた日数があれば触れる",
 	"balance_zero": "今日の視聴時間を使い切った。罰ではなく区切りとして伝え、次の一手で時間が増えることに触れる",
+	"app_open":     "スマホでYouTubeアプリを開いた瞬間。止めたり責めたりせず、次の課題のWhyか最初の一手に触れて、見る前に一呼吸おけるよう声をかける。課題がなければ、今日やりたいことを一つ思い浮かべてもらう",
 	"night":        "就寝1時間前を過ぎてもショートを見ている。責めずに、スマホを置く・歯をみがくなど寝る準備の小さな一歩を促す。今夜の報酬は朝に受け取れる",
 	"morning":      "朝、アプリを開いた。sleep.lastNightWithoutShortsがtrueなら区切れたことを具体的に認め、falseでも責めずに今日の最初の一手へつなぐ",
 }
@@ -361,6 +362,14 @@ func fallbackLine(moment string, task *Task) string {
 		return "やりきったね。その積み重ね、ちゃんと効いてる。"
 	case "balance_zero":
 		return "今日の視聴はここで区切ろう。次の一手で、また時間が増えるよ。"
+	case "app_open":
+		if task != nil && task.Why != "" {
+			return "「" + task.Why + "」、覚えてる？ 見る前に、まず一手だけ。"
+		}
+		if task != nil {
+			return "見る前に「" + task.Title + "」の最初の一手だけ、どう？"
+		}
+		return "開く前に一呼吸。今日やりたいこと、ひとつ思い浮かべてみよっか。"
 	case "night":
 		return "そろそろ寝る準備しよっか。今夜の分は、朝ちゃんと受け取れるよ。"
 	case "morning":
