@@ -11,7 +11,14 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { Api, message } from './api';
 import { AccountMenu } from './account-menu';
 import { TaskActions } from './task-actions';
-import { displayTime, elapsedSeconds, plannedSeconds, Task } from '../../../shared/models';
+import {
+  displayTime,
+  elapsedSeconds,
+  plannedSeconds,
+  workLimitSeconds,
+  rewardDescription,
+  Task,
+} from '../../../shared/models';
 
 @Component({
   selector: 'app-root',
@@ -49,7 +56,12 @@ export class App implements OnDestroy {
     this.api.state()?.session ? elapsedSeconds(this.api.state()!.session!, this.now()) : 0,
   );
   readonly progress = computed(() =>
-    Math.min(100, (this.elapsed() / (this.active() ? plannedSeconds(this.active()!) : 60)) * 100),
+    Math.min(
+      100,
+      (this.elapsed() /
+        (this.active() ? workLimitSeconds(this.api.state()!, this.active()!) : 60)) *
+        100,
+    ),
   );
   readonly grimeOpacity = computed(() => {
     if (
@@ -69,6 +81,10 @@ export class App implements OnDestroy {
     );
   });
   displayTime = displayTime;
+  rewardDescription = rewardDescription;
+  workMinutes() {
+    return this.active() ? Math.ceil(workLimitSeconds(this.api.state()!, this.active()!) / 60) : 0;
+  }
   plannedMinutes(task: Task) {
     return Math.ceil(plannedSeconds(task) / 60);
   }

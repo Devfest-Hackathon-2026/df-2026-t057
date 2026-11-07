@@ -216,6 +216,18 @@ test('extension account switch removes old notices and rejects an in-flight resp
   assert.ok(cleared.includes('task:old'));
   assert.ok(!cleared.includes('unrelated'));
   assert.equal(local.notifiedPlans, undefined);
+  local.viewingPending = {
+    accountId: 'a',
+    id: 'foreign-receipt',
+    seconds: 10,
+    sessionId: 'a-session',
+  };
+  await call({ type: 'STATE' });
+  assert.equal(local.viewingPending, undefined);
+  assert.equal(local.state.owner, 'Bearer b');
+  local.notifiedPlans = { current: 'start' };
+  await connect('b');
+  assert.deepEqual(local.notifiedPlans, { current: 'start' });
   await call({ type: 'DISCONNECT' });
   assert.equal(local.state, undefined);
   assert.equal(session.connection, undefined);

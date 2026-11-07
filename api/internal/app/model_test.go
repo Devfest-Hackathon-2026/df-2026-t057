@@ -76,8 +76,10 @@ func TestDraftRejectsOverlapAndInvalidSteps(t *testing.T) {
 	}
 }
 
-func TestRewardOnceAcrossRetriesAndEdits(t *testing.T) {
+func TestLegacyRewardOnceAcrossRetriesAndEdits(t *testing.T) {
 	s, now := fixture()
+	s.TimePolicy = nil
+	s.BalanceSeconds = 3600
 	for range 10 {
 		s.grant("registration", "a", 600, now)
 		s.grant("completion", "a", 1200, now)
@@ -103,7 +105,7 @@ func TestMemoryTransactionRollsBack(t *testing.T) {
 		t.Fatal("missing failure")
 	}
 	s, _ := store.Read(t.Context(), "u")
-	if s.BalanceSeconds != 3600 {
+	if s.BalanceSeconds != initialSeconds {
 		t.Fatal("failed mutation was persisted")
 	}
 }

@@ -16,7 +16,7 @@ import { Api, localDate } from './api';
 import { TaskActions } from './task-actions';
 import { Assistant } from './assistant';
 import { AssistantCard } from './assistant-card';
-import { Task, AssistantCard as Card } from '../../../shared/models';
+import { Task, AssistantCard as Card, viewingAvailable } from '../../../shared/models';
 
 @Component({
   selector: 'app-calendar-workspace',
@@ -33,6 +33,7 @@ import { Task, AssistantCard as Card } from '../../../shared/models';
   styleUrl: './calendar-workspace.scss',
 })
 export class CalendarWorkspace {
+  viewingAvailable = viewingAvailable;
   readonly api = inject(Api);
   readonly actions = inject(TaskActions);
   private readonly router = inject(Router);

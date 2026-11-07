@@ -18,9 +18,10 @@ type Store interface {
 type MemoryStore struct {
 	mu     sync.Mutex
 	states map[string]State
+	now    func() time.Time
 }
 
-func NewMemoryStore() *MemoryStore { return &MemoryStore{states: map[string]State{}} }
+func NewMemoryStore() *MemoryStore { return &MemoryStore{states: map[string]State{}, now: time.Now} }
 func clone(s State) State {
 	b, _ := json.Marshal(s)
 	var out State
@@ -32,9 +33,13 @@ func (m *MemoryStore) Read(_ context.Context, uid string) (State, error) {
 	defer m.mu.Unlock()
 	s, ok := m.states[uid]
 	if !ok {
-		s = NewState(time.Now())
-		m.states[uid] = s
+		s = NewState(m.now())
 	}
+	s = clone(s)
+	if s.advanceTimePolicy(m.now()) {
+		s.Revision++
+	}
+	m.states[uid] = s
 	return clone(s), nil
 }
 func (m *MemoryStore) Update(_ context.Context, uid string, fn func(*State) error) (State, error) {
@@ -42,9 +47,10 @@ func (m *MemoryStore) Update(_ context.Context, uid string, fn func(*State) erro
 	defer m.mu.Unlock()
 	s, ok := m.states[uid]
 	if !ok {
-		s = NewState(time.Now())
+		s = NewState(m.now())
 	}
 	s = clone(s)
+	s.advanceTimePolicy(m.now())
 	if err := fn(&s); err != nil {
 		return State{}, err
 	}
@@ -72,20 +78,26 @@ func (f *FirestoreStore) Read(ctx context.Context, uid string) (State, error) {
 	if err != nil {
 		return State{}, err
 	}
-	return stateFrom(doc)
+	s, err := stateFrom(doc)
+	if err == nil && s.TimePolicy != nil && !time.Now().Before(s.TimePolicy.ResetAt) {
+		return f.Update(ctx, uid, func(*State) error { return nil })
+	}
+	return s, err
 }
 func (f *FirestoreStore) Update(ctx context.Context, uid string, fn func(*State) error) (State, error) {
 	ref := f.DB.Collection("users").Doc(uid)
 	var result State
+	now := time.Now()
 	err := f.DB.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		doc, err := tx.Get(ref)
-		s := NewState(time.Now())
+		s := NewState(now)
 		if err == nil {
 			s, err = stateFrom(doc)
 		}
 		if err != nil && status.Code(err) != codes.NotFound {
 			return err
 		}
+		s.advanceTimePolicy(now)
 		if err = fn(&s); err != nil {
 			return err
 		}

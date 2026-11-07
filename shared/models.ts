@@ -10,6 +10,8 @@ export interface Plan {
   reason: string;
 }
 export interface Task {
+  startedAt?: string;
+  scheduledStartAt?: string;
   id: string;
   title: string;
   notes: string;
@@ -36,6 +38,8 @@ export interface Settings {
   grime: boolean;
 }
 export interface Session {
+  id?: string;
+  limitSeconds?: number;
   taskId: string;
   startedAt: string;
   pausedAt?: string;
@@ -43,12 +47,16 @@ export interface Session {
 }
 export interface LedgerEntry {
   id: string;
-  kind: 'initial' | 'registration' | 'completion' | 'viewing';
+  kind: 'initial' | 'registration' | 'completion' | 'viewing' | 'daily' | 'work';
+  workSeconds?: number;
   seconds: number;
   taskId?: string;
   at: string;
 }
 export interface State {
+  timePolicy?: TimePolicy;
+  viewingSession?: ViewingSession;
+  viewingHistory?: ViewingSession[];
   revision: number;
   planRevision: number;
   profile: Profile;
@@ -62,6 +70,59 @@ export interface State {
   lastSync?: string;
   nextDraft?: Draft;
   memoryReceipts?: Record<string, boolean>;
+}
+export interface TimePolicy {
+  version: number;
+  mode: 'rewards' | 'fixed' | 'reminder' | 'self';
+  dailyLimitSeconds: number;
+  timeZone: string;
+  day: string;
+  dayStartedAt: string;
+  resetAt: string;
+  viewedSeconds: number;
+  rewardSeconds: number;
+  workSeconds: number;
+  history: { day: string; viewedSeconds: number; workSeconds: number }[];
+}
+export interface ViewingSession {
+  extendFrom?: string;
+  id: string;
+  startedAt: string;
+  plannedSeconds: number;
+  consumedSeconds: number;
+  lastReportAt: string;
+  endedAt?: string;
+  reason?: 'stop' | 'limit';
+}
+export function viewingAvailable(state: State): number {
+  const p = state.timePolicy;
+  if (!p) return state.balanceSeconds;
+  if (p.mode === 'reminder' || p.mode === 'self') return 600;
+  return Math.max(0, Math.min(state.balanceSeconds, p.dailyLimitSeconds - p.viewedSeconds));
+}
+export function workLimitSeconds(state: State, task: Task): number {
+  return state.session?.limitSeconds ?? plannedSeconds(task);
+}
+export function workRewardText(before: State, after: State): string {
+  if (!after.timePolicy) return '課題完了！ 視聴時間 ＋20分';
+  const ids = new Set(before.ledger.map((e) => e.id));
+  const seconds = after.ledger
+    .filter((e) => e.kind === 'work' && !ids.has(e.id))
+    .reduce((sum, e) => sum + e.seconds, 0);
+  return seconds
+    ? `作業を記録しました。視聴時間 ＋${durationLabel(seconds)}`
+    : '作業を記録しました';
+}
+export function durationLabel(seconds: number): string {
+  const minutes = Math.floor(seconds / 60),
+    rest = seconds % 60;
+  return `${minutes ? `${minutes}分` : ''}${rest || !minutes ? `${rest}秒` : ''}`;
+}
+export function rewardDescription(state?: State): string {
+  if (!state?.timePolicy) return '完了で視聴時間 ＋20分';
+  return state.timePolicy.mode === 'rewards'
+    ? '取り組んだ5分で視聴1分。記録した分だけ増えます'
+    : '区切りまで、ひとつずつ取り組みましょう';
 }
 export interface PlanChange {
   taskId: string;
@@ -127,13 +188,13 @@ export const DEFAULT_SETTINGS: Settings = {
   mode: 'pachinko',
   sound: false,
   reducedMotion: false,
-  grime: true,
+  grime: false,
 };
 export function elapsedSeconds(session: Session, now = Date.now()): number {
   const end = session.pausedAt ? Date.parse(session.pausedAt) : now;
-  return Math.max(
-    0,
-    Math.floor((end - Date.parse(session.startedAt)) / 1000) - session.pausedSeconds,
+  return Math.min(
+    session.limitSeconds ?? Infinity,
+    Math.max(0, Math.floor((end - Date.parse(session.startedAt)) / 1000) - session.pausedSeconds),
   );
 }
 export function displayTime(seconds: number): string {

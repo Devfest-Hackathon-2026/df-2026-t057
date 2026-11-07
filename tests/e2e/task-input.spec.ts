@@ -61,18 +61,20 @@ test('registration dialog supports conversation and manual input without losing 
   await expect(dialog.getByRole('button', { name: '閉じる', exact: true })).toBeDisabled();
   expect((await (await page.request.get('/api/state')).json()).tasks).toHaveLength(0);
   release();
-  await expect(dialog.getByRole('button', { name: 'カレンダーに登録 ＋10分' })).toBeVisible();
-  await dialog.getByRole('button', { name: 'カレンダーに登録 ＋10分' }).scrollIntoViewIfNeeded();
+  await expect(dialog.getByRole('button', { name: 'カレンダーに登録', exact: true })).toBeVisible();
+  await dialog
+    .getByRole('button', { name: 'カレンダーに登録', exact: true })
+    .scrollIntoViewIfNeeded();
   await dialog.screenshot({
     path: 'test-results/task-registration-ai.png',
     animations: 'disabled',
   });
-  await dialog.getByRole('button', { name: 'カレンダーに登録 ＋10分' }).click();
+  await dialog.getByRole('button', { name: 'カレンダーに登録', exact: true }).click();
   await expect(dialog.getByText('現在の予定', { exact: true })).toBeVisible();
   const state = await (await page.request.get('/api/state')).json();
   expect(state.tasks).toHaveLength(1);
   expect(state.tasks[0].id).toBe('dialog-created');
-  expect(state.balanceSeconds).toBe(4200);
+  expect(state.balanceSeconds).toBe(600);
 });
 
 test('task content consultation previews, cancels, rejects stale confirmation and saves without reward', async ({
@@ -128,7 +130,7 @@ test('task content consultation previews, cancels, rejects stale confirmation an
   await expect(dialog.getByRole('heading', { name: '課題の変更案' })).toBeVisible();
   const unchanged = await (await page.request.get('/api/state')).json();
   expect(unchanged.tasks[0].title).toBe(original.title);
-  expect(unchanged.balanceSeconds).toBe(4200);
+  expect(unchanged.balanceSeconds).toBe(600);
   await dialog.getByRole('button', { name: '閉じる', exact: true }).click();
   await page.request.post('/api/tasks', {
     data: {
@@ -167,7 +169,7 @@ test('task content consultation previews, cancels, rejects stale confirmation an
   expect(after.tasks[0].title).toBe('考察を追加するレポート');
   expect(after.tasks[0].minutes).toBe(45);
   expect(after.tasks[0].why).toBe(original.why);
-  expect(after.balanceSeconds).toBe(4800);
+  expect(after.balanceSeconds).toBe(600);
 });
 
 test('manual content edits require a fresh preview after changing the form', async ({ page }) => {
@@ -197,5 +199,5 @@ test('manual content edits require a fresh preview after changing the form', asy
   const state = await (await page.request.get('/api/state')).json();
   expect(state.tasks[0].title).toBe('手動の変更');
   expect(state.tasks[0].notes).toBe('確認後にさらに変更');
-  expect(state.balanceSeconds).toBe(4200);
+  expect(state.balanceSeconds).toBe(600);
 });

@@ -4,6 +4,70 @@
   </div>
 </div>
 <section class="settings-card">
+  <h2>自分で見る時間を決める</h2>
+  <p>初回10分。毎日、残高を10分まで補充します。受け取りのために開く必要はありません。</p>
+  <p>作業を記録すると5分につき視聴1分、1日最大20分増えます。課題の登録だけでは増えません。</p>
+  @if (!api.state()?.timePolicy) {
+    <p>
+      現在は以前の付与方式です。切り替えても、今ある{{
+        (api.state()!.balanceSeconds / 60).toFixed(0)
+      }}分は残ります。
+    </p>
+  }
+  <mat-form-field appearance="outline">
+    <mat-label>支援の段階</mat-label>
+    <mat-select [(ngModel)]="timePolicy.mode" [disabled]="api.busy()">
+      <mat-option value="rewards">作業に応じて増やす</mat-option>
+      <mat-option value="fixed">自分で決めた固定枠</mat-option>
+      <mat-option value="reminder">区切りの通知だけ</mat-option>
+      <mat-option value="self">自分で管理する</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>1日の視聴上限</mat-label>
+    <mat-select
+      [(ngModel)]="timePolicy.dailyLimitSeconds"
+      [disabled]="api.busy() || timePolicy.mode === 'reminder' || timePolicy.mode === 'self'"
+    >
+      <mat-option [value]="600">10分</mat-option>
+      <mat-option [value]="1200">20分</mat-option>
+      <mat-option [value]="1800">30分</mat-option>
+    </mat-select>
+  </mat-form-field>
+  @switch (timePolicy.mode) {
+    @case ('rewards') {
+      <p>作業後の追加と毎日の補充を使います。残高の上限は30分です。</p>
+    }
+    @case ('fixed') {
+      <p>作業報酬を止め、毎日、残高を選んだ固定枠まで補充します。</p>
+    }
+    @case ('reminder') {
+      <p>1日の上限と作業報酬を止め、5分・10分の区切りだけを知らせます。</p>
+    }
+    @case ('self') {
+      <p>視聴枠の制限と区切りの表示を止めます。課題の開始通知と作業タイマーは使えます。</p>
+    }
+  }
+  <p>方式や上限を変更しても、その場で時間は補充しません。翌日の補充から反映します。</p>
+  @if (api.state()?.timePolicy; as policy) {
+    <p>
+      日付の基準：{{ policy.timeZone }}。今日の視聴：{{
+        (policy.viewedSeconds / 60).toFixed(1)
+      }}分。
+    </p>
+  }
+  <button
+    mat-flat-button
+    (click)="saveTimePolicy()"
+    [disabled]="api.busy() || !!api.state()?.session"
+  >
+    {{ api.state()?.timePolicy ? '視聴ルールを保存' : '新しい方式を使う' }}
+  </button>
+  @if (api.state()?.session) {
+    <p>作業を記録してから設定を変更できます。</p>
+  }
+</section>
+<section class="settings-card">
   <h2>通知の演出</h2>
   <div class="mode-grid">
     @for (

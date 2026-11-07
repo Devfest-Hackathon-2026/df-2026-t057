@@ -14,12 +14,12 @@ test('collapsed task details preserve drafts and are saved only on confirmation'
     32,
   );
   const help = page.locator('.credit-help');
-  await expect(help.getByText('初回60分。', { exact: false })).not.toBeVisible();
+  await expect(help.getByText('初回10分。', { exact: false })).not.toBeVisible();
   await help.locator('summary').focus();
   await page.keyboard.press('Enter');
-  await expect(help).toContainText('課題の登録で10分、完了で20分');
+  await expect(help).toContainText('作業5分の記録で視聴1分');
   await page.keyboard.press('Enter');
-  await expect(help.getByText('初回60分。', { exact: false })).not.toBeVisible();
+  await expect(help.getByText('初回10分。', { exact: false })).not.toBeVisible();
 
   await page.getByRole('button', { name: '課題を登録', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -39,14 +39,14 @@ test('collapsed task details preserve drafts and are saved only on confirmation'
   await details.locator('summary').click();
   const before = await (await page.request.get('/api/state')).json();
   expect(before.tasks).toHaveLength(0);
-  expect(before.balanceSeconds).toBe(3600);
+  expect(before.balanceSeconds).toBe(600);
   await dialog.getByRole('button', { name: '登録する', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   const after = await (await page.request.get('/api/state')).json();
   expect(after.tasks).toHaveLength(1);
   expect(after.tasks[0].notes).toBe('構成から書き始める');
   expect(after.tasks[0].why).toBe('発表に備える');
-  expect(after.balanceSeconds).toBe(4200);
+  expect(after.balanceSeconds).toBe(600);
 });
 
 test('calendar adapts to mobile while preserving an explicit view choice', async ({ page }) => {
