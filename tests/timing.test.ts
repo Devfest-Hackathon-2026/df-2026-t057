@@ -58,6 +58,11 @@ test('reward messages use the saved grant, including capped seconds and zero rew
     ],
   } as State;
   assert.equal(workRewardText(before, after), '作業を記録しました。視聴時間 ＋10秒');
+  after.ledger[1].deferred = true;
+  assert.equal(
+    workRewardText(before, after),
+    '作業を記録しました。視聴時間 ＋10秒（朝に受け取れます）',
+  );
   after.ledger[1].seconds = 0;
   assert.equal(workRewardText(before, after), '作業を記録しました');
   const session = {

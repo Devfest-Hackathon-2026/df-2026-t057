@@ -1,5 +1,13 @@
-import { Draft, State, rewardDescription } from '../../shared/models';
-import { Connection, ExtensionState, MANAGEMENT_ORIGIN, Reply, Request } from './protocol';
+import { Draft, State, nightWindow, rewardDescription } from '../../shared/models';
+import {
+  Connection,
+  ExtensionState,
+  ExtensionTask,
+  MANAGEMENT_ORIGIN,
+  Moment,
+  Reply,
+  Request,
+} from './protocol';
 
 let connectionVersion = 0;
 
@@ -44,6 +52,7 @@ async function apiState(path: string, method = 'GET', body?: unknown): Promise<E
     settings: state.settings,
     session: state.session,
     nextDraft: state.nextDraft,
+    sleep: state.sleep && { bedtime: state.sleep.bedtime, wake: state.sleep.wake },
     tasks: state.tasks.map(({ id, title, why, minutes, url, status, plan }) => ({
       id,
       title,
@@ -70,10 +79,12 @@ async function publish(state: ExtensionState, version = connectionVersion) {
   const next = state.tasks
     .filter((t) => t.status === 'pending' && notified[t.id] !== t.plan.start)
     .sort((a, b) => Date.parse(a.plan.start) - Date.parse(b.plan.start))[0];
-  if (next)
+  if (next) {
     await chrome.alarms.create('task-start', {
       when: Math.max(Date.now() + 1000, Date.parse(next.plan.start)),
     });
+    if (Date.parse(next.plan.start) - Date.now() < 5 * 60000) void prefetchNotice(next);
+  }
   const tabs = await chrome.tabs.query({});
   if (version !== connectionVersion) return;
   await Promise.allSettled(
@@ -98,7 +109,48 @@ async function refresh() {
   await settled;
   const state = await apiState('/state');
   await publish(state, version);
+  void remindBedtime(state).catch(() => undefined);
   return state;
+}
+// Once a night, a quiet bedtime reminder on top of Shorts. Nothing is blocked.
+async function remindBedtime(state: ExtensionState) {
+  const night = state.sleep && nightWindow(state.sleep);
+  if (!night || state.session) return;
+  const { bedtimeShown } = await chrome.storage.local.get('bedtimeShown');
+  if (bedtimeShown === night.key) return;
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab?.id || !tab.url?.startsWith('https://www.youtube.com/shorts/')) return;
+  const line = (await companionLine('night')) || '';
+  const response = await chrome.tabs
+    .sendMessage(tab.id, { type: 'SHOW_NIGHT', state, line })
+    .catch(() => undefined);
+  if (response?.shown) await chrome.storage.local.set({ bedtimeShown: night.key });
+}
+// One short remark from the companion; empty when the API is unavailable.
+async function companionLine(moment: Moment, taskId?: string) {
+  try {
+    return (await api<{ line: string }>('/companion/line', 'POST', { moment, taskId })).line;
+  } catch {
+    return '';
+  }
+}
+// The notice line is fetched a few minutes ahead so the notice never waits on Gemini.
+async function prefetchNotice(task: ExtensionTask) {
+  const key = `${task.id}@${task.plan.start}`;
+  const lines = ((await chrome.storage.session.get('noticeLines'))['noticeLines'] ?? {}) as Record<
+    string,
+    string
+  >;
+  if (lines[key]) return;
+  const line = await noticeLine(task);
+  if (line) await chrome.storage.session.set({ noticeLines: { [key]: line } });
+}
+async function noticeLine(task: ExtensionTask) {
+  const lines = ((await chrome.storage.session.get('noticeLines'))['noticeLines'] ?? {}) as Record<
+    string,
+    string
+  >;
+  return lines[`${task.id}@${task.plan.start}`] || companionLine('notice', task.id);
 }
 async function openApp(path = '') {
   const config = await connection();
@@ -283,6 +335,10 @@ chrome.runtime.onMessage.addListener(
         await openApp(request.path);
         return {};
       }
+      if (request.type === 'CLOSE_TAB') {
+        if (sender.tab?.id) await chrome.tabs.remove(sender.tab.id);
+        return {};
+      }
       if (request.type === 'STATE') {
         if (!(await connection())) return { connected: false };
         const state = await refresh();
@@ -292,6 +348,8 @@ chrome.runtime.onMessage.addListener(
       }
       if (['START_VIEWING', 'CLAIM_VIEWING', 'END_VIEWING', 'VIEWING'].includes(request.type))
         return changeViewing(request as ViewingRequest, sender);
+      if (request.type === 'LINE')
+        return { line: await companionLine(request.moment, request.taskId) };
       if (request.type === 'DRAFT')
         return {
           draft: await api<Draft>(
@@ -346,6 +404,7 @@ async function notify() {
     .filter((t) => t.status === 'pending' && notified[t.id] !== t.plan.start)
     .sort((a, b) => Date.parse(a.plan.start) - Date.parse(b.plan.start))[0];
   if (!task || Date.parse(task.plan.start) > Date.now() + 1000) return;
+  const line = await noticeLine(task);
   const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   let shown = false;
   if (tabs[0]?.id && tabs[0].url?.startsWith('https://www.youtube.com/shorts/')) {
@@ -354,6 +413,7 @@ async function notify() {
         type: 'SHOW_NOTICE',
         task,
         state,
+        line,
       });
       shown = response?.shown === true;
     } catch {
@@ -365,7 +425,7 @@ async function notify() {
       type: 'basic',
       iconUrl: 'icon-128.png',
       title: 'DOPAGAKI · はじめる時間です',
-      message: `${task.title}\n${rewardDescription(state)}`,
+      message: `${task.title}\n${line || rewardDescription(state)}`,
       buttons: [{ title: '作業をはじめる' }, { title: 'スヌーズの予定を確認' }],
       priority: 2,
       requireInteraction: true,

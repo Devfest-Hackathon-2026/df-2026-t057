@@ -1,4 +1,4 @@
-import type { Draft, State, Task, TimePolicy } from '../../shared/models';
+import type { Draft, SleepTime, State, Task, TimePolicy } from '../../shared/models';
 
 export type ExtensionTask = Pick<
   Task,
@@ -11,6 +11,7 @@ export type ExtensionState = Pick<
   tasks: ExtensionTask[];
   timePolicy?: Pick<TimePolicy, 'version' | 'mode' | 'dailyLimitSeconds' | 'viewedSeconds'>;
   workRewardSeconds: number;
+  sleep?: SleepTime;
 };
 
 export interface Connection {
@@ -23,6 +24,7 @@ export interface Snapshot {
   connected: boolean;
   error?: string;
 }
+export type Moment = 'notice' | 'snooze' | 'complete' | 'balance_zero' | 'night' | 'morning';
 export type Request =
   | { type: 'CONNECT'; connection: Connection }
   | { type: 'DISCONNECT' }
@@ -38,12 +40,15 @@ export type Request =
   | { type: 'CLAIM_VIEWING'; sessionId: string }
   | { type: 'END_VIEWING'; sessionId: string; reason: 'stop' | 'limit' }
   | { type: 'CONFIRM_WORK'; id: string }
-  | { type: 'OPEN_APP'; path?: string };
+  | { type: 'LINE'; moment: Moment; taskId?: string }
+  | { type: 'OPEN_APP'; path?: string }
+  | { type: 'CLOSE_TAB' };
 export interface Reply {
   tabId?: number;
   viewingOwnerTabId?: number;
   state?: ExtensionState;
   draft?: Draft;
+  line?: string;
   connected?: boolean;
   error?: string;
 }

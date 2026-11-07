@@ -64,6 +64,7 @@ type Session struct {
 	PausedSeconds int            `json:"pausedSeconds"`
 }
 type LedgerEntry struct {
+	Deferred    bool      `json:"deferred,omitempty"`
 	WorkSeconds int       `json:"workSeconds,omitempty"`
 	ID          string    `json:"id"`
 	Kind        string    `json:"kind"`
@@ -72,6 +73,7 @@ type LedgerEntry struct {
 	At          time.Time `json:"at"`
 }
 type State struct {
+	Sleep                 *Sleep           `json:"sleep,omitempty"`
 	TimePolicy            *TimePolicy      `json:"timePolicy,omitempty"`
 	ViewingSession        *ViewingSession  `json:"viewingSession,omitempty"`
 	ViewingHistory        []ViewingSession `json:"viewingHistory,omitempty"`
@@ -130,18 +132,31 @@ func (s *State) task(id string) (*Task, error) {
 	}
 	return nil, ErrNotFound
 }
-func (s *State) grant(kind, taskID string, seconds int, now time.Time) {
+func (s *State) pendingRewardSeconds() int {
+	seconds := 0
+	for _, entry := range s.Ledger {
+		if entry.Deferred {
+			seconds += entry.Seconds
+		}
+	}
+	return seconds
+}
+func (s *State) grant(kind, taskID string, seconds int, now time.Time) int {
 	id := kind + ":" + taskID
 	for _, entry := range s.Ledger {
 		if entry.ID == id {
-			return
+			return 0
 		}
 	}
-	if kind == "registration" {
-		seconds = max(0, min(seconds, balanceCapSeconds-s.BalanceSeconds))
+	seconds = max(0, min(seconds, balanceCapSeconds-s.BalanceSeconds-s.pendingRewardSeconds()))
+	entry := LedgerEntry{ID: id, Kind: kind, Seconds: seconds, TaskID: taskID, At: now}
+	if _, night := s.nightAt(now); night && kind != "sleep" {
+		entry.Deferred = true
+	} else {
+		s.BalanceSeconds += seconds
 	}
-	s.BalanceSeconds += seconds
-	s.Ledger = append(s.Ledger, LedgerEntry{ID: id, Kind: kind, Seconds: seconds, TaskID: taskID, At: now})
+	s.Ledger = append(s.Ledger, entry)
+	return seconds
 }
 func (s *State) pending() []Task {
 	tasks := []Task{}

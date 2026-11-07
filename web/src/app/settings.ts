@@ -35,6 +35,10 @@ export class Settings {
     if (await this.api.mutate('/time-policy', this.timePolicy, 'PUT'))
       this.snack.open('視聴時間の設定を保存しました', '閉じる', { duration: 3000 });
   }
+  readonly sleep = {
+    bedtime: this.api.state()!.sleep?.bedtime ?? '23:30',
+    wake: this.api.state()!.sleep?.wake ?? '07:00',
+  };
   async saveSettings() {
     if (await this.api.mutate('/settings', this.settings, 'PUT'))
       this.snack.open('設定を保存しました', '閉じる', { duration: 3000 });
@@ -42,5 +46,12 @@ export class Settings {
   async saveProfile() {
     if (await this.api.mutate('/profile', this.profile, 'PUT'))
       this.snack.open('作業の傾向を保存しました', '閉じる', { duration: 3000 });
+  }
+  async saveSleep(clear = false) {
+    const body = clear ? { bedtime: '', wake: '' } : this.sleep;
+    if (await this.api.mutate('/sleep', body, 'PUT'))
+      this.snack.open(clear ? '就寝の予定を外しました' : '就寝の予定を保存しました', '閉じる', {
+        duration: 3000,
+      });
   }
 }

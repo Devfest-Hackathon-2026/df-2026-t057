@@ -2,13 +2,22 @@ import {
   Draft,
   displayTime,
   elapsedSeconds,
+  nightWindow,
   plannedSeconds,
   workLimitSeconds,
   rewardDescription,
   workRewardMessage,
   viewingAvailable,
 } from '../../shared/models';
-import { ExtensionState, ExtensionTask, MANAGEMENT_ORIGIN, Reply, Request, send } from './protocol';
+import {
+  ExtensionState,
+  ExtensionTask,
+  MANAGEMENT_ORIGIN,
+  Moment,
+  Reply,
+  Request,
+  send,
+} from './protocol';
 
 const runtimeWindow = window as Window & { dopagakiLoaded?: boolean };
 if (!runtimeWindow.dopagakiLoaded) {
@@ -206,7 +215,7 @@ function initialize() {
     overlay.oncancel = dismiss;
     overlay.showModal();
   }
-  function showNotice(task: ExtensionTask, snapshot: ExtensionState) {
+  function showNotice(task: ExtensionTask, snapshot: ExtensionState, line = '') {
     if (!shorts() || document.visibilityState !== 'visible') return false;
     state = snapshot;
     dismiss();
@@ -226,6 +235,7 @@ function initialize() {
       element('p', "IT'S YOUR TURN", 'eyebrow'),
       element('h1', snapshot.settings.mode === 'mahjong' ? 'まず、一手。' : 'そろそろ、やるか。'),
     );
+    if (line) panel.append(element('p', line, 'companion'));
     const card = element('div', '', 'task-card');
     card.append(element('h2', task.title));
     if (task.why) card.append(element('p', `なぜ：${task.why}`, 'why'));
@@ -288,6 +298,38 @@ function initialize() {
         void audio.close();
       };
     }
+    return true;
+  }
+  function showNight(snapshot: ExtensionState, line = '') {
+    if (!shorts() || document.visibilityState !== 'visible' || overlay) return false;
+    state = snapshot;
+    shortsVideo()?.pause();
+    overlay = element('dialog', '', 'overlay simple night');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', '寝る時間が近づいています');
+    const panel = element('div', '', 'panel');
+    panel.append(element('p', 'GOOD NIGHT', 'eyebrow'), element('h1', 'そろそろ、寝る準備。'));
+    if (line) panel.append(element('p', line, 'companion'));
+    panel.append(
+      element(
+        'p',
+        `就寝 ${snapshot.sleep?.bedtime} ・ 起床 ${snapshot.sleep?.wake}。今夜の課題の報酬は、朝に受け取れます。`,
+        'muted',
+      ),
+      element('strong', 'このまま寝ると、朝に視聴時間 最大15分'),
+    );
+    const actions = element('div', '', 'actions');
+    actions.append(
+      button('Shortsを閉じて寝る', () => void send({ type: 'CLOSE_TAB' }), 'primary'),
+      button('あと少しだけ', dismiss),
+    );
+    panel.append(actions);
+    overlay.append(panel);
+    mount().append(overlay);
+    overlay.oncancel = dismiss;
+    overlay.showModal();
+    actions.querySelector('button')?.focus();
     return true;
   }
   function local(value: string) {
@@ -458,12 +500,15 @@ function initialize() {
       () => {
         const before = state!;
         void action({ type: 'COMPLETE', taskId: task.id }, timer!).then((reply) => {
-          if (reply?.state)
-            showToast(
-              workRewardMessage(
-                Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
-              ),
+          if (reply?.state) {
+            const reward = workRewardMessage(
+              Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
+              !!state?.sleep && !!nightWindow(state.sleep),
             );
+            void say('complete', '', task.id).then((line) =>
+              showToast(line ? `${line}（${reward}）` : reward),
+            );
+          }
         });
       },
       'primary',
@@ -481,6 +526,7 @@ function initialize() {
               showToast(
                 workRewardMessage(
                   Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
+                  !!state?.sleep && !!nightWindow(state.sleep),
                 ),
               );
           });
@@ -591,6 +637,14 @@ function initialize() {
       `${displayTime(Math.min(elapsed, timer.querySelector('progress')!.max))} / ${displayTime(timer.querySelector('progress')!.max)}`;
     timer.querySelector('progress')!.value = elapsed;
   }
+  let balanceLine: Promise<string> | undefined;
+  async function say(moment: Moment, fallback: string, taskId?: string) {
+    try {
+      return (await send({ type: 'LINE', moment, taskId })).line || fallback;
+    } catch {
+      return fallback;
+    }
+  }
   function showToast(text: string) {
     const toast = element('div', text, 'toast');
     toast.setAttribute('role', 'status');
@@ -599,7 +653,10 @@ function initialize() {
   }
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
     if (message.type === 'SHOW_NOTICE') {
-      respond({ shown: showNotice(message.task, message.state) });
+      respond({ shown: showNotice(message.task, message.state, message.line) });
+    }
+    if (message.type === 'SHOW_NIGHT') {
+      respond({ shown: showNight(message.state, message.line) });
     }
     if (message.type === 'STATE_UPDATED') {
       if (!message.state) {
@@ -671,8 +728,11 @@ function initialize() {
       video?.pause();
       playing = false;
       previousPlaying = false;
-      if (!state.timePolicy)
-        showToast('視聴時間がなくなりました。課題を登録・完了して時間を増やしましょう。');
+      balanceLine ??= say(
+        'balance_zero',
+        '今日の視聴枠を使い切りました。休憩や次の作業へ移りましょう。',
+      );
+      void balanceLine.then(showToast);
     }
     if (
       !requestPending &&

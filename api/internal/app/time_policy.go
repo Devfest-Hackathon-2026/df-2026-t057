@@ -67,6 +67,12 @@ func (s *State) advanceTimePolicy(now time.Time) bool {
 		s.TimePolicy = next
 		s.Ledger = append(s.Ledger, LedgerEntry{ID: "time-policy-reset:2", Kind: "reset", Seconds: initialSeconds - s.BalanceSeconds, At: now})
 		s.BalanceSeconds = initialSeconds
+		if s.Sleep != nil {
+			s.Sleep.Since = now
+		}
+		for i := range s.Ledger {
+			s.Ledger[i].Deferred = false
+		}
 		if s.ViewingSession != nil {
 			if s.ViewingSession.EndedAt == nil {
 				s.ViewingSession.EndedAt, s.ViewingSession.Reason = &now, "reset"
@@ -109,7 +115,7 @@ func (s *State) advanceTimePolicy(now time.Time) bool {
 		base = p.DailyLimitSeconds
 	}
 	if p.Mode == "rewards" || p.Mode == "fixed" {
-		seconds := max(0, min(base, balanceCapSeconds)-s.BalanceSeconds)
+		seconds := max(0, min(base, balanceCapSeconds)-s.BalanceSeconds-s.pendingRewardSeconds())
 		if seconds > 0 {
 			s.grant("daily", p.Day, seconds, now)
 		}
@@ -176,11 +182,14 @@ func (s *State) confirmWork(now time.Time) {
 	p.WorkSeconds += seconds
 	reward := 0
 	if p.Mode == "rewards" {
-		reward = max(0, min((p.WorkSeconds/300-previous)*60, dailyRewardCapSeconds-p.RewardSeconds, balanceCapSeconds-s.BalanceSeconds))
+		reward = max(0, min((p.WorkSeconds/300-previous)*60, dailyRewardCapSeconds-p.RewardSeconds, balanceCapSeconds-s.BalanceSeconds-s.pendingRewardSeconds()))
 	}
 	p.RewardSeconds += reward
-	s.BalanceSeconds += reward
-	s.Ledger = append(s.Ledger, LedgerEntry{ID: "work:" + x.ID, Kind: "work", Seconds: reward, WorkSeconds: seconds, TaskID: x.TaskID, At: now})
+	_, deferred := s.nightAt(now)
+	if !deferred {
+		s.BalanceSeconds += reward
+	}
+	s.Ledger = append(s.Ledger, LedgerEntry{ID: "work:" + x.ID, Kind: "work", Seconds: reward, WorkSeconds: seconds, TaskID: x.TaskID, At: now, Deferred: deferred})
 }
 
 func (s *State) startViewing(id string, seconds int, extendFrom string, now time.Time) error {

@@ -1,0 +1,67 @@
+{
+  "verifiedAt": "2026-11-07T16:59:17+09:00",
+  "project": "devfest-2026-513816",
+  "region": "asia-northeast1",
+  "service": "dopagaki",
+  "sourceCommit": "7fabe1f346d405d2978d663a7876f329e7b88929",
+  "workflow": {
+    "url": "https://github.com/a-sumikawa/devfest-2026/actions/runs/42353060011",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "check",
+        "conclusion": "success",
+        "startedAt": "2026-11-07T07:52:26Z",
+        "completedAt": "2026-11-07T07:54:29Z"
+      },
+      {
+        "name": "deploy",
+        "conclusion": "success",
+        "startedAt": "2026-11-07T07:54:31Z",
+        "completedAt": "2026-11-07T07:57:39Z"
+      }
+    ]
+  },
+  "revision": "dopagaki-00021-gus",
+  "image": "asia-northeast1-docker.pkg.dev/devfest-2026-513816/dopagaki/app@sha256:ea97b9ca5f8f523efbd2449a04164c668169bb81426a570125854a65871cc5a4",
+  "traffic": [
+    {
+      "percent": 100,
+      "revisionName": "dopagaki-00021-gus"
+    }
+  ],
+  "runtimeConfigurationPreserved": true,
+  "publicHttp": {
+    "url": "https://dopagaki-1032251723022.asia-northeast1.run.app/",
+    "pageStatus": 200,
+    "healthStatus": 200,
+    "unauthenticatedStateStatus": 401,
+    "mode": "live",
+    "cspNoncePresent": true,
+    "cspNonceChangesPerResponse": true,
+    "htmlCacheControl": "no-store",
+    "newUiMarkersPresent": true,
+    "oldUiMarkersAbsent": true,
+    "privacyCspPreserved": true,
+    "assets": [
+      {
+        "path": "main-K4EMTH7F.js",
+        "sha256": "61a34ab72dd32a3618d28d61ecce92dde209b8b5d683f7a8348decd2a503fcec",
+        "bytes": 1232057,
+        "matchesLocalBuild": true
+      },
+      {
+        "path": "styles-EQAGIXPT.css",
+        "sha256": "79e0d4fda3dd6a81ed6518227091ec4ce1d61a7b587fb76c78f81f669cf316f9",
+        "bytes": 44041,
+        "matchesLocalBuild": true
+      },
+      {
+        "path": "media/material-symbols-rounded-GKLADUIR.woff2",
+        "sha256": "ff97fab5557b773e0b3c1d1e899062ebe5d92cc587949f6d1318208571db8c09",
+        "bytes": 5032,
+        "matchesLocalBuild": true
+      }
+    ]
+  }
+}
