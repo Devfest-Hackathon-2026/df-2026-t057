@@ -1,30 +1,22 @@
 <div class="page-title">
   <div>
-    <span class="eyebrow">MAKE IT YOURS</span>
-    <h1>
-      設定
-      <span class="title-dot">.</span>
-    </h1>
-    <p>自分のペースと、好きな演出に。</p>
+    <h1>設定</h1>
   </div>
 </div>
 <section class="settings-card">
   <h2>通知の演出</h2>
-  <p class="muted">作業中のタイマーは、どのモードでもシンプルに表示します。</p>
   <div class="mode-grid">
     @for (
       mode of [
         {
           id: 'pachinko',
           title: 'ゴールド',
-          sub: '金色の光と、はじまりの合図',
           icon: 'flare',
         },
-        { id: 'mahjong', title: 'ステップ', sub: '一手ずつ、着実に', icon: 'task_alt' },
+        { id: 'mahjong', title: 'ステップ', icon: 'task_alt' },
         {
           id: 'simple',
           title: 'シンプル',
-          sub: '必要な情報だけ、静かに',
           icon: 'notifications',
         },
       ];
@@ -37,14 +29,12 @@
       >
         <span aria-hidden="true" class="material-symbols-rounded">{{ mode.icon }}</span>
         <strong>{{ mode.title }}</strong>
-        <small>{{ mode.sub }}</small>
       </button>
     }
   </div>
   <div class="setting-row">
     <div>
       <strong>スヌーズ時間</strong>
-      <p>確認画面で予定を見てから確定します。</p>
     </div>
     <mat-form-field appearance="outline" class="minutes-field">
       <mat-label>分</mat-label>
@@ -61,14 +51,12 @@
   <div class="setting-row">
     <div>
       <strong>通知音</strong>
-      <p>通知画面を開いたときに短い音を鳴らします。</p>
     </div>
     <mat-slide-toggle [(ngModel)]="settings.sound" [disabled]="api.busy()" aria-label="通知音" />
   </div>
   <div class="setting-row">
     <div>
       <strong>動きを控える</strong>
-      <p>光や拡大のアニメーションを減らします。</p>
     </div>
     <mat-slide-toggle
       [(ngModel)]="settings.reducedMotion"
@@ -79,7 +67,6 @@
   <div class="setting-row">
     <div>
       <strong>継続が途切れたときの演出</strong>
-      <p>ホーム画面の角を、少しずつ暗くします。</p>
     </div>
     <mat-slide-toggle
       [(ngModel)]="settings.grime"
@@ -87,13 +74,24 @@
       aria-label="継続が途切れたときの演出"
     />
   </div>
+  <details class="disclosure settings-help">
+    <summary>通知について</summary>
+    <p>スヌーズは変更後の予定を確認してから確定します。通知音は通知を開いたときに鳴ります。</p>
+    <p>
+      「動きを控える」で光や拡大を減らせます。「継続が途切れたときの演出」は画面の角を少し暗くします。
+    </p>
+    <p>作業中は、どの演出でもシンプルなタイマーを表示します。</p>
+  </details>
   <button mat-flat-button (click)="saveSettings()" [disabled]="api.busy()">
     {{ api.busy() ? '保存中…' : '設定を保存' }}
   </button>
 </section>
 <section class="settings-card">
   <h2>あなたの作業の傾向</h2>
-  <p class="muted">Geminiが予定を具体的にするときの参考にします。</p>
+  <details class="disclosure settings-help">
+    <summary>作業の傾向について</summary>
+    <p>相談や予定を作るときの参考にします。</p>
+  </details>
   <mat-form-field appearance="outline">
     <mat-label>表示名</mat-label>
     <input matInput [(ngModel)]="profile.name" [disabled]="api.busy()" maxlength="100" />
@@ -116,14 +114,12 @@
   @if (api.accountEmail()) {
     <p>ログイン中：{{ api.accountEmail() }}</p>
   }
-  <p>
-    ログイン中と同じGoogleアカウントのカレンダーを使います。
-    連携すると、そのアカウントに専用のDOPAGAKIカレンダーを作成します。
-    Geminiには「DOPAGAKIカレンダーに」と指定してください。
-  </p>
-  <p class="muted">
-    「AIに相談」から予定の作成・調整を相談できます。会話と作業の傾向はアカウントごとに保存します。
-  </p>
+  <details class="disclosure settings-help">
+    <summary>連携について</summary>
+    <p>ログイン中と同じGoogleアカウントに、専用カレンダーを作成します。</p>
+    <p>Geminiから登録するときは「DOPAGAKIカレンダーに」と指定してください。</p>
+    <p>会話と作業の傾向はアカウントごとに保存します。</p>
+  </details>
   <button
     mat-stroked-button
     (click)="actions.connect()"

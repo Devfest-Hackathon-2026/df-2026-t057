@@ -49,12 +49,12 @@ test('registration dialog supports conversation and manual input without losing 
   await page.getByRole('button', { name: '課題を登録', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('課題名', { exact: true }).fill('手入力の下書き');
-  await dialog.getByRole('radio', { name: 'AIに相談', exact: true }).click();
+  await dialog.getByRole('radio', { name: '相談', exact: true }).click();
   const composer = dialog.getByLabel('相談する', { exact: true });
   await composer.fill('4時間後までにレポート、30分。考察をまとめたい');
   await dialog.getByRole('radio', { name: '手入力', exact: true }).click();
   await expect(dialog.getByLabel('課題名', { exact: true })).toHaveValue('手入力の下書き');
-  await dialog.getByRole('radio', { name: 'AIに相談', exact: true }).click();
+  await dialog.getByRole('radio', { name: '相談', exact: true }).click();
   await expect(composer).toHaveValue('4時間後までにレポート、30分。考察をまとめたい');
   await dialog.getByRole('button', { name: '送信', exact: true }).click();
   await expect(dialog.getByRole('button', { name: '相談中…' })).toBeDisabled();
@@ -119,7 +119,7 @@ test('task content consultation previews, cancels, rejects stale confirmation an
     await route.fulfill({ json: turn });
   });
   await page.goto('/tasks');
-  const open = () => page.getByRole('button', { name: '内容を調整・AIに相談' }).first().click();
+  const open = () => page.getByRole('button', { name: '課題を編集' }).first().click();
   await open();
   const dialog = page.getByRole('dialog');
   await expect(dialog.locator('.selected-context')).toContainText(original.title);
@@ -183,7 +183,7 @@ test('manual content edits require a fresh preview after changing the form', asy
     },
   });
   await page.goto('/tasks');
-  await page.getByRole('button', { name: '内容を調整・AIに相談' }).click();
+  await page.getByRole('button', { name: '課題を編集' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('radio', { name: '手入力', exact: true }).click();
   await dialog.getByLabel('課題名', { exact: true }).fill('手動の変更');
