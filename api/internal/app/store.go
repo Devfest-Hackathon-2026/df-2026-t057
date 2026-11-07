@@ -79,7 +79,7 @@ func (f *FirestoreStore) Read(ctx context.Context, uid string) (State, error) {
 		return State{}, err
 	}
 	s, err := stateFrom(doc)
-	if err == nil && s.TimePolicy != nil && !time.Now().Before(s.TimePolicy.ResetAt) {
+	if err == nil && (s.TimePolicy == nil || s.TimePolicy.Version < timePolicyVersion || !time.Now().Before(s.TimePolicy.ResetAt)) {
 		return f.Update(ctx, uid, func(*State) error { return nil })
 	}
 	return s, err

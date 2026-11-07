@@ -58,7 +58,10 @@
             <p>作業 {{ ((entry.workSeconds ?? 0) / 60).toFixed(1) }}分</p>
           }
         </div>
-        <strong class="ledger-credit">＋{{ durationLabel(entry.seconds) }}</strong>
+        <strong class="ledger-credit">
+          {{ entry.seconds < 0 ? '−' : '＋'
+          }}{{ durationLabel(entry.seconds < 0 ? -entry.seconds : entry.seconds) }}
+        </strong>
       </div>
     }
   </section>

@@ -6,12 +6,14 @@ import (
 )
 
 const (
+	timePolicyVersion     = 2
 	initialSeconds        = 10 * 60
 	balanceCapSeconds     = 30 * 60
 	dailyRewardCapSeconds = 20 * 60
 )
 
 type TimePolicy struct {
+	EffectiveAt       time.Time `json:"effectiveAt"`
 	Version           int       `json:"version"`
 	Mode              string    `json:"mode"`
 	DailyLimitSeconds int       `json:"dailyLimitSeconds"`
@@ -51,13 +53,48 @@ func newTimePolicy(now time.Time, zone string) *TimePolicy {
 	loc, _ := time.LoadLocation(zone)
 	local := now.In(loc)
 	start := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, loc)
-	return &TimePolicy{Version: 1, Mode: "rewards", DailyLimitSeconds: 1800, TimeZone: zone,
+	return &TimePolicy{Version: timePolicyVersion, EffectiveAt: now, Mode: "rewards", DailyLimitSeconds: 1800, TimeZone: zone,
 		Day: local.Format("2006-01-02"), DayStartedAt: start, ResetAt: start.AddDate(0, 0, 1), History: []TimeDay{}}
 }
 
 func (s *State) advanceTimePolicy(now time.Time) bool {
 	p := s.TimePolicy
-	if p == nil || now.Before(p.ResetAt) {
+	if p == nil || p.Version < timePolicyVersion {
+		next := newTimePolicy(now, s.Profile.TimeZone)
+		if p != nil {
+			next.History = p.History
+		}
+		s.TimePolicy = next
+		s.Ledger = append(s.Ledger, LedgerEntry{ID: "time-policy-reset:2", Kind: "reset", Seconds: initialSeconds - s.BalanceSeconds, At: now})
+		s.BalanceSeconds = initialSeconds
+		if s.ViewingSession != nil {
+			if s.ViewingSession.EndedAt == nil {
+				s.ViewingSession.EndedAt, s.ViewingSession.Reason = &now, "reset"
+			}
+			s.ViewingHistory = append(s.ViewingHistory, *s.ViewingSession)
+			if len(s.ViewingHistory) > 100 {
+				s.ViewingHistory = s.ViewingHistory[len(s.ViewingHistory)-100:]
+			}
+		}
+		s.ViewingSession, s.LastViewingAt = nil, nil
+		// 旧タイマーには区間がないため、移行前の経過分を残りの作業枠から除く。
+		if x := s.Session; x != nil && x.ID == "" {
+			x.ID = newID()
+			if task, err := s.task(x.TaskID); err == nil {
+				x.LimitSeconds = min(25*60, max(60, int(task.Plan.End.Sub(task.Plan.Start).Seconds())))
+			}
+			end := now
+			if x.PausedAt != nil {
+				end = *x.PausedAt
+			}
+			x.PriorSeconds = max(0, min(x.LimitSeconds, int(end.Sub(x.StartedAt).Seconds())-x.PausedSeconds))
+			if x.PausedAt == nil {
+				x.RunningSince = &now
+			}
+		}
+		return true
+	}
+	if now.Before(p.ResetAt) {
 		return false
 	}
 	p.History = append(p.History, TimeDay{Day: p.Day, ViewedSeconds: p.ViewedSeconds, WorkSeconds: p.WorkSeconds})
@@ -95,7 +132,7 @@ func (s *State) closeWorkInterval(now time.Time) {
 	if x == nil || x.RunningSince == nil {
 		return
 	}
-	used := 0
+	used := x.PriorSeconds
 	for _, interval := range x.Intervals {
 		used += int(interval.End.Sub(interval.Start).Seconds())
 	}
@@ -132,7 +169,7 @@ func (s *State) confirmWork(now time.Time) {
 	}
 	seconds := 0
 	for _, interval := range x.Intervals {
-		start, end := maxTime(interval.Start, p.DayStartedAt), minTime(interval.End, p.ResetAt)
+		start, end := maxTime(interval.Start, maxTime(p.DayStartedAt, p.EffectiveAt)), minTime(interval.End, p.ResetAt)
 		seconds += max(0, int(end.Sub(start).Seconds()))
 	}
 	previous := p.WorkSeconds / 300

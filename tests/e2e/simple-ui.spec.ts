@@ -46,7 +46,7 @@ test('collapsed task details preserve drafts and are saved only on confirmation'
   expect(after.tasks).toHaveLength(1);
   expect(after.tasks[0].notes).toBe('構成から書き始める');
   expect(after.tasks[0].why).toBe('発表に備える');
-  expect(after.balanceSeconds).toBe(600);
+  expect(after.balanceSeconds).toBe(900);
 });
 
 test('calendar adapts to mobile while preserving an explicit view choice', async ({ page }) => {

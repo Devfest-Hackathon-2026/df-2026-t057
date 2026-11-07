@@ -82,7 +82,7 @@ func TestAssistantRequiresConfirmationAndIsolatesAccounts(t *testing.T) {
 	input.BaseRevision = &revision
 	state = c.state("POST", "/api/tasks", input)
 	state = c.state("POST", "/api/tasks", input)
-	if len(state.Tasks) != 1 || state.BalanceSeconds != initialSeconds {
+	if len(state.Tasks) != 1 || state.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("registering a card twice duplicated the task or credit")
 	}
 	b := c

@@ -36,7 +36,7 @@ func TestTaskEditPreviewCommitRewardsAndIsolation(t *testing.T) {
 	in.Minutes, in.Deadline = 45, initial.Deadline.Add(time.Hour)
 	change := editPreview(t, c, in)
 	unchanged := c.state("GET", "/api/state", nil)
-	if unchanged.PlanRevision != before.PlanRevision || unchanged.Tasks[0].Title != initial.Title || unchanged.BalanceSeconds != initialSeconds {
+	if unchanged.PlanRevision != before.PlanRevision || unchanged.Tasks[0].Title != initial.Title || unchanged.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("preview saved a task or reward")
 	}
 	other := c
@@ -49,7 +49,7 @@ func TestTaskEditPreviewCommitRewardsAndIsolation(t *testing.T) {
 	}
 	after := c.state("PUT", "/api/tasks/one", taskEditRequest(change))
 	task := after.Tasks[0]
-	if len(after.Tasks) != 1 || after.BalanceSeconds != initialSeconds || len(after.Ledger) != len(before.Ledger) || task.Title != in.Title || task.Notes != in.Notes || task.Why != in.Why || task.URL != in.URL || task.Minutes != in.Minutes || !task.Deadline.Equal(in.Deadline) || !task.CreatedAt.Equal(before.Tasks[0].CreatedAt) {
+	if len(after.Tasks) != 1 || after.BalanceSeconds != initialSeconds+300 || len(after.Ledger) != len(before.Ledger) || task.Title != in.Title || task.Notes != in.Notes || task.Why != in.Why || task.URL != in.URL || task.Minutes != in.Minutes || !task.Deadline.Equal(in.Deadline) || !task.CreatedAt.Equal(before.Tasks[0].CreatedAt) {
 		t.Fatal("edit duplicated rewards, lost identity, or did not save content")
 	}
 	if len(task.Plan.Steps) != 1 || task.Plan.Steps[0].Title != in.Title {
@@ -121,7 +121,7 @@ func TestTaskEditDoesNotOverwriteChangesDuringModelCall(t *testing.T) {
 		t.Fatalf("profile changed while planning: %d", code)
 	}
 	after := c.state("GET", "/api/state", nil)
-	if after.Tasks[0].Title != "課題" || after.Profile.Context != "作業傾向を更新" || after.BalanceSeconds != initialSeconds {
+	if after.Tasks[0].Title != "課題" || after.Profile.Context != "作業傾向を更新" || after.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("concurrent change overwritten or reward duplicated")
 	}
 }

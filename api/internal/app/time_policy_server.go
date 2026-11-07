@@ -22,9 +22,6 @@ func (s *Server) timePolicy(w http.ResponseWriter, r *http.Request) {
 		if st.Session != nil {
 			return errors.New("作業を記録してから視聴時間の設定を変更してください")
 		}
-		if st.TimePolicy == nil {
-			st.TimePolicy = newTimePolicy(s.now(), st.Profile.TimeZone)
-		}
 		st.TimePolicy.Mode, st.TimePolicy.DailyLimitSeconds = in.Mode, in.DailyLimitSeconds
 		return nil
 	})

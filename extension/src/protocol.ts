@@ -9,7 +9,7 @@ export type ExtensionState = Pick<
   'revision' | 'balanceSeconds' | 'settings' | 'session' | 'nextDraft' | 'viewingSession'
 > & {
   tasks: ExtensionTask[];
-  timePolicy?: Pick<TimePolicy, 'mode' | 'dailyLimitSeconds' | 'viewedSeconds'>;
+  timePolicy?: Pick<TimePolicy, 'version' | 'mode' | 'dailyLimitSeconds' | 'viewedSeconds'>;
   workRewardSeconds: number;
 };
 

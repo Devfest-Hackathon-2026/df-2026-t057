@@ -47,19 +47,19 @@ func TestCalendarRetryEditAndCancellation(t *testing.T) {
 		Start: &calendar.EventDateTime{DateTime: end.Add(-30 * time.Minute).Format(time.RFC3339)}, End: &calendar.EventDateTime{DateTime: end.Format(time.RFC3339)}}
 	s := NewState(now)
 	applyCalendarEvents(&s, []*calendar.Event{event}, nil, now)
-	if s.BalanceSeconds != initialSeconds || len(s.Tasks) != 1 {
+	if s.BalanceSeconds != initialSeconds+300 || len(s.Tasks) != 1 {
 		t.Fatal("calendar registration changed viewing time or failed to create a task")
 	}
 	id := s.Tasks[0].ID
 	revision := s.PlanRevision
 	applyCalendarEvents(&s, []*calendar.Event{event, event}, nil, now)
-	if s.BalanceSeconds != initialSeconds || len(s.Tasks) != 1 || s.PlanRevision != revision {
+	if s.BalanceSeconds != initialSeconds+300 || len(s.Tasks) != 1 || s.PlanRevision != revision {
 		t.Fatal("duplicate webhook changed the plan or rewards")
 	}
 	event.Summary = "変更した課題"
 	event.Etag = "v2"
 	applyCalendarEvents(&s, []*calendar.Event{event}, nil, now)
-	if s.Tasks[0].Title != event.Summary || s.BalanceSeconds != initialSeconds || s.PlanRevision <= revision {
+	if s.Tasks[0].Title != event.Summary || s.BalanceSeconds != initialSeconds+300 || s.PlanRevision <= revision {
 		t.Fatal("user edit was not applied exactly once")
 	}
 	s.Session = &Session{TaskID: id, StartedAt: now}
@@ -70,7 +70,7 @@ func TestCalendarRetryEditAndCancellation(t *testing.T) {
 	}
 	event.Status = "confirmed"
 	applyCalendarEvents(&s, []*calendar.Event{event}, nil, now)
-	if s.Tasks[0].ID != id || s.BalanceSeconds != initialSeconds {
+	if s.Tasks[0].ID != id || s.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("restoring an event duplicated registration credit")
 	}
 }

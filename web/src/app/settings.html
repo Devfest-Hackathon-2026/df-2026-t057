@@ -6,14 +6,7 @@
 <section class="settings-card">
   <h2>自分で見る時間を決める</h2>
   <p>初回10分。毎日、残高を10分まで補充します。受け取りのために開く必要はありません。</p>
-  <p>作業を記録すると5分につき視聴1分、1日最大20分増えます。課題の登録だけでは増えません。</p>
-  @if (!api.state()?.timePolicy) {
-    <p>
-      現在は以前の付与方式です。切り替えても、今ある{{
-        (api.state()!.balanceSeconds / 60).toFixed(0)
-      }}分は残ります。
-    </p>
-  }
+  <p>作業を記録すると5分につき視聴1分、1日最大20分増えます。新しい課題の登録でも5分増えます。</p>
   <mat-form-field appearance="outline">
     <mat-label>支援の段階</mat-label>
     <mat-select [(ngModel)]="timePolicy.mode" [disabled]="api.busy()">
@@ -61,7 +54,7 @@
     (click)="saveTimePolicy()"
     [disabled]="api.busy() || !!api.state()?.session"
   >
-    {{ api.state()?.timePolicy ? '視聴ルールを保存' : '新しい方式を使う' }}
+    視聴ルールを保存
   </button>
   @if (api.state()?.session) {
     <p>作業を記録してから設定を変更できます。</p>

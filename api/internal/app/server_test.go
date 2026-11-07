@@ -43,7 +43,7 @@ func TestAccountsCannotReadOrCompleteEachOthersTasks(t *testing.T) {
 	other.Title = "別の人の課題"
 	b.state("POST", "/api/tasks", other)
 	b.state("POST", "/api/tasks/one/complete", nil)
-	if s := a.state("GET", "/api/state", nil); s.Tasks[0].Status != "pending" || s.BalanceSeconds != initialSeconds {
+	if s := a.state("GET", "/api/state", nil); s.Tasks[0].Status != "pending" || s.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("same task ID changed another account")
 	}
 }
@@ -90,8 +90,8 @@ func TestTaskLifecycleRewardsAndTimer(t *testing.T) {
 		t.Fatal("initial credit")
 	}
 	s = c.state("POST", "/api/tasks", input())
-	if s.BalanceSeconds != initialSeconds {
-		t.Fatal("registration granted viewing time")
+	if s.BalanceSeconds != initialSeconds+300 {
+		t.Fatal("registration did not grant five minutes")
 	}
 	var wg sync.WaitGroup
 	for range 8 {
@@ -104,7 +104,7 @@ func TestTaskLifecycleRewardsAndTimer(t *testing.T) {
 	}
 	wg.Wait()
 	s = c.state("GET", "/api/state", nil)
-	if len(s.Tasks) != 1 || s.BalanceSeconds != initialSeconds {
+	if len(s.Tasks) != 1 || s.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("retry duplicated a task or reward")
 	}
 	s = c.state("POST", "/api/tasks/one/start", nil)
@@ -131,7 +131,7 @@ func TestTaskLifecycleRewardsAndTimer(t *testing.T) {
 	}
 	wg.Wait()
 	s = c.state("GET", "/api/state", nil)
-	if s.BalanceSeconds != initialSeconds || s.Session != nil || s.Tasks[0].Status != "completed" || len(s.Ledger) != 2 {
+	if s.BalanceSeconds != initialSeconds+300 || s.Session != nil || s.Tasks[0].Status != "completed" || len(s.Ledger) != 3 {
 		t.Fatal("completion was not exactly once")
 	}
 }
@@ -172,25 +172,27 @@ func TestDraftPreviewCancelAndStaleCommit(t *testing.T) {
 	s = c.state("GET", "/api/state", nil)
 	draft = s.NextDraft
 	s = c.state("POST", "/api/draft/commit", draft)
-	if !s.Tasks[0].Plan.Start.Equal(draft.Changes[0].After.Start) || s.BalanceSeconds != initialSeconds {
+	if !s.Tasks[0].Plan.Start.Equal(draft.Changes[0].After.Start) || s.BalanceSeconds != initialSeconds+300 {
 		t.Fatal("commit changed credit or did not apply proposal")
 	}
 }
 
-func TestLegacyViewingReceiptsAndUserIsolation(t *testing.T) {
-	c := client(t)
-	_, _ = c.store.Update(t.Context(), "demo-"+c.cookie.Value, func(s *State) error { s.TimePolicy = nil; s.BalanceSeconds = 3600; return nil })
-	body := map[string]any{"id": "receipt-001", "seconds": 10}
+func TestViewingReceiptsAndUserIsolation(t *testing.T) {
+	now := time.Now()
+	c := policyClient(t, &now)
+	c.state("POST", "/api/viewing/start", map[string]any{"id": "receipt-session", "seconds": 300})
+	now = now.Add(10 * time.Second)
+	body := map[string]any{"id": "receipt-001", "seconds": 10, "sessionId": "receipt-session"}
 	s := c.state("POST", "/api/viewing", body)
-	if s.BalanceSeconds != 3590 {
+	if s.BalanceSeconds != 590 {
 		t.Fatal("viewing debit")
 	}
 	s = c.state("POST", "/api/viewing", body)
-	if s.BalanceSeconds != 3590 {
+	if s.BalanceSeconds != 590 {
 		t.Fatal("retry charged twice")
 	}
-	s = c.state("POST", "/api/viewing", map[string]any{"id": "receipt-002", "seconds": 10})
-	if s.BalanceSeconds < 3589 {
+	s = c.state("POST", "/api/viewing", map[string]any{"id": "receipt-002", "seconds": 10, "sessionId": "receipt-session"})
+	if s.BalanceSeconds < 589 {
 		t.Fatal("parallel tab overcharged")
 	}
 	other := c

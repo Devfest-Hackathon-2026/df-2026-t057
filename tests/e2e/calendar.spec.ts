@@ -163,6 +163,6 @@ test('manual Google sync waits for confirmation and preserves events on failure'
   release();
   await expect(page.getByRole('alert')).toContainText('同期を確認できませんでした');
   await expect(page.locator('.next-task')).toContainText('同期を確認する課題');
-  await expect(page.locator('.credit-number')).toContainText('10');
+  await expect(page.locator('.credit-number')).toContainText('15');
   expect(calls).toBe(1);
 });

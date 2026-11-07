@@ -41,7 +41,7 @@
             </button>
           }
           <button mat-flat-button (click)="actions.complete(active()!)" [disabled]="api.busy()">
-            {{ api.state()?.timePolicy ? '課題を完了' : '完了 ＋20分' }}
+            課題を完了
           </button>
         </div>
         <mat-progress-bar mode="determinate" [value]="progress()" aria-label="作業の進捗" />

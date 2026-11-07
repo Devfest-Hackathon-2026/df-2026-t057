@@ -32,6 +32,7 @@ async function apiState(path: string, method = 'GET', body?: unknown): Promise<E
     viewingSession: state.viewingSession,
     timePolicy: state.timePolicy
       ? {
+          version: state.timePolicy.version,
           mode: state.timePolicy.mode,
           dailyLimitSeconds: state.timePolicy.dailyLimitSeconds,
           viewedSeconds: state.timePolicy.viewedSeconds,
@@ -140,15 +141,27 @@ type ViewingRequest = Extract<
 >;
 let viewingChange: Promise<unknown> = Promise.resolve();
 async function flushViewing(): Promise<ExtensionState | undefined> {
+  const version = connectionVersion;
   const pending = (await chrome.storage.local.get('viewingPending'))['viewingPending'] as
-    { id: string; seconds: number; sessionId?: string; accountId: string } | undefined;
+    | { id: string; seconds: number; sessionId?: string; accountId: string; policyVersion?: number }
+    | undefined;
   if (!pending) return;
-  if (pending.accountId !== (await connection())?.accountId) {
+  const account = await connection();
+  if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
+  if (pending.accountId !== account?.accountId) {
     await chrome.storage.local.remove('viewingPending');
     return;
   }
-  const { accountId: _, ...report } = pending;
-  const state = await apiState('/viewing', 'POST', report);
+  const { accountId: _, policyVersion, ...report } = pending;
+  let state: ExtensionState;
+  try {
+    state = await apiState('/viewing', 'POST', report);
+  } catch (error) {
+    if (version !== connectionVersion) throw error;
+    state = await apiState('/state');
+    if ((state.timePolicy?.version ?? 0) <= (policyVersion ?? 0)) throw error;
+  }
+  if (version !== connectionVersion) throw new Error('アカウントが切り替わりました。');
   await chrome.storage.local.remove('viewingPending');
   return state;
 }
@@ -213,6 +226,7 @@ function changeViewing(
           seconds: request.seconds,
           sessionId: request.sessionId,
           accountId,
+          policyVersion: cached?.timePolicy?.version,
         };
         await chrome.storage.local.set({ viewingPending: report });
         state = await flushViewing();

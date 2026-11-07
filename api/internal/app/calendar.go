@@ -399,7 +399,7 @@ func applyCalendarEvents(st *State, events []*calendar.Event, plans map[string]P
 				continue
 			}
 			st.Tasks = append(st.Tasks, Task{ID: id, Title: event.Summary, Notes: stripPlan(event.Description), Deadline: end, Minutes: minutes, Status: "pending", CreatedAt: now, CalendarEventID: event.Id, CalendarETag: event.Etag, InputHash: hash, Plan: plans[event.Id]})
-			st.grant("registration", id, 600, now)
+			st.grant("registration", id, 300, now)
 			changed = true
 		}
 	}

@@ -49,15 +49,12 @@
     <details class="disclosure credit-help">
       <summary>視聴時間について</summary>
       @if (state.timePolicy; as policy) {
-        <p>初回10分。毎日、残高を10分まで補充。作業5分の記録で視聴1分増え、追加は1日20分まで。</p>
+        <p>初回10分。毎日、残高を10分まで補充。課題の登録で5分増えます。</p>
+        <p>作業5分の記録で視聴1分増え、作業による追加は1日20分まで。</p>
         <p>
           視聴の上限は1日{{ policy.dailyLimitSeconds / 60 }}分。残高{{
             (state.balanceSeconds / 60).toFixed(1)
           }}分は繰り越せます。設定で支援の段階と上限を選べます。
-        </p>
-      } @else {
-        <p>
-          初回60分。課題の登録で10分、完了で20分増えます。設定から新しい方式に切り替えられます。
         </p>
       }
     </details>

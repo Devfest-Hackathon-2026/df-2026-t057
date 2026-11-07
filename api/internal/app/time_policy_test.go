@@ -68,17 +68,17 @@ func TestWorkConfirmationCountsPausedIntervalsAndIsIdempotent(t *testing.T) {
 	for range 3 {
 		st = c.state("POST", "/api/session/confirm", map[string]string{"id": id})
 	}
-	if st.BalanceSeconds != 660 || st.TimePolicy.WorkSeconds != 300 || st.Session != nil || st.Tasks[0].Status != "pending" {
+	if st.BalanceSeconds != 960 || st.TimePolicy.WorkSeconds != 300 || st.Session != nil || st.Tasks[0].Status != "pending" {
 		t.Fatalf("invalid work confirmation: %+v", st)
 	}
-	if len(st.Ledger) != 2 {
+	if len(st.Ledger) != 3 {
 		t.Fatal("work receipt recorded more than once")
 	}
 	// A tiny next block uses the remainder; merely completing another task grants nothing.
 	st = c.state("POST", "/api/tasks/one/start", nil)
 	now = now.Add(4 * time.Minute)
 	st = c.state("POST", "/api/tasks/one/complete", nil)
-	if st.BalanceSeconds != 660 || st.TimePolicy.WorkSeconds != 540 {
+	if st.BalanceSeconds != 960 || st.TimePolicy.WorkSeconds != 540 {
 		t.Fatal("work remainder was rounded up")
 	}
 }
@@ -181,7 +181,7 @@ func TestWorkConfirmationIsUserScopedAndSafeForConcurrentRetries(t *testing.T) {
 	}
 	wg.Wait()
 	st = c.state("GET", "/api/state", nil)
-	if st.BalanceSeconds != 660 || st.TimePolicy.WorkSeconds != 300 || len(st.Ledger) != 2 {
+	if st.BalanceSeconds != 960 || st.TimePolicy.WorkSeconds != 300 || len(st.Ledger) != 3 {
 		t.Fatal("parallel confirmations granted duplicate time")
 	}
 	if st := other.state("GET", "/api/state", nil); st.BalanceSeconds != 600 || st.TimePolicy.WorkSeconds != 0 {
@@ -229,16 +229,16 @@ func TestViewingRequiresChoiceSharesSessionAndCapsBothBalances(t *testing.T) {
 	}
 }
 
-func TestPolicyMigrationAndModesPreserveCreditAndDoNotRefillOnToggle(t *testing.T) {
+func TestPolicyModesDoNotResetBalanceOrRefillOnToggle(t *testing.T) {
 	now := time.Date(2026, 11, 7, 3, 0, 0, 0, time.UTC)
 	c := policyClient(t, &now)
-	_, _ = c.store.Update(t.Context(), "demo-"+c.cookie.Value, func(s *State) error { s.TimePolicy = nil; s.BalanceSeconds = 7200; return nil })
-	if st := c.state("GET", "/api/state", nil); st.TimePolicy != nil || st.BalanceSeconds != 7200 {
-		t.Fatal("legacy user silently migrated")
+	_, _ = c.store.Update(t.Context(), "demo-"+c.cookie.Value, func(s *State) error { s.BalanceSeconds = 420; return nil })
+	if st := c.state("GET", "/api/state", nil); st.TimePolicy == nil || st.BalanceSeconds != 420 {
+		t.Fatal("current user was reset again")
 	}
 	for _, mode := range []string{"rewards", "fixed", "reminder", "self", "rewards"} {
 		st := c.state("PUT", "/api/time-policy", map[string]any{"mode": mode, "dailyLimitSeconds": 1200})
-		if st.BalanceSeconds != 7200 || st.TimePolicy.Mode != mode {
+		if st.BalanceSeconds != 420 || st.TimePolicy.Mode != mode {
 			t.Fatal("mode change removed credit or granted a refill")
 		}
 	}

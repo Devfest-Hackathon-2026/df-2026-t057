@@ -53,6 +53,7 @@ type Settings struct {
 	Grime         bool   `json:"grime"`
 }
 type Session struct {
+	PriorSeconds  int            `json:"priorSeconds,omitempty"`
 	ID            string         `json:"id,omitempty"`
 	LimitSeconds  int            `json:"limitSeconds,omitempty"`
 	RunningSince  *time.Time     `json:"runningSince,omitempty"`
@@ -130,14 +131,14 @@ func (s *State) task(id string) (*Task, error) {
 	return nil, ErrNotFound
 }
 func (s *State) grant(kind, taskID string, seconds int, now time.Time) {
-	if s.TimePolicy != nil && (kind == "registration" || kind == "completion") {
-		return
-	}
 	id := kind + ":" + taskID
 	for _, entry := range s.Ledger {
 		if entry.ID == id {
 			return
 		}
+	}
+	if kind == "registration" {
+		seconds = max(0, min(seconds, balanceCapSeconds-s.BalanceSeconds))
 	}
 	s.BalanceSeconds += seconds
 	s.Ledger = append(s.Ledger, LedgerEntry{ID: id, Kind: kind, Seconds: seconds, TaskID: taskID, At: now})

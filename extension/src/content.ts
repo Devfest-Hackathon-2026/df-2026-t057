@@ -454,7 +454,7 @@ function initialize() {
       void action({ type: 'PAUSE' }, timer!);
     });
     const complete = button(
-      state.timePolicy ? '課題を完了' : '完了 ＋20分',
+      '課題を完了',
       () => {
         const before = state!;
         void action({ type: 'COMPLETE', taskId: task.id }, timer!).then((reply) => {
@@ -462,7 +462,6 @@ function initialize() {
             showToast(
               workRewardMessage(
                 Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
-                !reply.state.timePolicy,
               ),
             );
         });
@@ -482,7 +481,6 @@ function initialize() {
               showToast(
                 workRewardMessage(
                   Math.max(0, reply.state.workRewardSeconds - before.workRewardSeconds),
-                  !reply.state.timePolicy,
                 ),
               );
           });

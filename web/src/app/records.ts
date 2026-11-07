@@ -49,6 +49,7 @@ export class Records {
       (
         {
           initial: 'はじめの視聴時間',
+          reset: '新ルールへ統一（残高10分）',
           registration: '課題を登録',
           completion: '課題を完了',
           daily: '毎日の補充',

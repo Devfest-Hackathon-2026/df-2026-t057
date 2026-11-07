@@ -47,7 +47,7 @@ export interface Session {
 }
 export interface LedgerEntry {
   id: string;
-  kind: 'initial' | 'registration' | 'completion' | 'viewing' | 'daily' | 'work';
+  kind: 'initial' | 'registration' | 'completion' | 'viewing' | 'daily' | 'work' | 'reset';
   workSeconds?: number;
   seconds: number;
   taskId?: string;
@@ -73,6 +73,7 @@ export interface State {
 }
 export interface TimePolicy {
   version: number;
+  effectiveAt: string;
   mode: 'rewards' | 'fixed' | 'reminder' | 'self';
   dailyLimitSeconds: number;
   timeZone: string;
@@ -92,7 +93,7 @@ export interface ViewingSession {
   consumedSeconds: number;
   lastReportAt: string;
   endedAt?: string;
-  reason?: 'stop' | 'limit';
+  reason?: 'stop' | 'limit' | 'reset';
 }
 export function viewingAvailable(state: {
   balanceSeconds: number;
@@ -107,15 +108,13 @@ export function workLimitSeconds(state: Pick<State, 'session'>, task: Pick<Task,
   return state.session?.limitSeconds ?? plannedSeconds(task);
 }
 export function workRewardText(before: State, after: State): string {
-  if (!after.timePolicy) return '課題完了！ 視聴時間 ＋20分';
   const ids = new Set(before.ledger.map((e) => e.id));
   const seconds = after.ledger
     .filter((e) => e.kind === 'work' && !ids.has(e.id))
     .reduce((sum, e) => sum + e.seconds, 0);
   return workRewardMessage(seconds);
 }
-export function workRewardMessage(seconds: number, legacy = false): string {
-  if (legacy) return '課題完了！ 視聴時間 ＋20分';
+export function workRewardMessage(seconds: number): string {
   return seconds
     ? `作業を記録しました。視聴時間 ＋${durationLabel(seconds)}`
     : '作業を記録しました';
@@ -126,7 +125,7 @@ export function durationLabel(seconds: number): string {
   return `${minutes ? `${minutes}分` : ''}${rest || !minutes ? `${rest}秒` : ''}`;
 }
 export function rewardDescription(state?: { timePolicy?: Pick<TimePolicy, 'mode'> }): string {
-  if (!state?.timePolicy) return '完了で視聴時間 ＋20分';
+  if (!state?.timePolicy) return '取り組んだ時間を記録しましょう';
   return state.timePolicy.mode === 'rewards'
     ? '取り組んだ5分で視聴1分。記録した分だけ増えます'
     : '区切りまで、ひとつずつ取り組みましょう';

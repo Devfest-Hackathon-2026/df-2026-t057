@@ -76,15 +76,12 @@ func TestDraftRejectsOverlapAndInvalidSteps(t *testing.T) {
 	}
 }
 
-func TestLegacyRewardOnceAcrossRetriesAndEdits(t *testing.T) {
+func TestRegistrationRewardOnceAcrossRetries(t *testing.T) {
 	s, now := fixture()
-	s.TimePolicy = nil
-	s.BalanceSeconds = 3600
 	for range 10 {
-		s.grant("registration", "a", 600, now)
-		s.grant("completion", "a", 1200, now)
+		s.grant("registration", "a", 300, now)
 	}
-	if s.BalanceSeconds != 5400 || len(s.Ledger) != 3 {
+	if s.BalanceSeconds != initialSeconds+300 || len(s.Ledger) != 2 {
 		t.Fatalf("duplicate rewards: %+v", s.Ledger)
 	}
 }

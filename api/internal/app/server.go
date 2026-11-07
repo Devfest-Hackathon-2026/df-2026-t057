@@ -195,7 +195,7 @@ func (s *Server) createTask(ctx context.Context, id string, input TaskInput) (St
 		}
 		task.CalendarEventID = eventID
 		st.Tasks = append(st.Tasks, task)
-		st.grant("registration", input.ID, 600, s.now())
+		st.grant("registration", input.ID, 300, s.now())
 		st.replan()
 		prepareDraft(st, s.now())
 		if eventID != "" {
@@ -367,7 +367,6 @@ func (s *Server) complete(w http.ResponseWriter, r *http.Request) {
 		now := s.now()
 		t.Status = "completed"
 		t.CompletedAt = &now
-		st.grant("completion", t.ID, 1200, now)
 		if st.Session != nil && st.Session.TaskID == t.ID {
 			st.confirmWork(now)
 			st.Session = nil
@@ -583,7 +582,7 @@ func (s *Server) sample(w http.ResponseWriter, r *http.Request) {
 		for i, title := range []string{"レポートの構成をまとめる", "演習問題を解く", "見直して提出する"} {
 			id := newID()
 			st.Tasks = append(st.Tasks, Task{ID: id, Title: title, Minutes: []int{30, 30, 15}[i], Deadline: now.Add(90 * time.Minute), Status: "pending", CreatedAt: now})
-			st.grant("registration", id, 600, now)
+			st.grant("registration", id, 300, now)
 		}
 		st.replan()
 		prepareDraft(st, now)
