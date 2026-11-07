@@ -4,6 +4,7 @@
     <button
       mat-flat-button
       class="create-button"
+      data-tour="add"
       aria-label="課題を登録"
       matTooltip="課題を登録"
       (click)="actions.add()"
@@ -13,7 +14,7 @@
     </button>
   </div>
   <section class="workspace-summary" aria-label="視聴できる時間と次の課題">
-    <div class="workspace-credit">
+    <div class="workspace-credit" data-tour="credit">
       <p class="summary-label">{{ unlimited() ? '視聴の支援' : '今日、視聴できる時間' }}</p>
       <strong class="credit-number" [class.unlimited]="unlimited()">
         @if (unlimited()) {
@@ -43,7 +44,7 @@
         </span>
       </button>
     </div>
-    <div class="workspace-next">
+    <div class="workspace-next" data-tour="next">
       @if (next(); as task) {
         <p class="summary-label">
           次の課題
@@ -234,7 +235,7 @@
     <mat-button-toggle value="panel">相談・詳細</mat-button-toggle>
   </mat-button-toggle-group>
   <div class="workspace-grid" [attr.data-mobile-part]="mobilePart()">
-    <section class="calendar-surface" aria-label="予定カレンダー">
+    <section class="calendar-surface" aria-label="予定カレンダー" data-tour="calendar">
       <div class="calendar-toolbar">
         <div class="calendar-navigation">
           <button mat-stroked-button (click)="move(0)">今日</button>
@@ -291,7 +292,7 @@
         </div>
       }
     </section>
-    <aside class="workspace-panel" aria-label="予定の相談と詳細">
+    <aside class="workspace-panel" aria-label="予定の相談と詳細" data-tour="assistant">
       <mat-button-toggle-group
         class="panel-switch"
         [value]="panel()"
