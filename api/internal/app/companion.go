@@ -109,7 +109,19 @@ func companionProgress(state State, now time.Time) map[string]any {
 	for i := 0; i < len(recent) && i < 3; i++ {
 		titles = append(titles, recent[i].Title)
 	}
-	return map[string]any{"streakDays": streakDays(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
+	return map[string]any{"streakDays": streakDays(state, now), "support": supportLevel(state, now), "completedLast7Days": week, "completedTotal": total, "recentCompleted": titles, "viewingMinutesLeft": state.BalanceSeconds / 60, "sleep": sleepSummary(state, now)}
+}
+
+// supportLevel fades the companion as the user keeps going on their own: full, light, then hands-off.
+func supportLevel(state State, now time.Time) string {
+	days := streakDays(state, now)
+	switch {
+	case days >= 7:
+		return "hands-off"
+	case days >= 3:
+		return "light"
+	}
+	return "full"
 }
 
 // sleepSummary is what the companion may know about the user's bedtime.

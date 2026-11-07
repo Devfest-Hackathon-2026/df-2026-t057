@@ -111,3 +111,18 @@ func TestStreakDaysUsesLocalCalendarDays(t *testing.T) {
 		t.Fatalf("streak including today: %d", got)
 	}
 }
+
+func TestSupportFadesWithStreak(t *testing.T) {
+	now := time.Now()
+	state := NewState(now)
+	for back, want := range map[int]string{0: "full", 3: "light", 7: "hands-off"} {
+		state.Tasks = nil
+		for d := 0; d < back; d++ {
+			at := now.AddDate(0, 0, -d)
+			state.Tasks = append(state.Tasks, Task{Status: "completed", CompletedAt: &at})
+		}
+		if got := supportLevel(state, now); got != want {
+			t.Errorf("%d days: %s", back, got)
+		}
+	}
+}
