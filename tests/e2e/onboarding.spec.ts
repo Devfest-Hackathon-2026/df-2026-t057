@@ -16,7 +16,12 @@ test('?tutorial walks through the screen and ends on task registration', async (
   await card.getByRole('button', { name: '戻る' }).click();
   await expect(card.getByRole('heading')).toHaveText('DOPAGAKIへようこそ');
   await card.getByRole('button', { name: '案内を見る' }).click();
-  for (let i = 0; i < 6; i++) await card.getByRole('button', { name: '次へ' }).click();
+  // Wait for each step to change before the next click, so a slow runner does not drop a click.
+  for (let i = 0; i < 6; i++) {
+    const title = await card.getByRole('heading').textContent();
+    await card.getByRole('button', { name: '次へ' }).click();
+    await expect(card.getByRole('heading')).not.toHaveText(title!);
+  }
   await expect(card.getByRole('heading')).toHaveText('準備できました');
   await card.getByRole('button', { name: '課題を登録する' }).click();
   await expect(card).toHaveCount(0);
