@@ -77,3 +77,16 @@ func TestShortcutKeyRejectsWrongRevokedAndUnknownKeys(t *testing.T) {
 		t.Fatal("a request without a key was accepted")
 	}
 }
+
+func TestShortcutCallsAreRateLimitedPerAccount(t *testing.T) {
+	c := client(t)
+	key := issue(t, c)
+	for i := 0; i < shortcutPerAccount; i++ {
+		if code, _ := open(c, key); code != 200 {
+			t.Fatalf("call %d rejected: %d", i, code)
+		}
+	}
+	if code, _ := open(c, key); code != http.StatusTooManyRequests {
+		t.Fatalf("burst not limited: %d", code)
+	}
+}

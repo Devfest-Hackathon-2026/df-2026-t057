@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,35 @@ type Shortcut struct {
 	Hash      string    `json:"keyHash"`
 	CreatedAt time.Time `json:"createdAt"`
 }
+
+// rateLimit counts requests per key in a sliding window. The zero value is ready to use.
+type rateLimit struct {
+	mu   sync.Mutex
+	hits map[string][]time.Time
+}
+
+func (l *rateLimit) allow(key string, limit int, window time.Duration, now time.Time) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.hits == nil || len(l.hits) > 10000 {
+		l.hits = map[string][]time.Time{}
+	}
+	recent := l.hits[key][:0]
+	for _, at := range l.hits[key] {
+		if now.Sub(at) < window {
+			recent = append(recent, at)
+		}
+	}
+	if len(recent) >= limit {
+		l.hits[key] = recent
+		return false
+	}
+	l.hits[key] = append(recent, now)
+	return true
+}
+
+// Shortcut requests allowed per account and in total each minute.
+const shortcutPerAccount, shortcutTotal = 10, 300
 
 // shortcutKey is "<base64url(uid)>.<secret>"; the uid part lets the server find the account without an index.
 func shortcutKey(id string) (key, hash string) {
@@ -67,6 +97,11 @@ func (s *Server) shortcutOpen(w http.ResponseWriter, r *http.Request) {
 	id, hash, valid := parseShortcutKey(key)
 	if !ok || !valid {
 		writeError(w, 401, errors.New("ショートカットの接続キーを確認してください"))
+		return
+	}
+	now := s.now()
+	if !s.shortcuts.allow("*", shortcutTotal, time.Minute, now) || !s.shortcuts.allow(id, shortcutPerAccount, time.Minute, now) {
+		writeError(w, 429, errors.New("短い間に何度も呼び出されました。少し待ってから開いてください"))
 		return
 	}
 	state, found, err := s.Store.Find(r.Context(), id)

@@ -28,6 +28,8 @@ type Server struct {
 	AppURL    string
 	Firebase  map[string]string
 	Assistant AssistantStore
+	// shortcuts limits the unauthenticated Shortcuts endpoint per account and in total.
+	shortcuts rateLimit
 }
 
 func (s *Server) now() time.Time {
