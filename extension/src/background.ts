@@ -1,4 +1,4 @@
-import { Draft, State, nightWindow } from '../../shared/models';
+import { Draft, Morning, State, nightWindow } from '../../shared/models';
 import {
   Connection,
   ExtensionState,
@@ -33,7 +33,10 @@ async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> 
   return result as T;
 }
 async function apiState(path: string, method = 'GET', body?: unknown): Promise<ExtensionState> {
-  const state = await api<State>(path, method, body);
+  return project(await api<State>(path, method, body));
+}
+// Only what the extension needs leaves the API response.
+function project(state: State): ExtensionState {
   return {
     balanceSeconds: state.balanceSeconds,
     settings: state.settings,
@@ -83,7 +86,29 @@ async function refresh() {
   const state = await apiState('/state');
   await publish(state, version);
   void remindBedtime(state).catch(() => undefined);
+  void greetMorning(state, version).catch(() => undefined);
   return state;
+}
+// After wake, settle last night (held rewards and the early-bedtime bonus) without opening the app.
+async function greetMorning(state: ExtensionState, version: number) {
+  if (!state.sleep || nightWindow(state.sleep, state.timeZone)) return;
+  const { morningCheckedAt } = await chrome.storage.local.get('morningCheckedAt');
+  if (Date.now() - Number(morningCheckedAt ?? 0) < 30 * 60000) return;
+  await chrome.storage.local.set({ morningCheckedAt: Date.now() });
+  const result = await api<{ state: State; morning: Morning | null }>('/sleep/morning', 'POST');
+  if (!result.morning) return;
+  await publish(project(result.state), version);
+  const gains = [
+    result.morning.kept ? `早寝ボーナス ＋${result.morning.bonusSeconds / 60}分` : '',
+    result.morning.releasedSeconds ? `昨夜の報酬 ＋${result.morning.releasedSeconds / 60}分` : '',
+  ].filter(Boolean);
+  const line = (await companionLine('morning')) || 'おはよう。今日の最初の一手、一緒に決めよっか。';
+  await chrome.notifications.create('morning', {
+    type: 'basic',
+    iconUrl: 'icon-128.png',
+    title: 'DOPAGAKI · おはよう',
+    message: [line, ...gains].join('\n'),
+  });
 }
 // Once a night, a quiet bedtime reminder on top of Shorts. Nothing is blocked.
 async function remindBedtime(state: ExtensionState) {
@@ -137,12 +162,19 @@ function trustedPage(sender: chrome.runtime.MessageSender): boolean {
 }
 
 async function clearAccount() {
-  await chrome.storage.local.remove(['state', 'notifiedPlans', 'lastError']);
+  await chrome.storage.local.remove([
+    'state',
+    'notifiedPlans',
+    'lastError',
+    'bedtimeShown',
+    'morningCheckedAt',
+  ]);
+  await chrome.storage.session.remove('noticeLines');
   await chrome.alarms.clear('task-start');
   const notifications = await chrome.notifications.getAll();
   await Promise.all(
     Object.keys(notifications)
-      .filter((id) => id.startsWith('task:'))
+      .filter((id) => id.startsWith('task:') || id === 'morning')
       .map((id) => chrome.notifications.clear(id)),
   );
   const tabs = await chrome.tabs.query({});
@@ -301,6 +333,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   });
 });
 chrome.notifications.onClicked.addListener((id) => {
+  if (id === 'morning') void openApp();
   if (id.startsWith('task:')) void openApp(`?notification=${encodeURIComponent(id.slice(5))}`);
 });
 chrome.notifications.onButtonClicked.addListener((id, index) => {
