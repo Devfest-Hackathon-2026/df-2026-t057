@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -27,6 +28,8 @@ type Planner struct {
 	Model  string
 	Usage  AIUsageStore
 	Limits AILimits
+	// lines caches generated companion remarks so repeated views do not spend the user's AI quota.
+	lines sync.Map
 }
 
 func (p *Planner) generate(ctx context.Context, owner, prompt string, config *genai.GenerateContentConfig) (*genai.GenerateContentResponse, error) {

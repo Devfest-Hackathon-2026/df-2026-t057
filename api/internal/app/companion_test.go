@@ -85,8 +85,12 @@ func TestCompanionLineRejectsUnsafeWording(t *testing.T) {
 	if _, out := line(t, c, "complete", ""); out["generated"] != true || out["line"] != text {
 		t.Fatalf("generated line: %v", out)
 	}
+	text = "別の一言"
+	if _, out := line(t, c, "complete", ""); out["line"] != "よし、まず資料を開こう。" {
+		t.Fatalf("the same moment was generated again: %v", out)
+	}
 	text = "それは依存症ですね"
-	if _, out := line(t, c, "complete", ""); out["generated"] != false || strings.Contains(out["line"].(string), "依存症") {
+	if _, out := line(t, c, "balance_zero", ""); out["generated"] != false || strings.Contains(out["line"].(string), "依存症") {
 		t.Fatalf("banned wording was shown: %v", out)
 	}
 }

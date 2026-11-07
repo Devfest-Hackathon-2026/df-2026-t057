@@ -356,10 +356,30 @@ func fallbackLine(moment string, task *Task) string {
 var lineTimeout = 6 * time.Second
 
 // Line asks the companion for one short remark at a moment, falling back to fixed text.
+// lineReuse is how long a generated remark is reused for the same moment, task and plan.
+const lineReuse = 6 * time.Hour
+
+type cachedLine struct {
+	text    string
+	expires time.Time
+}
+
+func lineKey(owner, moment string, state State, task *Task, now time.Time) string {
+	key := owner + "|" + moment + "|" + now.In(location(state)).Format(time.DateOnly)
+	if task != nil {
+		key += "|" + task.ID + "|" + task.Plan.Start.Format(time.RFC3339)
+	}
+	return key
+}
+
 func (p *Planner) Line(ctx context.Context, owner, moment string, state State, task *Task) (string, bool) {
 	fallback := fallbackLine(moment, task)
 	if p == nil || p.Client == nil {
 		return fallback, false
+	}
+	key := lineKey(owner, moment, state, task, time.Now())
+	if cached, ok := p.lines.Load(key); ok && time.Now().Before(cached.(cachedLine).expires) {
+		return cached.(cachedLine).text, true
 	}
 	ctx, cancel := context.WithTimeout(ctx, lineTimeout)
 	defer cancel()
@@ -379,6 +399,13 @@ func (p *Planner) Line(ctx context.Context, owner, moment string, state State, t
 	if !speakable(line, 60) {
 		return fallback, false
 	}
+	p.lines.Range(func(k, v any) bool {
+		if time.Now().After(v.(cachedLine).expires) {
+			p.lines.Delete(k)
+		}
+		return true
+	})
+	p.lines.Store(key, cachedLine{line, time.Now().Add(lineReuse)})
 	return line, true
 }
 
