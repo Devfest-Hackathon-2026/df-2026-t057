@@ -51,7 +51,7 @@ func (s *Server) assistantMessage(w http.ResponseWriter, r *http.Request) {
 		history, err = s.Assistant.History(ctx, uid(r))
 	}
 	if err == nil {
-		turn.Reply, turn.Cards, err = s.Planner.Consult(ctx, in.Text, history, state, in.TaskID)
+		turn.Reply, turn.Cards, err = s.Planner.Consult(ctx, uid(r), in.Text, history, state, in.TaskID)
 	}
 	if err == nil {
 		latest, readErr := s.Store.Read(ctx, uid(r))
@@ -72,6 +72,11 @@ func (s *Server) assistantMessage(w http.ResponseWriter, r *http.Request) {
 	defer finishCancel()
 	if saveErr := s.Assistant.Finish(finishCtx, uid(r), turn, runID); saveErr != nil {
 		respond(w, nil, saveErr)
+		return
+	}
+	var limit *AILimitError
+	if errors.As(err, &limit) || errors.Is(err, ErrAIUsageUnavailable) {
+		respond(w, nil, err)
 		return
 	}
 	respond(w, turn, nil)
@@ -169,7 +174,7 @@ func consultationSchema() *genai.Schema {
 		}}},
 	}, Required: []string{"reply", "cards"}}
 }
-func (p *Planner) Consult(ctx context.Context, text string, history []AssistantTurn, state State, taskID string) (string, []AssistantCard, error) {
+func (p *Planner) Consult(ctx context.Context, owner, text string, history []AssistantTurn, state State, taskID string) (string, []AssistantCard, error) {
 	type contextTask struct {
 		ID       string    `json:"id"`
 		Title    string    `json:"title"`
@@ -212,7 +217,7 @@ memory: 本人が明示した作業の好み・得意不得意・時間帯など
 selectedTaskがあるとき「この予定」「この課題」はその課題を指します。別の課題を対象にする場合は本人の指示を確認します。
 入力JSON:
 ` + string(data)
-	result, err := p.Client.Models.GenerateContent(ctx, p.Model, genai.Text(prompt), &genai.GenerateContentConfig{ResponseMIMEType: "application/json", ResponseSchema: consultationSchema(), MaxOutputTokens: 5000})
+	result, err := p.generate(ctx, owner, prompt, &genai.GenerateContentConfig{ResponseMIMEType: "application/json", ResponseSchema: consultationSchema(), MaxOutputTokens: 5000})
 	if err != nil {
 		return "", nil, err
 	}

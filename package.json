@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "cd api && APP_MODE=demo PORT=8080 go run ./cmd/server",
+    "dev:api": "cd api && APP_MODE=demo DEV_API_ONLY=true PORT=8080 go run ./cmd/server",
     "dev:web": "ng serve --host 127.0.0.1 --port 4200 --proxy-config web/proxy.json",
     "build": "ng build && npm run build:extension",
     "build:extension": "node scripts/build-extension.mjs",

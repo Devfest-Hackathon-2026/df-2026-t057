@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/api/googleapi"
@@ -37,6 +40,17 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 }
 func respond(w http.ResponseWriter, value any, err error) {
 	if err != nil {
+		var limit *AILimitError
+		if errors.As(err, &limit) {
+			seconds := max(1, int((time.Until(limit.RetryAt)+time.Second-1)/time.Second))
+			w.Header().Set("Retry-After", strconv.Itoa(seconds))
+			writeError(w, 429, err)
+			return
+		}
+		if errors.Is(err, ErrAIUsageUnavailable) {
+			writeError(w, 503, err)
+			return
+		}
 		status := 400
 		if errors.Is(err, ErrConflict) {
 			status = 409
@@ -44,7 +58,7 @@ func respond(w http.ResponseWriter, value any, err error) {
 		if errors.Is(err, ErrNotFound) {
 			status = 404
 		}
-		slog.Warn("operation failed", "error", err)
+		LogFailure("operation failed", err)
 		var apiErr *googleapi.Error
 		var oauthErr *oauth2.RetrieveError
 		var transportErr *url.Error
@@ -56,4 +70,14 @@ func respond(w http.ResponseWriter, value any, err error) {
 		return
 	}
 	writeJSON(w, 200, value)
+}
+
+// SDK errors can contain response bodies, credentials, URLs and personal input.
+func LogFailure(operation string, err error) {
+	var apiErr *googleapi.Error
+	code := 0
+	if errors.As(err, &apiErr) {
+		code = apiErr.Code
+	}
+	slog.Error(operation, "error_type", fmt.Sprintf("%T", err), "grpc_code", grpcstatus.Code(err).String(), "http_status", code)
 }

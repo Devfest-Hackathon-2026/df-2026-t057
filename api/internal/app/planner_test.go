@@ -28,8 +28,8 @@ func TestGeminiDetailUsesProfileAndRejectsWrongDuration(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			planner := Planner{Client: client, Model: "gemini-3.8-flash"}
-			plan, err := planner.Detail(t.Context(), Task{Title: "レポート", Minutes: 30, Deadline: time.Now().Add(time.Hour)}, Profile{Context: "文章の書き出しが苦手"})
+			planner := Planner{Client: client, Model: "gemini-3.8-flash", Usage: NewMemoryAIUsageStore(), Limits: DefaultAILimits()}
+			plan, err := planner.Detail(t.Context(), "fixture-user", Task{Title: "レポート", Minutes: 30, Deadline: time.Now().Add(time.Hour)}, Profile{Context: "文章の書き出しが苦手"})
 			if total == 20 {
 				if err == nil {
 					t.Fatal("incorrect model duration accepted")
@@ -57,14 +57,14 @@ func TestGeminiFailureDetailsAreNotReturned(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	planner := &Planner{Client: client, Model: "test"}
+	planner := &Planner{Client: client, Model: "test", Usage: NewMemoryAIUsageStore(), Limits: DefaultAILimits()}
 	for _, operation := range []string{"parse", "adjust"} {
 		t.Run(operation, func(t *testing.T) {
 			var err error
 			if operation == "parse" {
-				_, err = planner.Parse(t.Context(), "課題", Profile{})
+				_, err = planner.Parse(t.Context(), "fixture-user", "課題", Profile{})
 			} else {
-				_, err = planner.Adjust(t.Context(), Draft{}, "調整して", Profile{})
+				_, err = planner.Adjust(t.Context(), "fixture-user", Draft{}, "調整して", Profile{})
 			}
 			if err == nil || strings.Contains(err.Error(), "private-upstream-detail") || !strings.Contains(err.Error(), "もう一度") {
 				t.Fatalf("unsafe error: %v", err)

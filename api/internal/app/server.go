@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -158,7 +157,7 @@ func (s *Server) createTask(ctx context.Context, id string, input TaskInput) (St
 		return State{}, errors.New("先にGoogleカレンダーを連携してください")
 	}
 	task := Task{ID: input.ID, Title: strings.TrimSpace(input.Title), Notes: input.Notes, Why: strings.TrimSpace(input.Why), Deadline: input.Deadline, Minutes: input.Minutes, URL: input.URL, Status: "pending", CreatedAt: time.Now()}
-	task.Plan, err = s.Planner.Detail(ctx, task, current.Profile)
+	task.Plan, err = s.Planner.Detail(ctx, id, task, current.Profile)
 	if err != nil {
 		return State{}, err
 	}
@@ -251,7 +250,7 @@ func (s *Server) parse(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
-	tasks, err := s.Planner.Parse(ctx, in.Text, st.Profile)
+	tasks, err := s.Planner.Parse(ctx, uid(r), in.Text, st.Profile)
 	respond(w, map[string]any{"tasks": tasks}, err)
 }
 func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
@@ -466,7 +465,7 @@ func (s *Server) adjustDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
 	defer cancel()
-	draft, err := s.Planner.Adjust(ctx, in.Draft, in.Instruction, st.Profile)
+	draft, err := s.Planner.Adjust(ctx, uid(r), in.Draft, in.Instruction, st.Profile)
 	if err == nil {
 		allowed := map[string]bool{}
 		for _, change := range in.Draft.Changes {
@@ -559,6 +558,10 @@ func (s *Server) extensionToken(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"token": "Demo " + strings.TrimPrefix(uid(r), "demo-")})
 }
 func sourceError(operation string, err error) error {
-	slog.Error(operation, "error", err)
+	var limit *AILimitError
+	if errors.As(err, &limit) || errors.Is(err, ErrAIUsageUnavailable) {
+		return err
+	}
+	LogFailure(operation, err)
 	return fmt.Errorf("%sに失敗しました。入力は残っています。もう一度お試しください", operation)
 }

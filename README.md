@@ -102,6 +102,8 @@ flowchart TD
 
 ## Google Cloudで動かすための設定
 
+AIは初期値で1人5回/分・30回/日、全体30回/分・300回/日に制限します。失敗も回数に含み、日次はUTC 00:00（日本時間09:00）に切り替わります。上限時も手入力とCalendar同期は基本の時間割で続けられます。[利用上限・CSP・追加監査](engineering/security-hardening-2026-11-07.md)を参照してください。
+
 対象プロジェクトは `devfest-2026-513816`（番号 `1032251723022`）です。課金アカウントと予算はユーザー設定済みのものを使います。
 
 1. Firestore NativeデータベースとFirebaseのWebアプリを作成し、AuthenticationのGoogleプロバイダーを有効にします。Cloud Runのドメインを認証の許可ドメインへ追加します。Firestoreのクライアント用ルールは `deploy/firestore.rules` のとおり拒否し、APIのサービスアカウントだけで読み書きします。

@@ -318,7 +318,7 @@ func (c *Calendar) Sync(ctx context.Context, uid string) (State, error) {
 		if unchanged {
 			continue
 		}
-		plan, err := c.Planner.Detail(ctx, Task{Title: event.Summary, Notes: stripPlan(event.Description), Minutes: minutes, Deadline: end}, current.Profile)
+		plan, err := c.Planner.Detail(ctx, uid, Task{Title: event.Summary, Notes: stripPlan(event.Description), Minutes: minutes, Deadline: end}, current.Profile)
 		if err != nil {
 			return State{}, err
 		}
