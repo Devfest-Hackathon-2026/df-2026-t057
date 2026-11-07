@@ -8,6 +8,7 @@
 
 | 文書 | 内容 |
 |---|---|
+| [実Shortsの持ち時間計測](shorts-verification-2026-11-07.md) | PR #7の配信、実ChromeとShortsによる消費・停止・再読み込みの実測 |
 | [カレンダー中心の管理画面](calendar-workspace.md) | 採用した③の実装、日・週表示と相談パネル、URL、選択対象の分離、実画面 |
 | [課題の登録と内容調整](task-registration-and-editing.md) | 登録・編集のAI／手入力、変更前後の確認、報酬・権限・Google同期の検証 |
 | [管理画面のAI相談](assistant.md) | 編集できる予定カード、会話の保存、確認して覚える作業傾向、Google Chatの廃止 |
