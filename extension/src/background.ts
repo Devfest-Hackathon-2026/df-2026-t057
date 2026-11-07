@@ -1,5 +1,5 @@
 import { Draft, State } from '../../shared/models';
-import { Connection, MANAGEMENT_ORIGIN, Reply, Request } from './protocol';
+import { Connection, MANAGEMENT_ORIGIN, Moment, Reply, Request } from './protocol';
 
 let connectionVersion = 0;
 
@@ -53,6 +53,14 @@ async function refresh() {
   const state = await api<State>('/state');
   await publish(state, version);
   return state;
+}
+// One short remark from the companion; empty when the API is unavailable.
+async function companionLine(moment: Moment, taskId?: string) {
+  try {
+    return (await api<{ line: string }>('/companion/line', 'POST', { moment, taskId })).line;
+  } catch {
+    return '';
+  }
 }
 async function openApp(path = '') {
   const config = await connection();
@@ -124,6 +132,8 @@ chrome.runtime.onMessage.addListener(
         if (!(await connection())) return { connected: false };
         return { state: await refresh(), connected: true };
       }
+      if (request.type === 'LINE')
+        return { line: await companionLine(request.moment, request.taskId) };
       if (request.type === 'DRAFT')
         return {
           draft: await api<Draft>(
@@ -187,6 +197,7 @@ async function notify() {
     .filter((t) => t.status === 'pending' && notified[t.id] !== t.plan.start)
     .sort((a, b) => Date.parse(a.plan.start) - Date.parse(b.plan.start))[0];
   if (!task || Date.parse(task.plan.start) > Date.now() + 1000) return;
+  const line = await companionLine('notice', task.id);
   const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   let shown = false;
   if (tabs[0]?.id && tabs[0].url?.startsWith('https://www.youtube.com/shorts/')) {
@@ -195,6 +206,7 @@ async function notify() {
         type: 'SHOW_NOTICE',
         task,
         state,
+        line,
       });
       shown = response?.shown === true;
     } catch {
@@ -206,7 +218,7 @@ async function notify() {
       type: 'basic',
       iconUrl: 'icon-128.png',
       title: 'DOPAGAKI · はじめる時間です',
-      message: `${task.title}\n完了で視聴時間 ＋20分`,
+      message: `${task.title}\n${line || '完了で視聴時間 ＋20分'}`,
       buttons: [{ title: '作業をはじめる' }, { title: 'スヌーズの予定を確認' }],
       priority: 2,
       requireInteraction: true,

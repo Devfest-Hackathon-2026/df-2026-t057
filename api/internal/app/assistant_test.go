@@ -20,8 +20,7 @@ func assistantClient(t *testing.T, reply func(string) any) (*Server, testClient)
 	t.Helper()
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
-		text, _ := json.Marshal(reply(string(raw)))
-		writeJSON(w, 200, map[string]any{"candidates": []map[string]any{{"content": map[string]any{"role": "model", "parts": []map[string]string{{"text": string(text)}}}, "finishReason": "STOP"}}})
+		writeJSON(w, 200, map[string]any{"candidates": []map[string]any{{"content": map[string]any{"role": "model", "parts": fixtureParts(reply(string(raw)))}, "finishReason": "STOP"}}})
 	}))
 	t.Cleanup(provider.Close)
 	model, err := genai.NewClient(t.Context(), &genai.ClientConfig{Backend: genai.BackendGeminiAPI, APIKey: "test-only", HTTPOptions: genai.HTTPOptions{BaseURL: provider.URL}})
@@ -31,6 +30,44 @@ func assistantClient(t *testing.T, reply func(string) any) (*Server, testClient)
 	s := &Server{Mode: "demo", Store: NewMemoryStore(), Assistant: NewMemoryAssistantStore(), Planner: &Planner{Client: model, Model: "fixture"}}
 	c := testClient{handler: s.Handler(), cookie: &http.Cookie{Name: "dopagaki_demo", Value: "abcdef0123456789abcdef0123456789"}, t: t}
 	return s, c
+}
+
+var fixtureTools = map[string]string{"create": toolTask, "task": toolReschedule, "memory": toolMemory}
+
+// fixtureParts turns a {"reply","cards"} fixture into a text part plus proposal function calls.
+// Other fixtures are returned as JSON text, and {"call": name} as a single read-tool call.
+func fixtureParts(value any) []map[string]any {
+	if fixture, ok := value.(map[string]any); ok {
+		if name, ok := fixture["call"].(string); ok {
+			return []map[string]any{{"functionCall": map[string]any{"name": name, "args": map[string]any{}}}}
+		}
+		if reply, ok := fixture["reply"].(string); ok {
+			parts := []map[string]any{{"text": reply}}
+			cards, _ := fixture["cards"].([]any)
+			for _, card := range cards {
+				raw, _ := json.Marshal(card)
+				var c struct {
+					Kind       string         `json:"kind"`
+					Input      map[string]any `json:"input"`
+					TaskID     string         `json:"taskId"`
+					Memory     string         `json:"memory"`
+					ProposalID string         `json:"proposalId"`
+				}
+				_ = json.Unmarshal(raw, &c)
+				args := map[string]any{"taskId": c.TaskID, "memory": c.Memory}
+				if c.Input != nil {
+					args = c.Input
+					if c.ProposalID != "" {
+						args["proposalId"] = c.ProposalID
+					}
+				}
+				parts = append(parts, map[string]any{"functionCall": map[string]any{"name": fixtureTools[c.Kind], "args": args}})
+			}
+			return parts
+		}
+	}
+	text, _ := json.Marshal(value)
+	return []map[string]any{{"text": string(text)}}
 }
 func consultation(t *testing.T, c testClient, id, text string) AssistantTurn {
 	t.Helper()

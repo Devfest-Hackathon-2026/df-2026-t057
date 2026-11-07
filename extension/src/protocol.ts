@@ -10,6 +10,7 @@ export interface Snapshot {
   connected: boolean;
   error?: string;
 }
+export type Moment = 'notice' | 'snooze' | 'complete' | 'balance_zero';
 export type Request =
   | { type: 'CONNECT'; connection: Connection }
   | { type: 'DISCONNECT' }
@@ -21,10 +22,12 @@ export type Request =
   | { type: 'ADJUST'; draft: Draft; instruction: string }
   | { type: 'COMMIT'; draft: Draft }
   | { type: 'VIEWING'; id: string; seconds: number }
+  | { type: 'LINE'; moment: Moment; taskId?: string }
   | { type: 'OPEN_APP'; path?: string };
 export interface Reply {
   state?: State;
   draft?: Draft;
+  line?: string;
   connected?: boolean;
   error?: string;
 }

@@ -48,6 +48,7 @@ export class App implements OnDestroy {
   readonly page = signal('today');
   readonly now = signal(Date.now());
   readonly preview = signal<Task | null>(null);
+  readonly companionLine = signal('');
   readonly pending = computed(() =>
     (this.api.state()?.tasks ?? [])
       .filter((t) => t.status !== 'completed')
@@ -88,6 +89,17 @@ export class App implements OnDestroy {
   }, 30000);
 
   constructor() {
+    effect(() => {
+      const task = this.preview();
+      this.companionLine.set('');
+      if (!task) return;
+      void this.api
+        .request<{ line: string }>('/companion/line', 'POST', { moment: 'notice', taskId: task.id })
+        .then((reply) => {
+          if (this.preview()?.id === task.id) this.companionLine.set(reply.line);
+        })
+        .catch(() => undefined);
+    });
     effect(() => {
       if (!this.api.state()) {
         this.dialog.closeAll();

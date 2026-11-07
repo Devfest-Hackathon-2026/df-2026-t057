@@ -48,6 +48,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/assistant/messages", s.protected(s.assistantMessage))
 	mux.HandleFunc("POST /api/assistant/memory", s.protected(s.remember))
 	mux.HandleFunc("POST /api/assistant/preview", s.protected(s.assistantPreview))
+	mux.HandleFunc("POST /api/companion/line", s.protected(s.companionLine))
 	mux.HandleFunc("POST /api/tasks", s.protected(s.addTask))
 	mux.HandleFunc("DELETE /api/tasks/{id}", s.protected(s.deleteTask))
 	mux.HandleFunc("POST /api/parse", s.protected(s.parse))

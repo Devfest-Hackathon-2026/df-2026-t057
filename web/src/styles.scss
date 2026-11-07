@@ -1042,6 +1042,18 @@ main {
 .notice-task > strong {
   font-size: 12px;
 }
+.notification-content .companion {
+  position: relative;
+  display: inline-block;
+  max-width: 34em;
+  margin: 0 0 18px;
+  padding: 10px 16px;
+  border-radius: 16px 16px 16px 4px;
+  background: #ffffffe6;
+  color: #1f1a10;
+  font-size: 15px;
+  line-height: 1.6;
+}
 .notice-task .why {
   font-size: 15px;
   opacity: 1;

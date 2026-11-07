@@ -6,7 +6,7 @@ import {
   elapsedSeconds,
   plannedSeconds,
 } from '../../shared/models';
-import { MANAGEMENT_ORIGIN, Reply, Request, send } from './protocol';
+import { MANAGEMENT_ORIGIN, Moment, Reply, Request, send } from './protocol';
 
 const runtimeWindow = window as Window & { dopagakiLoaded?: boolean };
 if (!runtimeWindow.dopagakiLoaded) {
@@ -116,7 +116,7 @@ function initialize() {
     overlay?.remove();
     overlay = undefined;
   }
-  function showNotice(task: Task, snapshot: State) {
+  function showNotice(task: Task, snapshot: State, line = '') {
     if (!shorts() || document.visibilityState !== 'visible') return false;
     state = snapshot;
     dismiss();
@@ -136,6 +136,7 @@ function initialize() {
       element('p', "IT'S YOUR TURN", 'eyebrow'),
       element('h1', snapshot.settings.mode === 'mahjong' ? 'まず、一手。' : 'そろそろ、やるか。'),
     );
+    if (line) panel.append(element('p', line, 'companion'));
     const card = element('div', '', 'task-card');
     card.append(element('h2', task.title));
     if (task.why) card.append(element('p', `なぜ：${task.why}`, 'why'));
@@ -367,7 +368,10 @@ function initialize() {
       '完了 ＋20分',
       () => {
         void action({ type: 'COMPLETE', taskId: task.id }, timer!).then((reply) => {
-          if (reply) showToast('課題完了！視聴時間 ＋20分');
+          if (reply)
+            void say('complete', '課題完了！視聴時間 ＋20分', task.id).then((text) =>
+              showToast(`${text}（＋20分）`),
+            );
         });
       },
       'primary',
@@ -385,6 +389,14 @@ function initialize() {
     timer.querySelector('.elapsed')!.textContent = displayTime(elapsed);
     timer.querySelector('progress')!.value = elapsed;
   }
+  let balanceLine: Promise<string> | undefined;
+  async function say(moment: Moment, fallback: string, taskId?: string) {
+    try {
+      return (await send({ type: 'LINE', moment, taskId })).line || fallback;
+    } catch {
+      return fallback;
+    }
+  }
   function showToast(text: string) {
     const toast = element('div', text, 'toast');
     mount().append(toast);
@@ -392,7 +404,7 @@ function initialize() {
   }
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
     if (message.type === 'SHOW_NOTICE') {
-      respond({ shown: showNotice(message.task, message.state) });
+      respond({ shown: showNotice(message.task, message.state, message.line) });
     }
     if (message.type === 'STATE_UPDATED') {
       if (!message.state) {
@@ -432,7 +444,11 @@ function initialize() {
     previousPlaying = playing;
     if (state && state.balanceSeconds - Math.floor(consumed) <= 0 && playing) {
       video?.pause();
-      showToast('視聴時間がなくなりました。課題を登録・完了して時間を増やしましょう。');
+      balanceLine ??= say(
+        'balance_zero',
+        '視聴時間がなくなりました。課題を登録・完了して時間を増やしましょう。',
+      );
+      void balanceLine.then(showToast);
     }
     if (
       !requestPending &&
