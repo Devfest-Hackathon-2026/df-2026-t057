@@ -34,8 +34,14 @@ export class Settings {
   async saveSleep(clear = false) {
     const body = clear ? { bedtime: '', wake: '' } : this.sleep;
     if (await this.api.mutate('/sleep', body, 'PUT'))
-      this.snack.open(clear ? '就寝の予定を外しました' : '就寝の予定を保存しました', '閉じる', {
-        duration: 3000,
-      });
+      this.snack.open(
+        clear
+          ? '就寝の予定を外しました'
+          : this.api.state()?.sleep?.calendarPending
+            ? '就寝の予定を保存しました（カレンダーへの登録は再試行してください）'
+            : '就寝の予定を保存しました',
+        '閉じる',
+        { duration: 4000 },
+      );
   }
 }

@@ -59,6 +59,7 @@ export interface Sleep extends SleepTime {
   watchedNight?: string;
   settledNight?: string;
   keptNights: number;
+  calendarPending?: boolean;
 }
 export interface Morning {
   night: string;

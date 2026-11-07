@@ -21,6 +21,8 @@ type Sleep struct {
 	Watched string    `json:"watchedNight,omitempty"`
 	Settled string    `json:"settledNight,omitempty"`
 	Kept    int       `json:"keptNights"`
+	// CalendarPending means the bedtime is saved but the calendar event could not be written yet.
+	CalendarPending bool `json:"calendarPending,omitempty"`
 }
 
 // sleepWindDown is how long before bedtime the night starts.
@@ -172,10 +174,15 @@ func (s *Server) setSleep(w http.ResponseWriter, r *http.Request) {
 		preview.Sleep = &next
 		next.Settled, _, _ = preview.lastNight(time.Now())
 	}
+	// The bedtime is saved even when the calendar is unavailable; saving again retries the event.
+	next.CalendarPending = false
 	if s.Calendar != nil && current.CalendarConnected {
-		if next.EventID, err = s.Calendar.UpsertSleep(ctx, id, next, location(current)); err != nil {
-			respond(w, nil, err)
-			return
+		eventID, err := s.Calendar.UpsertSleep(ctx, id, next, location(current))
+		if err != nil {
+			LogFailure("bedtime calendar event failed", err)
+			next.CalendarPending = true
+		} else {
+			next.EventID = eventID
 		}
 	}
 	st, err := s.Store.Update(ctx, id, func(st *State) error {
