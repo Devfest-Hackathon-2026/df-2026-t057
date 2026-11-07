@@ -2,7 +2,9 @@
 
 記録日：2026-11-06。以下のクラウド設定は配信時に確認した値。秘密情報の実値は含めない。
 
-最新配信は2026-11-07の `dopagaki-main-b6dffb4`（100%）、main `b6dffb4`。[配信と実Shortsの検証](shorts-verification-2026-11-07.md)を参照。CD用PR #6は未マージで、今回は手動配信。
+最新配信は2026-11-07の `dopagaki-security-0b05f11`（100%）、アプリコード `0b05f11`。IAM縮小・AI利用上限・CSP・依存とOS更新を反映し、同じ実行SAでSDK操作とAI疎通1回を確認した。[本番反映の記録](security-rollout-2026-11-07.md)を参照。ローカルで監査したコンテナーtarを既存レジストリへpushし、digest固定で手動配信した。GitHubへのpush・マージやCDは行っていない。
+
+直前の配信は `dopagaki-main-b6dffb4`、main `b6dffb4`。[配信と実Shortsの検証](shorts-verification-2026-11-07.md)を参照。以下の初期配信時の設定・権限は当時の記録として保持する。
 
 前回の配信は管理画面のAI相談を追加した Cloud Run `dopagaki-00013-vtd`（100%）、コード `7b77026`。[変更と実確認の範囲](assistant.md)を参照。Google Chatアプリは無効化し、旧受付APIと専用環境変数を削除した。本人のGoogleアカウント照合とアカウント切替は[一般ユーザー対応の記録](public-accounts.md#配信と実確認)を参照。下記の「初期配信時の環境」と旧digestの配信例は、最初の実サービス確認時点の記録として保持する。
 

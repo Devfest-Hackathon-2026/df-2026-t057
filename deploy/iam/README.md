@@ -1,8 +1,8 @@
 # 実行アカウントの権限縮小
 
-2026-11-07の読み取り確認に基づく、`dopagaki-runtime` だけの変更案。**クラウドには未適用**。利用制限・CSP・SDK更新のコードとは独立して適用できる。
+2026-11-07の読み取り確認に基づく、`dopagaki-runtime` だけの権限縮小。ユーザー承認後に本番へ適用し、同じ実行SAでSDK操作とAI疎通を確認した。[適用結果](../../engineering/security-rollout-2026-11-07.md)を参照。以下は当時の準備・適用・戻し方であり、適用済みの状態へそのまま再実行しない。
 
-| 現在 | 変更先 |
+| 適用前 | 適用後 |
 |---|---|
 | `roles/aiplatform.user`（確認時466権限） | `runtime-ai-role.yaml` の推論1権限 |
 | `roles/datastore.user`（確認時23権限） | `runtime-data-role.yaml` のデータ操作6権限 |

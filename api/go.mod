@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	cloud.google.com/go/firestore v1.29.2
+	cloud.google.com/go/iam v1.14.0
 	cloud.google.com/go/secretmanager v1.23.1
 	firebase.google.com/go/v4 v4.22.0
 	golang.org/x/oauth2 v0.37.0
@@ -18,7 +19,6 @@ require (
 	cloud.google.com/go/auth v0.24.1-0.20261001053825-dbc26066f70a // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.3.1 // indirect
 	cloud.google.com/go/compute/metadata v0.10.0 // indirect
-	cloud.google.com/go/iam v1.14.0 // indirect
 	cloud.google.com/go/longrunning v1.3.0 // indirect
 	cloud.google.com/go/monitoring v1.29.0 // indirect
 	cloud.google.com/go/storage v1.62.1 // indirect

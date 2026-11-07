@@ -8,6 +8,7 @@
 
 | 文書 | 内容 |
 |---|---|
+| [セキュリティ修正の本番反映](security-rollout-2026-11-07.md) | IAM縮小、新版100%配信、Runtime SAでの実操作・AI1回、カウンターと片付けの確認 |
 | [利用上限・CSPと追加監査](security-hardening-2026-11-07.md) | Gemini共有上限、ログ秘匿、本番設定の照合、IAM縮小案、コンテナー・履歴監査 |
 | [セキュリティ確認と整理](security-review-2026-11-07.md) | JSON・認証・外部エラー・Calendar受付・拡張データの修正、依存監査、未確認の境界 |
 | [実Shortsの持ち時間計測](shorts-verification-2026-11-07.md) | PR #7の配信、実ChromeとShortsによる消費・停止・再読み込みの実測 |
