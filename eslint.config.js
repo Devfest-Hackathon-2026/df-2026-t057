@@ -62,7 +62,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.config.{js,ts}', 'e2e/**/*.ts'],
+    // node:test の test() は Promise を返すが、待たないのが正しい使い方。
+    files: ['**/*.config.{js,ts}', 'e2e/**/*.ts', '**/*.test.ts'],
     rules: { '@typescript-eslint/no-floating-promises': 'off' },
   },
 );
