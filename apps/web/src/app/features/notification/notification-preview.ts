@@ -81,6 +81,11 @@ export class NotificationPreview {
   });
   protected readonly companionLine = signal<string | undefined>(undefined);
   protected readonly starting = this.tasks.start.pending;
+  /** このプレビューから開始を押したか。ほかの画面で起きた古い失敗は出さない。 */
+  private readonly startAttempted = signal(false);
+  protected readonly startError = computed(() =>
+    this.startAttempted() ? this.tasks.start.error() : undefined,
+  );
 
   constructor() {
     const taskId = this.data.taskId;
@@ -99,7 +104,9 @@ export class NotificationPreview {
 
   protected start(): void {
     const task = this.task();
-    if (task) void this.actions.start(task);
+    if (!task) return;
+    this.startAttempted.set(true);
+    void this.actions.start(task);
   }
 
   protected snooze(): void {

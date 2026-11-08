@@ -1,8 +1,10 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import type { Profile, SleepState } from '@dopagaki/contract';
+import { MATERIAL_ANIMATIONS } from '@angular/material/core';
+import type { CalendarStatus, Profile, SleepState } from '@dopagaki/contract';
+import { problemMessages } from '@dopagaki/messages';
 import { ConfigStore } from '../../../core/config/config.store';
 import { FakeBackend, flush, provideFakeBackend } from '../../../../testing/fake-backend';
-import { settings, wallet, workSession } from '../../../../testing/fixtures';
+import { settings, taskList, wallet, workSession } from '../../../../testing/fixtures';
 import { CalendarStore } from '../../calendar/calendar.store';
 import { ShortcutStore } from '../../shortcut/shortcut.store';
 import { SleepStore } from '../../sleep/sleep.store';
@@ -14,6 +16,19 @@ import { SettingsPage } from './settings-page';
 
 const profile: Profile = { name: '山田', context: '', timeZone: 'Asia/Tokyo', revision: 1 };
 const noSleep: SleepState = { sleep: null, revision: 1 };
+const connectedCalendar: CalendarStatus = {
+  enabled: true,
+  connected: true,
+  sync: 'synced',
+  failedJobs: 0,
+  lastSync: '2026-11-08T01:00:00Z',
+};
+const disconnectedCalendar: CalendarStatus = {
+  enabled: true,
+  connected: false,
+  sync: 'disconnected',
+  failedJobs: 0,
+};
 const problem = (status: number, code: string) => ({
   status,
   body: { type: 'about:blank', status, code },
@@ -42,11 +57,24 @@ describe('SettingsPage', () => {
     await fixture.whenStable();
   }
 
-  function button(text: string): HTMLButtonElement {
-    const found = Array.from(element.querySelectorAll('button')).find(
+  function button(text: string, root: ParentNode = element): HTMLButtonElement {
+    const found = Array.from(root.querySelectorAll('button')).find(
       (item) => item.textContent.trim() === text,
     );
     if (!found) throw new Error(`button not found: ${text}`);
+    return found;
+  }
+
+  function hasButton(text: string): boolean {
+    return Array.from(element.querySelectorAll('button')).some(
+      (item) => item.textContent.trim() === text,
+    );
+  }
+
+  /** 開いている確認ダイアログ（overlay は document.body に付く）。 */
+  function dialog(): HTMLElement {
+    const found = document.body.querySelector<HTMLElement>('[role=dialog]');
+    if (!found) throw new Error('dialog not found');
     return found;
   }
 
@@ -70,10 +98,20 @@ describe('SettingsPage', () => {
       .on('GET', '/work-session', { body: { session: null } })
       .on('GET', '/sleep', { body: noSleep })
       .on('GET', '/shortcut', { body: { configured: false } })
+      .on('GET', '/tasks', { body: taskList() })
       .on('GET', '/calendar', {
         body: { enabled: false, connected: false, sync: 'disconnected', failedJobs: 0 },
       });
-    TestBed.configureTestingModule({ providers: provideFakeBackend(backend) });
+    TestBed.configureTestingModule({
+      providers: [
+        ...provideFakeBackend(backend),
+        { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
+      ],
+    });
+  });
+
+  afterEach(() => {
+    document.body.querySelector('.cdk-overlay-container')?.remove();
   });
 
   it('変更するまで保存できず、変えたまとまりだけを保存する', async () => {
@@ -177,6 +215,66 @@ describe('SettingsPage', () => {
     await settle();
     expect(backend.count('DELETE', '/sleep')).toBe(1);
     expect(element.textContent).not.toContain('現在：23:30');
+  });
+
+  it('未連携なら「連携を解除」を出さない', async () => {
+    await render();
+    expect(hasButton('連携を解除')).toBe(false);
+    expect(hasButton('Googleカレンダーを連携')).toBe(true);
+  });
+
+  it('連携済みなら確認してから解除し、連携状態と課題を取り直す', async () => {
+    backend.on('GET', '/calendar', { body: connectedCalendar });
+    await render();
+    expect(hasButton('Googleカレンダーを連携')).toBe(false);
+    button('連携を解除').click();
+    await settle();
+    expect(dialog().textContent).toContain('Googleカレンダーとの連携を解除しますか？');
+    expect(dialog().textContent).toContain('登録した課題と予定はそのまま残ります。');
+    expect(dialog().textContent).toContain('結び付きだけが外れます。');
+    expect(dialog().textContent).toContain('いつでも連携し直せます。');
+    expect(backend.count('POST', '/calendar/disconnect')).toBe(0);
+
+    backend
+      .on('POST', '/calendar/disconnect', { body: disconnectedCalendar })
+      .on('GET', '/calendar', { body: disconnectedCalendar });
+    button('連携を解除する', dialog()).click();
+    await settle();
+    expect(backend.count('POST', '/calendar/disconnect')).toBe(1);
+    expect(
+      backend.requests
+        .find((item) => item.path === '/calendar/disconnect')
+        ?.headers.get('Idempotency-Key'),
+    ).toBeTruthy();
+    expect(backend.count('GET', '/calendar')).toBe(2);
+    expect(backend.count('GET', '/tasks')).toBe(1);
+    expect(TestBed.inject(CalendarStore).connected()).toBe(false);
+    expect(document.body.querySelector('[role=dialog]')).toBeNull();
+    expect(document.body.textContent).toContain('Googleカレンダーとの連携を解除しました');
+    expect(hasButton('連携を解除')).toBe(false);
+    expect(hasButton('Googleカレンダーを連携')).toBe(true);
+  });
+
+  it('解除に失敗したら確認の中で知らせ、連携は残す', async () => {
+    backend
+      .on('GET', '/calendar', { body: connectedCalendar })
+      .on('POST', '/calendar/disconnect', problem(503, 'external.failed'));
+    await render();
+    button('連携を解除').click();
+    await settle();
+    button('連携を解除する', dialog()).click();
+    await settle();
+    expect(dialog().querySelector('[role=alert]')?.textContent).toContain(
+      problemMessages['external.failed'],
+    );
+    expect(backend.count('GET', '/calendar')).toBe(1);
+    expect(backend.count('GET', '/tasks')).toBe(0);
+    expect(TestBed.inject(CalendarStore).connected()).toBe(true);
+
+    button('キャンセル', dialog()).click();
+    await settle();
+    expect(document.body.querySelector('[role=dialog]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Googleカレンダーとの連携を解除しました');
   });
 
   it('接続キーは発行したときだけ表示し、無効にできる', async () => {

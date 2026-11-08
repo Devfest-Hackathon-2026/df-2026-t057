@@ -57,7 +57,7 @@
             mat-flat-button
             type="button"
             aria-label="次の課題をはじめる"
-            (click)="actions.start(task)"
+            (click)="start(task, 'next')"
             [disabled]="tasks.start.pending() || work.session() !== null"
           >
             はじめる
@@ -65,6 +65,9 @@
           </button>
         </div>
       </div>
+      @if (startOrigin() === 'next' && tasks.start.error(); as error) {
+        <p class="error" role="alert">はじめられませんでした。{{ error.message }}</p>
+      }
     } @else {
       <p class="summary-label">次の課題</p>
       <h2 class="next-empty">次の課題はまだありません</h2>
@@ -241,12 +244,15 @@
           <button
             mat-flat-button
             type="button"
-            (click)="actions.start(task)"
+            (click)="start(task, 'detail')"
             [disabled]="tasks.start.pending() || task.status !== 'pending'"
           >
             {{ startLabel(task) }}
           </button>
         </div>
+        @if (startOrigin() === 'detail' && tasks.start.error(); as error) {
+          <p class="error" role="alert">はじめられませんでした。{{ error.message }}</p>
+        }
       } @else {
         <p>カレンダーから予定を選んでください。</p>
       }

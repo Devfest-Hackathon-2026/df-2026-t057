@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { problemMessages } from '@dopagaki/messages';
 import { FakeBackend, flush, provideFakeBackend } from '../../../../testing/fake-backend';
 import { task, taskList, wallet, workSession } from '../../../../testing/fixtures';
 import { TasksStore } from '../../tasks/tasks.store';
@@ -74,6 +75,22 @@ describe('CalendarWorkspace', () => {
     await flush();
     TestBed.tick();
     expect(startButton(element).disabled).toBe(true);
+  });
+
+  it('次の課題を開始できなかったら、そのボタンの近くで知らせる', async () => {
+    backend.on('POST', '/tasks/first/start', {
+      status: 409,
+      body: { type: 'about:blank', status: 409, code: 'work.active' },
+    });
+    const element = await render();
+    expect(element.querySelector('[role=alert]')).toBeNull();
+    startButton(element).click();
+    await flush();
+    TestBed.tick();
+    const alert = element.querySelector('[data-tour="next"] [role=alert]');
+    expect(alert?.textContent).toContain(problemMessages['work.active']);
+    expect(element.querySelector('.detail [role=alert]')).toBeNull();
+    expect(backend.count('POST', '/tasks/first/start')).toBe(1);
   });
 
   it('課題がなければ空の表示を出す', async () => {

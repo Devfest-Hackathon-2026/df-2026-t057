@@ -71,6 +71,20 @@
   gap: 0.5rem;
 }
 
+// 押した日の枠（outline）が端で切れないよう、内側に余白を取り、その分だけ外側に広げる。
+.grass-scroll {
+  min-width: 0;
+  margin: -0.25rem;
+  padding: 0.25rem;
+  overflow-x: auto;
+  border-radius: var(--mat-sys-corner-small);
+
+  &:focus-visible {
+    outline: 0.1875rem solid var(--mat-sys-primary);
+    outline-offset: 0.125rem;
+  }
+}
+
 .weekday-labels,
 .grass {
   display: grid;
@@ -84,9 +98,10 @@
   font: var(--mat-sys-label-small);
 }
 
+// 列は 1.5rem より細くしない。収まらない幅では .grass-scroll の中で横にスクロールする。
 .grass {
   grid-auto-flow: column;
-  grid-template-columns: repeat(var(--weeks), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--weeks), minmax(1.5rem, 1fr));
 }
 
 .day,

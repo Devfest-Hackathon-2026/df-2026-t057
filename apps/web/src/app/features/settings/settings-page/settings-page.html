@@ -292,9 +292,18 @@
                 mat-stroked-button
                 type="button"
                 (click)="calendar.syncNow()"
-                [disabled]="calendar.sync.pending()"
+                [disabled]="calendar.sync.pending() || calendar.disconnect.pending()"
               >
                 {{ calendar.sync.pending() ? '同期しています…' : '同期を再試行' }}
+              </button>
+              <button
+                mat-button
+                type="button"
+                aria-haspopup="dialog"
+                (click)="disconnectCalendar()"
+                [disabled]="calendar.sync.pending() || calendar.disconnect.pending()"
+              >
+                連携を解除
               </button>
             </div>
           }
@@ -309,7 +318,7 @@
             (click)="calendar.startConnect()"
             [disabled]="!calendarEnabled() || calendar.connect.pending()"
           >
-            Googleカレンダーを連携
+            {{ calendar.connected() ? 'Googleカレンダーを連携し直す' : 'Googleカレンダーを連携' }}
           </button>
         </div>
         @if (!calendarEnabled()) {

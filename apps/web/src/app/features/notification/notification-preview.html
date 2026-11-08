@@ -23,6 +23,9 @@
         <p>この課題は見つかりません。</p>
       }
     </mat-dialog-content>
+    @if (startError(); as error) {
+      <p class="error" role="alert">はじめられませんでした。{{ error.message }}</p>
+    }
     <div class="notice-buttons">
       <button
         mat-flat-button

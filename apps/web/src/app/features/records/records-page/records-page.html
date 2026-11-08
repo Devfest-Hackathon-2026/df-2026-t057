@@ -42,26 +42,38 @@
         <span></span>
         <span>土</span>
       </div>
-      <div class="grass" [style.--weeks]="weeks()" role="group" aria-label="日別の完了記録">
-        @for (cell of cells(); track $index) {
-          @if (cell) {
-            <button
-              type="button"
-              class="day"
-              [attr.data-index]="cell.index"
-              [class.completed]="cell.completed > 0"
-              [class.multiple]="cell.completed > 1"
-              [attr.aria-label]="dayLabel(cell)"
-              [attr.aria-pressed]="selected()?.index === cell.index"
-              [tabindex]="selected()?.index === cell.index ? 0 : -1"
-              [matTooltip]="dayLabel(cell)"
-              (click)="select(cell.index)"
-              (keydown)="move($event, cell.index)"
-            ></button>
-          } @else {
-            <span aria-hidden="true"></span>
+      <!--
+        マスは最小でも 1.5rem 四方（WCAG 2.5.8）。狭い画面では縮めずに、この領域の中で横にスクロールする。
+        スクロールする領域はキーボードでも動かせるよう、名前を付けてフォーカスできるようにする。
+      -->
+      <div
+        #grassScroll
+        class="grass-scroll"
+        tabindex="0"
+        role="region"
+        aria-label="日別の完了記録（横にスクロールできます）"
+      >
+        <div class="grass" [style.--weeks]="weeks()" role="group" aria-label="日別の完了記録">
+          @for (cell of cells(); track $index) {
+            @if (cell) {
+              <button
+                type="button"
+                class="day"
+                [attr.data-index]="cell.index"
+                [class.completed]="cell.completed > 0"
+                [class.multiple]="cell.completed > 1"
+                [attr.aria-label]="dayLabel(cell)"
+                [attr.aria-pressed]="selected()?.index === cell.index"
+                [tabindex]="selected()?.index === cell.index ? 0 : -1"
+                [matTooltip]="dayLabel(cell)"
+                (click)="select(cell.index)"
+                (keydown)="move($event, cell.index)"
+              ></button>
+            } @else {
+              <span aria-hidden="true"></span>
+            }
           }
-        }
+        </div>
       </div>
     </div>
     <div class="legend">

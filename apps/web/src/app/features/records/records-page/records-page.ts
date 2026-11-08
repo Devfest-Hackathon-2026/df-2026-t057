@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import type { ElementRef } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  afterRenderEffect,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -74,6 +83,7 @@ export class RecordsPage {
   protected readonly ledger = inject(LedgerStore);
   protected readonly wallet = inject(WalletStore);
   protected readonly kindLabels = ledgerKindLabels;
+  private readonly grassScroll = viewChild<ElementRef<HTMLElement>>('grassScroll');
 
   protected readonly days = computed(() => this.records.value()?.days ?? []);
   protected readonly cells = computed(() => layoutDays(this.days()));
@@ -94,6 +104,11 @@ export class RecordsPage {
     this.records.ensureLoaded();
     this.ledger.ensureLoaded();
     this.wallet.ensureLoaded();
+    // 狭い画面でマスが収まらないときは、直近の週が見えるよう右端から始める（表示されたときに一度だけ）。
+    afterRenderEffect(() => {
+      const scroller = this.grassScroll()?.nativeElement;
+      if (scroller) scroller.scrollLeft = scroller.scrollWidth;
+    });
   }
 
   protected dayLabel(cell: DayCell): string {

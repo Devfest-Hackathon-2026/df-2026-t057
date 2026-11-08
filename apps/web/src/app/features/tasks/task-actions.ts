@@ -72,13 +72,13 @@ export class TaskActions {
     return (await firstValueFrom(ref.afterClosed())) === true;
   }
 
-  /** 作業を開始する。作業リンクがあれば新しいタブで開く。 */
+  /**
+   * 作業を開始する。作業リンクがあれば新しいタブで開く。
+   * 失敗は `tasks.start.error` に残り、押したボタンの近くに出す（スナックバーでは知らせない）。
+   */
   async start(task: Task): Promise<boolean> {
     const outcome = await this.tasks.startTask(task.id);
-    if (!outcome.ok) {
-      this.notifyError(outcome.error);
-      return false;
-    }
+    if (!outcome.ok) return false;
     this.closePreview();
     if (task.url) window.open(task.url, '_blank', 'noopener');
     return true;

@@ -49,6 +49,8 @@ import { CreditInfoDialog } from './credit-info-dialog';
 import { loadFullCalendarStyles } from './fullcalendar-styles';
 
 type View = 'day' | 'week';
+/** 「はじめる」を押した場所。失敗はその近くに出す。 */
+type StartOrigin = 'next' | 'detail';
 const compactQuery = '(max-width: 1100px)';
 
 /** `YYYY-MM-DD` として正しい日付なら返す。 */
@@ -99,6 +101,7 @@ export class CalendarWorkspace {
   protected readonly stylesReady = signal(false);
   protected readonly rendered = signal(false);
   protected readonly title = signal('');
+  protected readonly startOrigin = signal<StartOrigin | undefined>(undefined);
   protected readonly timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   private readonly compact = toSignal(
@@ -244,6 +247,12 @@ export class CalendarWorkspace {
   protected sync(): void {
     if (this.calendar.connected()) void this.calendar.syncNow();
     else void this.tasks.refresh();
+  }
+
+  /** 作業を開始する。失敗は押した場所の近くに出す（テンプレートが `startOrigin` で選ぶ）。 */
+  protected async start(task: Task, origin: StartOrigin): Promise<void> {
+    this.startOrigin.set(origin);
+    await this.actions.start(task);
   }
 
   protected startLabel(task: Task): string {

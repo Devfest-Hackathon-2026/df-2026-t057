@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import type { NoticeMode } from '@dopagaki/contract';
+import type { NoticeMode, Task } from '@dopagaki/contract';
+import { problemMessages } from '@dopagaki/messages';
 import { FakeBackend, flush, provideFakeBackend } from '../../../testing/fake-backend';
 import { plan, settings, task, taskList, wallet } from '../../../testing/fixtures';
 import { SettingsStore } from '../settings/settings.store';
@@ -81,6 +82,27 @@ describe('NotificationPreview', () => {
     const mahjong = await render('mahjong');
     expect(mahjong.host.classList).toContain('mahjong');
     expect(mahjong.element.querySelector('h2')?.textContent).toContain('まず、一手。');
+  });
+
+  it('開始できなかったら、このプレビューの中で知らせる', async () => {
+    const store = TestBed.inject(TasksStore);
+    backend.on('POST', '/tasks/t1/start', {
+      status: 409,
+      body: { type: 'about:blank', status: 409, code: 'work.active' },
+    });
+    // 開く前にほかの画面で起きた失敗は、ここには出さない。
+    await store.startTask('t1');
+    expect(store.start.error()).toBeDefined();
+    actions.start.mockImplementation((task: Task) => store.startTask(task.id));
+    const { element } = await render('simple');
+    expect(element.querySelector('[role=alert]')).toBeNull();
+
+    button(element, '作業をはじめる').click();
+    await flush();
+    expect(element.querySelector('[role=alert]')?.textContent).toContain(
+      problemMessages['work.active'],
+    );
+    expect(button(element, '作業をはじめる').disabled).toBe(false);
   });
 
   it('ボタンで開始・スヌーズ・調整・閉じるを呼ぶ', async () => {

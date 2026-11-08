@@ -10,6 +10,7 @@ export class CalendarStore extends ResourceStore<CalendarStatus> {
   protected readonly resources: readonly Resource[] = ['calendar'];
   readonly connect = new Operation(this.scope);
   readonly sync = new Operation(this.scope);
+  readonly disconnect = new Operation(this.scope);
 
   readonly connected = computed(() => this.value()?.connected === true);
   /** 管理画面の変更を Google へ反映できていない。 */
@@ -39,6 +40,17 @@ export class CalendarStore extends ResourceStore<CalendarStatus> {
   syncNow(): Promise<Outcome<CalendarStatus>> {
     return this.sync.run(
       () => requireData(this.api.POST('/calendar/sync', { params: { header: idempotent() } })),
+      (status) => {
+        this.accept(status);
+      },
+    );
+  }
+
+  /** 連携を解除する。課題は残り、カレンダーの予定との結び付きだけが外れる。 */
+  disconnectNow(): Promise<Outcome<CalendarStatus>> {
+    return this.disconnect.run(
+      () =>
+        requireData(this.api.POST('/calendar/disconnect', { params: { header: idempotent() } })),
       (status) => {
         this.accept(status);
       },

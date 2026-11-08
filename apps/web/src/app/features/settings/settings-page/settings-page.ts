@@ -19,6 +19,7 @@ import {
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDialog } from '@angular/material/dialog';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -28,6 +29,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import type { NoticeMode, Profile, Settings, TimePolicyMode } from '@dopagaki/contract';
 import { durationLabel, timePolicyModeLabels } from '@dopagaki/messages';
+import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ConfigStore } from '../../../core/config/config.store';
 import { DateTimePipe } from '../../../shared/ui/format';
@@ -35,10 +37,12 @@ import { PageHeading } from '../../../shared/ui/page-heading';
 import { CalendarStore } from '../../calendar/calendar.store';
 import { ShortcutStore } from '../../shortcut/shortcut.store';
 import { SleepStore } from '../../sleep/sleep.store';
+import { TasksStore } from '../../tasks/tasks.store';
 import { WalletStore } from '../../wallet/wallet.store';
 import { WorkSessionStore } from '../../work/work-session.store';
 import { ProfileStore } from '../profile.store';
 import { SettingsStore } from '../settings.store';
+import { DisconnectCalendarDialog } from './disconnect-calendar-dialog';
 
 type DailyLimit = 600 | 1200 | 1800;
 
@@ -120,8 +124,10 @@ export class SettingsPage {
   protected readonly shortcut = inject(ShortcutStore);
   protected readonly calendar = inject(CalendarStore);
   protected readonly work = inject(WorkSessionStore);
+  private readonly tasks = inject(TasksStore);
   private readonly snackBar = inject(MatSnackBar);
   private readonly clipboard = inject(Clipboard);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly modes = [
     { id: 'pachinko', title: 'ゴールド', sub: 'はじまりに、少しの光。', icon: 'flare' },
@@ -399,6 +405,18 @@ export class SettingsPage {
   protected async removeSleep(): Promise<void> {
     const outcome = await this.sleep.remove();
     if (outcome.ok) this.snackBar.open('就寝の予定を外しました', '閉じる', { duration: 4000 });
+  }
+
+  /** 確認してから連携を解除する。解除後は、連携状態と課題（カレンダーとの結び付き）を取り直す。 */
+  protected async disconnectCalendar(): Promise<void> {
+    const ref = this.dialog.open<DisconnectCalendarDialog, undefined, boolean>(
+      DisconnectCalendarDialog,
+      { width: '28rem', maxWidth: 'calc(100vw - 2rem)', autoFocus: 'first-heading' },
+    );
+    if ((await firstValueFrom(ref.afterClosed())) !== true) return;
+    void this.calendar.refresh();
+    void this.tasks.refresh();
+    this.snackBar.open('Googleカレンダーとの連携を解除しました', '閉じる', { duration: 4000 });
   }
 
   protected async issueShortcut(): Promise<void> {
