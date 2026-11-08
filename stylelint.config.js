@@ -6,7 +6,17 @@ export default {
   rules: {
     'color-no-hex': true,
     'color-named': 'never',
-    'function-disallowed-list': ['rgb', 'rgba', 'hsl', 'hsla', 'hwb', 'lab', 'lch', 'oklab', 'oklch'],
+    'function-disallowed-list': [
+      'rgb',
+      'rgba',
+      'hsl',
+      'hsla',
+      'hwb',
+      'lab',
+      'lch',
+      'oklab',
+      'oklch',
+    ],
     'declaration-property-unit-allowed-list': {
       'font-size': ['rem', 'em', '%'],
       'line-height': ['rem', 'em', ''],
@@ -16,7 +26,10 @@ export default {
       outline: ['none', '0'],
       'letter-spacing': ['/^-/'],
     },
-    'selector-disallowed-list': [['/\\.mat-mdc-/', '/\\.mdc-/'], { message: 'Materialの内部クラスを上書きしない。mat.<component>-overrides() を使う' }],
+    'selector-disallowed-list': [
+      ['/\\.mat-mdc-/', '/\\.mdc-/'],
+      { message: 'Materialの内部クラスを上書きしない。mat.<component>-overrides() を使う' },
+    ],
     'scss/at-extend-no-missing-placeholder': true,
     'selector-class-pattern': null,
     'custom-property-pattern': null,

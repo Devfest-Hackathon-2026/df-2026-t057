@@ -1,4 +1,4 @@
-version: "2"
+version: '2'
 run:
   timeout: 5m
 linters:
@@ -45,7 +45,7 @@ linters:
         domain:
           list-mode: lax
           files:
-            - "**/internal/*/domain*.go"
+            - '**/internal/*/domain*.go'
           deny:
             - pkg: github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter
               desc: domain は adapter に依存しない
@@ -62,8 +62,8 @@ linters:
         service:
           list-mode: lax
           files:
-            - "**/internal/*/service*.go"
-            - "**/internal/*/ports*.go"
+            - '**/internal/*/service*.go'
+            - '**/internal/*/ports*.go'
           deny:
             - pkg: github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter
               desc: service は ports を通して外部を使う

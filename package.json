@@ -15,7 +15,7 @@
     "lint:ts": "eslint --max-warnings=0 .",
     "lint:css": "stylelint --max-warnings=0 \"apps/**/*.{css,scss}\" \"packages/**/*.{css,scss}\"",
     "typecheck": "pnpm --recursive --if-present typecheck",
-    "test": "pnpm --recursive --if-present test",
+    "test": "pnpm --recursive --if-present --filter '!@dopagaki/e2e' test",
     "test:e2e": "pnpm --filter @dopagaki/e2e test",
     "format": "prettier --write . && gofmt -w apps/api",
     "format:check": "prettier --check . && test -z \"$(gofmt -l apps/api)\""

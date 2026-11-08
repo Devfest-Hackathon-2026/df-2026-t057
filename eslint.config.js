@@ -12,6 +12,7 @@ export default tseslint.config(
       'extension/**',
       'shared/**',
       'tests/**',
+      'playwright.config.ts',
       // 生成物
       '**/dist/**',
       '**/.angular/**',
