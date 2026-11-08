@@ -334,62 +334,72 @@ export const web: WebMessages = {
     overlay: {
       progress: 'Tour progress',
       skip: 'Skip',
-      begin: 'Take the tour',
+      begin: 'Start tutorial',
       close: 'Close',
       addTask: 'Add a task',
       end: 'End',
       back: 'Back',
       next: 'Next',
+      connect: 'Connect Google Calendar',
+      connecting: 'Opening Google…',
     },
     steps: {
       welcome: {
         title: 'Welcome to DOPAGAKI',
-        body: [
-          'DOPAGAKI plans your work backward from your deadlines, and the more you work, the more time you get for short videos.',
-          'All you need to remember: add a task, then start when you get a notification. This 1-minute tour shows you around.',
+        body: ['Add your tasks, and the more you work on them, the more Shorts time you earn.'],
+      },
+      google: {
+        title: 'Connect Google Calendar',
+        required: [
+          'Your task events go into a dedicated "DOPAGAKI" calendar.',
+          "You can't continue until it's connected.",
         ],
+        connected: ['Connected. Events go into the DOPAGAKI calendar.'],
+        unavailable: ["Google Calendar can't be connected here, so you can continue."],
       },
       add: {
-        title: 'Start by adding one task',
-        fields:
-          'You only enter three things: task name, deadline, and time needed. Pick the deadline from a calendar and a list of times.',
-        reward: (registration: string) =>
-          `Just adding a task gives you +${registration} of viewing.`,
+        title: 'Start by adding a task',
+        fields: 'Enter the task name, deadline, and time needed.',
+        reward: (registration: string) => `Adding a task earns you ${registration} of Shorts.`,
       },
       next: {
         title: 'Your start time is set for you',
-        body: [
-          'Your work plan, worked out backward from the deadline, appears here.',
-          'When it is time, you get a notification. Press "Start" to start the timer.',
-        ],
+        body: ['Work is planned back from the deadline and shown here.'],
+      },
+      notify: {
+        title: "You'll get a reminder on time",
+        body: ['It reaches you even while you watch Shorts.', 'Press Start to run the work timer.'],
       },
       credit: {
         title: 'Time you can watch today',
         reward: (work: string, reward: string) =>
-          `Log your work to get ${reward} of viewing for every ${work}.`,
-        extension: 'When you watch YouTube Shorts, the Chrome extension uses this time.',
+          `Every ${work} of work adds ${reward} of viewing.`,
+      },
+      extension: {
+        title: 'The Chrome extension spends it',
+        body: ['It only counts down while you watch YouTube Shorts.'],
       },
       calendar: {
-        title: 'Check your plans on the calendar',
-        body: ['Select a plan to open its details, edit it, or adjust its time.'],
+        title: 'Check your plan on the calendar',
+        body: ['Select an event to open its details, edit it, or adjust the time.'],
       },
       assistant: {
-        title: 'You can also just describe it',
+        title: 'You can also just ask',
         body: [
-          'Write something like "Report due Friday, about 2 hours" and a draft plan is made for you.',
-          'Nothing is added until you review and confirm it.',
+          'Write "report by Friday, about 2 hours" and get a draft plan.',
+          'Nothing is saved until you confirm.',
         ],
       },
       settings: {
         title: 'Settings can wait',
         body: [
-          'Everything works as is. Once you are used to it, setting up "Night cutoff (bedtime)" and "Google integration" is handy.',
-          'You can replay this tour anytime from "Guide" at the top right.',
+          'Later, set your bedtime to mark the end of the day.',
+          'Open this guide again from Guide.',
         ],
       },
       ready: {
         title: "You're all set",
-        body: ["Let's start by adding one task for this week."],
+        body: ['Try adding one task for this week.'],
       },
     },
     setupStatus: {

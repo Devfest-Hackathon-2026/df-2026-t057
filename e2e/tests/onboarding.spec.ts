@@ -1,4 +1,5 @@
 import { expect, test, tokyoDate } from '../support/fixtures';
+import type { CalendarStatus, Config } from '../support/api';
 import { expectInsideViewport } from '../support/layout';
 
 test('?tutorial walks through the screen and ends on task registration', async ({
@@ -9,18 +10,23 @@ test('?tutorial walks through the screen and ends on task registration', async (
   const tour = page.getByRole('dialog', { name: 'DOPAGAKIへようこそ' });
   await expect(tour).toBeVisible();
   await expect(page).toHaveURL(/\/calendar$/);
-  await tour.getByRole('button', { name: '案内を見る', exact: true }).click();
+  await tour.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
 
   const card = page.locator('.tour-card');
-  await expect(page.getByRole('dialog', { name: 'まずは課題を1つ登録' })).toBeVisible();
+  // この環境では Google カレンダーを連携できないので、連携の段階はそのまま進める。
+  await expect(page.getByRole('dialog', { name: 'Googleカレンダーを連携' })).toBeVisible();
+  await expect(card).toContainText('2 / 11');
+  await card.getByRole('button', { name: '次へ', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'まずは課題を登録' })).toBeVisible();
   // 強調している要素（課題を登録するボタン）の上に、明るい枠を出す。
   await expect(page.locator('.tour-spot')).toBeVisible();
-  await expect(card).toContainText('2 / 8');
+  await expect(card).toContainText('3 / 11');
+  await card.getByRole('button', { name: '戻る', exact: true }).click();
   await card.getByRole('button', { name: '戻る', exact: true }).click();
   await expect(card.getByRole('heading')).toHaveText('DOPAGAKIへようこそ');
-  await card.getByRole('button', { name: '案内を見る', exact: true }).click();
+  await card.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
   // 1段ずつ、見出しが変わってから次を押す（遅い環境でクリックを取りこぼさない）。
-  for (let step = 0; step < 6; step++) {
+  for (let step = 0; step < 9; step++) {
     const title = (await card.getByRole('heading').textContent()) ?? '';
     await card.getByRole('button', { name: '次へ', exact: true }).click();
     await expect(card.getByRole('heading')).not.toHaveText(title);
@@ -47,8 +53,11 @@ test('tutorial can be skipped and replayed from the mobile menu', async ({ page 
   await page.getByRole('button', { name: 'メニューを開く', exact: true }).click();
   await page.getByRole('menuitem', { name: '使い方', exact: true }).click();
   await expect(card).toBeVisible();
-  await expect(card.getByRole('button', { name: '案内を見る', exact: true })).toBeFocused();
-  await card.getByRole('button', { name: '案内を見る', exact: true }).click();
+  await expect(
+    card.getByRole('button', { name: 'チュートリアルを開始', exact: true }),
+  ).toBeFocused();
+  await card.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
+  await card.getByRole('button', { name: '次へ', exact: true }).click();
   await expect(page.locator('.tour-spot')).toBeVisible();
   expectInsideViewport(page, await card.boundingBox());
   await card.getByRole('button', { name: '終了', exact: true }).click();
@@ -95,18 +104,95 @@ test('deadline is chosen from quick days, a calendar and a time list', async ({ 
   ).toBe('18:00');
 });
 
+test('every tutorial step explains itself in three lines or fewer', async ({ page }) => {
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/calendar?tutorial');
+    const card = page.locator('.tour-card');
+    await expect(card).toContainText('1 / 11');
+    for (let step = 1; step <= 11; step++) {
+      await expect(card).toContainText(`${step} / 11`);
+      // 説明の段落ごとに、描画された行数（高さ ÷ 行の高さ）を足す。
+      const lines = await card.locator('#tour-body p').evaluateAll((paragraphs) =>
+        paragraphs.reduce((sum, paragraph) => {
+          const lineHeight = Number.parseFloat(getComputedStyle(paragraph).lineHeight);
+          return sum + Math.round(paragraph.getBoundingClientRect().height / lineHeight);
+        }, 0),
+      );
+      const title = (await card.getByRole('heading').textContent()) ?? '';
+      expect(lines, `${width}px「${title}」`).toBeLessThanOrEqual(3);
+      if (step < 11) {
+        await card
+          .getByRole('button', { name: step === 1 ? 'チュートリアルを開始' : '次へ', exact: true })
+          .click();
+        await expect(card.getByRole('heading')).not.toHaveText(title);
+      }
+    }
+  }
+});
+
+test('the tutorial cannot be finished until Google Calendar is connected', async ({ page }) => {
+  const config: Config = { mode: 'demo', features: { ai: false, calendar: true } };
+  let status: CalendarStatus = {
+    enabled: true,
+    connected: false,
+    sync: 'disconnected',
+    failedJobs: 0,
+  };
+  await page.route('**/api/config', (route) => route.fulfill({ json: config }));
+  await page.route('**/api/calendar', (route) => route.fulfill({ json: status }));
+  // 同意画面の代わりに、連携できたときの戻り先へそのまま移る。
+  await page.route('**/api/calendar/connect', async (route) => {
+    status = { ...status, connected: true, sync: 'synced' };
+    await route.fulfill({ json: { url: new URL('/?calendar=connected', page.url()).toString() } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calendar?tutorial');
+  const card = page.locator('.tour-card');
+  await expect(card.getByRole('heading')).toHaveText('DOPAGAKIへようこそ');
+  await expect(card.getByRole('button', { name: 'スキップ', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(card).toBeVisible();
+
+  await card.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
+  await expect(card.getByRole('heading')).toHaveText('Googleカレンダーを連携');
+  await expect(card).toContainText('連携するまで先へ進めません。');
+  // 連携を求める説明も3行までにする。
+  const lines = await card.locator('#tour-body p').evaluateAll((paragraphs) =>
+    paragraphs.reduce((sum, paragraph) => {
+      const lineHeight = Number.parseFloat(getComputedStyle(paragraph).lineHeight);
+      return sum + Math.round(paragraph.getBoundingClientRect().height / lineHeight);
+    }, 0),
+  );
+  expect(lines).toBeLessThanOrEqual(3);
+  await expect(card.getByRole('button', { name: '次へ', exact: true })).toHaveCount(0);
+  await expect(card.getByRole('button', { name: '終了', exact: true })).toHaveCount(0);
+  await page.keyboard.press('ArrowRight');
+  await expect(card.getByRole('heading')).toHaveText('Googleカレンダーを連携');
+
+  // 連携して戻ってくると、連携の段階から続き、先へ進めて終えられる。
+  await card.getByRole('button', { name: 'Googleカレンダーを連携', exact: true }).click();
+  await expect(page.getByText('Googleカレンダーを連携しました')).toBeVisible();
+  await expect(card.getByRole('heading')).toHaveText('Googleカレンダーを連携');
+  await expect(card).toContainText('連携できました。');
+  await card.getByRole('button', { name: '次へ', exact: true }).click();
+  await expect(card.getByRole('heading')).toHaveText('まずは課題を登録');
+  await card.getByRole('button', { name: '終了', exact: true }).click();
+  await expect(card).toHaveCount(0);
+});
+
 test('on a phone the consultation step switches to the consultation view', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/calendar?tutorial');
   const card = page.locator('.tour-card');
-  await card.getByRole('button', { name: '案内を見る', exact: true }).click();
+  await card.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
   // 狭い画面ではカレンダーと相談の片方しか出ない。「相談」の段階では相談を出して強調する。
   while (!((await card.getByRole('heading').textContent()) ?? '').includes('相談')) {
     const title = (await card.getByRole('heading').textContent()) ?? '';
     await card.getByRole('button', { name: '次へ', exact: true }).click();
     await expect(card.getByRole('heading')).not.toHaveText(title);
   }
-  await expect(card.getByRole('heading')).toHaveText('言葉で相談することもできます');
+  await expect(card.getByRole('heading')).toHaveText('言葉で相談もできます');
   await expect(page.getByRole('radio', { name: '相談・詳細', exact: true })).toBeChecked();
   await expect(page.locator('[data-tour="assistant"]')).toBeVisible();
   await expect(page.locator('.tour-spot')).toBeVisible();

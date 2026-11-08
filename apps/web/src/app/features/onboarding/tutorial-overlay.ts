@@ -13,11 +13,13 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { ConfigStore } from '../../core/config/config.store';
 import { LocaleStore } from '../../core/i18n/locale.store';
+import { CalendarStore } from '../calendar/calendar.store';
 import { SettingsStore } from '../settings/settings.store';
 import { TaskActions } from '../tasks/task-actions';
 import { WalletStore } from '../wallet/wallet.store';
-import { tutorialSteps } from './tutorial-steps';
+import { type GoogleStepState, tutorialSteps } from './tutorial-steps';
 import { Tutorial } from './tutorial.service';
 
 interface Box {
@@ -77,12 +79,34 @@ export class TutorialOverlay {
   protected readonly settings = inject(SettingsStore);
   private readonly wallet = inject(WalletStore);
   private readonly actions = inject(TaskActions);
+  private readonly config = inject(ConfigStore);
+  protected readonly calendar = inject(CalendarStore);
   private readonly card = viewChild<ElementRef<HTMLElement>>('card');
   protected readonly text = inject(LocaleStore).web;
   private readonly shared = inject(LocaleStore).shared;
 
+  /** この環境で連携できるのに、まだ Google カレンダーを連携していない。 */
+  protected readonly mustConnect = computed(
+    () =>
+      this.config.config()?.features.calendar === true &&
+      this.calendar.value()?.enabled !== false &&
+      this.calendar.value()?.connected !== true,
+  );
+  private readonly google = computed<GoogleStepState>(() => {
+    if (this.mustConnect()) return 'required';
+    return this.calendar.value()?.connected === true ? 'connected' : 'unavailable';
+  });
   protected readonly steps = computed(() =>
-    tutorialSteps(this.wallet.value()?.rules, this.text().onboarding.steps, this.shared()),
+    tutorialSteps(
+      this.wallet.value()?.rules,
+      this.text().onboarding.steps,
+      this.shared(),
+      this.google(),
+    ),
+  );
+  /** 連携するまで、この段階から先へ進めず、案内も終えられない。 */
+  protected readonly blocked = computed(
+    () => this.current()?.connect === true && this.mustConnect(),
   );
   protected readonly index = this.tour.step;
   protected readonly current = computed(() => this.steps()[this.index()] ?? this.steps()[0]);
@@ -112,6 +136,8 @@ export class TutorialOverlay {
           this.restore();
           return;
         }
+        // 連携しているかで、先へ進めるか・終えられるかが決まる。
+        this.calendar.ensureLoaded();
         if (!this.restoreFocus && document.activeElement instanceof HTMLElement) {
           this.restoreFocus = document.activeElement;
         }
@@ -144,10 +170,19 @@ export class TutorialOverlay {
   }
 
   protected finish(): void {
+    if (this.mustConnect()) return;
     this.tour.finish();
   }
 
+  /** Google の同意画面へ移る。戻ってきたら、この段階から案内を続ける。 */
+  protected async connect(): Promise<void> {
+    this.tour.rememberResume(this.index());
+    const outcome = await this.calendar.startConnect();
+    if (!outcome.ok) this.tour.takeResume();
+  }
+
   protected addTask(): void {
+    if (this.mustConnect()) return;
     this.tour.finish();
     void this.actions.add();
   }
@@ -156,7 +191,7 @@ export class TutorialOverlay {
     if (event.key === 'Escape') {
       event.preventDefault();
       this.finish();
-    } else if (event.key === 'ArrowRight' && !this.isLast()) {
+    } else if (event.key === 'ArrowRight' && !this.isLast() && !this.blocked()) {
       this.go(1);
     } else if (event.key === 'ArrowLeft' && !this.isFirst()) {
       this.go(-1);
