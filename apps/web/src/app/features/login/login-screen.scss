@@ -15,9 +15,17 @@
   text-align: center;
 }
 
+// ロゴの画像は黒い背景に白い文字。ライトでは反転して白を背景に溶かし、ダークでは黒を溶かす。
 .logo {
   width: 13rem;
   height: auto;
+  filter: invert(1);
+  mix-blend-mode: multiply;
+
+  @media (prefers-color-scheme: dark) {
+    filter: none;
+    mix-blend-mode: screen;
+  }
 }
 
 h1 {

@@ -7,10 +7,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     @if (eyebrow()) {
       <p class="eyebrow">{{ eyebrow() }}</p>
     }
-    <h1>
-      {{ heading() }}
-      <span class="dot" aria-hidden="true">.</span>
-    </h1>
+    <h1>{{ heading() }}</h1>
     @if (lead()) {
       <p class="lead">{{ lead() }}</p>
     }
@@ -30,11 +27,6 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
     h1 {
       margin: 0 0 0.25rem;
-      font: var(--mat-sys-headline-large);
-    }
-
-    .dot {
-      color: var(--mat-sys-primary);
     }
 
     .lead {
