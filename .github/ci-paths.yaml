@@ -47,6 +47,10 @@ e2e:
   - 'apps/**'
   - 'packages/**'
   - 'e2e/**'
+terraform:
+  - *full
+  - 'deploy/terraform/**'
+  - 'deploy/firestore.rules'
 e2e_sources:
   - 'e2e/**'
 deploy:

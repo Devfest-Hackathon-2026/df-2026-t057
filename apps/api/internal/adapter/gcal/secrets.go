@@ -17,7 +17,7 @@ import (
 // SecretStore は OAuth のトークンを Secret Manager に保存する。
 // 利用者ごとに secret を1つ作り（projects/<p>/secrets/dopagaki-calendar-<hex(sha256(uid))[:32]>）、つなぎ直すたびに版を加える。
 // 古い版は加えた直後に破棄し（使わないトークンを残さない）、連携の解除で secret ごと消す。
-// 実行アカウントに必要な権限は deploy/iam/runtime-secret-role.yaml にある。
+// 実行アカウントに必要な権限は deploy/terraform/iam.tf の dopagakiCalendarTokenLifecycle にある。
 type SecretStore struct {
 	client  *secretmanager.Client
 	project string

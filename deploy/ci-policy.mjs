@@ -70,10 +70,9 @@ export function planChecks(files, flags, event = 'pull_request', requestDeploy =
   const manual = event === 'workflow_dispatch';
   const redeploy = event === 'push' && requestDeploy;
   const result = Object.fromEntries(
-    ['code', 'api', 'web', 'extension', 'shared', 'generate', 'e2e', 'deploy'].map((key) => [
-      key,
-      flags[key] === true || flags[key] === 'true',
-    ]),
+    ['code', 'api', 'web', 'extension', 'shared', 'generate', 'e2e', 'deploy', 'terraform'].map(
+      (key) => [key, flags[key] === true || flags[key] === 'true'],
+    ),
   );
   const runtime = files.filter(
     (path) => !testOrDocumentation(path) && /^(?:apps|packages)\//.test(path),
@@ -136,7 +135,8 @@ export function planChecks(files, flags, event = 'pull_request', requestDeploy =
         !testOrDocumentation(path)),
   );
   if (manual || redeploy) {
-    for (const key of ['code', 'api', 'web', 'extension', 'shared']) result[key] = true;
+    for (const key of ['code', 'api', 'web', 'extension', 'shared', 'terraform'])
+      result[key] = true;
   }
   return {
     ...result,

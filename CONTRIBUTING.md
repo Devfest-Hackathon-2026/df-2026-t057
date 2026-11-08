@@ -36,7 +36,7 @@ pnpm format       # フォーマットを直す
 
 PRでは、関連するLint・型・単体テストと、主要操作の短いスモークE2Eを実行します。認証・報酬・保存・API契約・CI実行条件などの重要な変更はPRでも全件、mainではアプリや配信対象の変更で全件を実行します。Docker検証はビルド設定・依存・CIのイメージ受け渡しを変更したPRと、mainの配信対象に限定します。資料・テストだけ・CI専用設定だけの変更で本番配信は行いません。生成物確認は生成に影響する変更時に行います（[CIの実行範囲](engineering/operations.md#ciの実行範囲)）。
 
-Actionsでは `api` と `frontend` を並列に確認し、成功後に `e2e` を実行します。`check` が成功し、最新mainかつ配信対象の場合だけ、別ファイルの `cd.yml` へ検証済みイメージを渡して配信します。古いCIは取り消しますが、開始済みの本番配信は完走します。全件を手動で試す場合はActionsの「Check」→「Run workflow」を使います。手動検証からの本番配信と定期実行はありません。
+Actionsでは `api` と `frontend` を並列に確認し、成功後に `e2e` を実行します。`deploy/terraform` を変えたときは `terraform` ジョブも並列に走ります。`check` が成功し、最新mainかつ配信対象の場合だけ、別ファイルの `cd.yml` へ検証済みイメージを渡して配信します。古いCIは取り消しますが、開始済みの本番配信は完走します。全件を手動で試す場合はActionsの「Check」→「Run workflow」を使います。手動検証からの本番配信と定期実行はありません。
 
 Vertex AIやGoogle Calendarへの実接続テストは料金がかかるため、通常は実行しません。必要なときだけ環境変数を付けて実行します。
 
@@ -86,6 +86,8 @@ feat: スヌーズを確定したとき相棒の一言を出す
 - 配信直後の確認に失敗した場合は、自動で前のリビジョンへ戻ります。それ以外で公開環境に問題が出たら、すぐにチームへ知らせてください（[運用記録](engineering/operations.md)）。
 
 CI障害の復旧後に、本番への再配信が明示的に必要な場合は、PRのマージコミットの件名に `[deploy]` を付けます。mainへのpushで生成物・Lint・型・単体・全E2Eを改めて通し、その同じイメージを配信します。通常のCI専用変更では配信せず、ActionsのRun workflowは検証のみです。
+
+Google Cloudの設定（`deploy/terraform`）も自動では反映されません。PRに `terraform plan` の結果を書き、マージ後に `terraform apply` します（[deploy/terraform](deploy/terraform/README.md)）。
 
 Chrome拡張は自動では配布されません。`vX.Y.Z` のタグをpushすると、GitHub Releasesに公開されます（[README](README.md#chrome拡張のリリース)）。
 

@@ -31,7 +31,7 @@ packages/
   tokens/       M3デザイントークン（CSS変数）。webと拡張で共有
   messages/     表示文言（日本語・英語）とエラーコードの対応表。webと拡張で共有
 engineering/    開発記録
-deploy/         配信スクリプトとIAM定義（のちにTerraformへ移す）
+deploy/         配信スクリプト、Terraform（Google Cloudの設定）、Firestoreのルール
 ```
 
 - ビジネスルールのTS実装は持たない。ルールはGoだけに書き、表示に必要な値はAPIで返す。
@@ -42,7 +42,7 @@ deploy/         配信スクリプトとIAM定義（のちにTerraformへ移す�
 バージョンは [mise.toml](mise.toml) を正とする。Nodeは [.nvmrc](.nvmrc) にも同じ値を書き、CIとDockerfileもこれに合わせる。
 
 ```bash
-mise install          # Node・Go・golangci-lint を揃える
+mise install          # Node・Go・golangci-lint・Terraform を揃える
 corepack enable       # pnpm を有効にする
 pnpm install
 ```
@@ -56,7 +56,7 @@ pnpm install
 | 仕様からコードを生成 | `pnpm generate` |
 | フォーマット | `pnpm format` |
 
-CIは `api`・`frontend`・`e2e` の3ジョブで検証し、必須ステータス `check` へ結果を集約する。PRは関連する型・Lint・単体テストと主要操作のスモークE2Eを実行する。認証・報酬・保存・API契約・CIの実行条件などの重要な変更はPRでも全E2Eを実行する。mainではアプリ変更・配信対象変更の全E2Eを配信前に必須とし、資料・テストだけ・CI専用設定だけの変更では重い検証と配信を省く。生成物確認は生成元・生成ツール・生成物を変更したときに行う。
+CIは `api`・`frontend`・`e2e` の3ジョブで検証し、必須ステータス `check` へ結果を集約する。`deploy/terraform` を変えたときは、`terraform` ジョブでフォーマットと `validate` も確かめる。PRは関連する型・Lint・単体テストと主要操作のスモークE2Eを実行する。認証・報酬・保存・API契約・CIの実行条件などの重要な変更はPRでも全E2Eを実行する。mainではアプリ変更・配信対象変更の全E2Eを配信前に必須とし、資料・テストだけ・CI専用設定だけの変更では重い検証と配信を省く。生成物確認は生成元・生成ツール・生成物を変更したときに行う。
 
 影響範囲は `.github/ci-paths.yaml`、実行頻度・配信対象・テストのみの変更の扱いは `deploy/ci-policy.mjs` を正とし、両方を使った回帰テストを維持する。必要な検証の失敗・取消を成功として扱わない。APIとフロントの成功後にE2Eへ進み、省略されたAPIジョブはE2Eを妨げない。Lintやフォーマットの違反があるPRはマージしない。
 
@@ -85,6 +85,7 @@ flowchart LR
 
 - Cloud Run 1サービスで、APIと管理画面を同じオリジンから配信する。
 - クライアントは、FirestoreやGoogleのAPIに直接アクセスしない。必ず認証したAPIを通す。Firestoreのクライアント向けルールは全拒否にする。
+- Google Cloudの設定（API、サービスアカウントと権限、Cloud Run、Cloud Tasks、Cloud Scheduler、Firestore）は `deploy/terraform` で管理する。画面やgcloudで直接変えず、Terraformを変えてapplyする。Cloud Runのイメージとトラフィックだけは CD が変える。Secretの値はTerraformに入れない。
 
 ### バックエンド：機能ごとのパッケージ ＋ ポート＆アダプター
 
@@ -271,10 +272,6 @@ Linterの警告を無効にするときは、その行に理由を書く。フ�
 - テスト、Issue、PR、記録に、実在の予定、カレンダーID、メールアドレス、閲覧履歴を載せない。架空のデータを使う。
 - AIに渡すのは、本人が入力した課題と作業傾向だけ。ほかのカレンダー、YouTubeの動画内容、閲覧履歴は送らない。
 - 状態を変えるリクエストでは `Origin` を確認する。拡張から受け付けるのは、許可した拡張IDからのリクエストだけにする。
-
-## 後回しにしていること
-
-- **インフラのコード化：** Terraformで管理する予定。作り直しの次の別PRで行う。それまでは、新しく作るGCPのリソース（Cloud Tasksのキューなど）を `deploy/` のスクリプトに書いておく。
 
 ## このファイルの更新
 

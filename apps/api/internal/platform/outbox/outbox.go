@@ -42,7 +42,7 @@ const (
 	StatusCancelled Status = "cancelled"
 )
 
-// MaxAttempts はジョブを失敗とみなすまでの試行回数。Cloud Tasks のキューの上限（deploy/setup-cloud-tasks.sh）より小さくする。
+// MaxAttempts はジョブを失敗とみなすまでの試行回数。Cloud Tasks のキューの上限（deploy/terraform/outbox.tf）より小さくする。
 const MaxAttempts = 8
 
 // DoneTTL は完了したジョブを残す期間（TTL で消す）。

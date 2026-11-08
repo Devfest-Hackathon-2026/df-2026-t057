@@ -110,6 +110,27 @@ for (const [path, suite, deploy, image, generate] of cases) {
   });
 }
 
+test('Terraform PR validates the configuration without app checks, E2E or deployment', () => {
+  const { plan, results } = selection(['deploy/terraform/run.tf']);
+  assert.equal(results.terraform, 'success');
+  assert.equal(results.api, 'skipped');
+  assert.equal(results.e2e, 'skipped');
+  assert.equal(results.check, 'success');
+  assert.equal(plan.deploy, false);
+  assert.equal(plan.image, false);
+});
+
+test('app PR skips Terraform validation', () => {
+  assert.equal(selection(['apps/api/internal/wallet/domain.go']).results.terraform, 'skipped');
+});
+
+test('failed Terraform validation blocks the required check', () => {
+  assert.equal(
+    selection(['deploy/terraform/run.tf'], 'pull_request', { terraform: 'failure' }).results.check,
+    'failure',
+  );
+});
+
 for (const path of [
   'apps/web/src/app/app.ts',
   'apps/extension/content/notice.ts',

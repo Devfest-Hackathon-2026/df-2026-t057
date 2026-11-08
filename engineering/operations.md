@@ -16,8 +16,8 @@
 | Chrome拡張の配布 | タグからReleaseを作成するワークフローを追加 | [release-extension.yml](../.github/workflows/release-extension.yml)。`vX.Y.Z` のpushで型チェック・単体テスト・公開先向けビルド・ZIPとチェックサムの公開を実行。導入は[INSTALL.txt](../extension/INSTALL.txt)参照。初回のGitHub上の実行結果はPR・Actionsで確認 |
 | Cloud Runへの配信 | 自動配信の初回成功を確認済み | GitHub Actionsでイメージ作成・push・候補確認・切替 |
 | CD | 稼働済み | [継続的デプロイ](continuous-deployment.md)。mainの検証成功後に配信し、公開確認失敗時は元の配分へ戻す |
-| Terraform / IaC | 未導入 | Terraformコード・state管理・importは用意していない |
-| 配信設定の共有 | 一部あり | Dockerfile、公開環境変数の例、Firestoreルール、README |
+| Terraform / IaC | 本番へ適用済み | [deploy/terraform](../deploy/terraform/README.md)。2026-11-08に既存のリソースを取り込み、apply 後の plan は差分なし。[記録](terraform-2026-11-08.md) |
+| 配信設定の共有 | 一部あり | Dockerfile、Terraform（Cloud Runの環境変数を含む）、Firestoreルール、README |
 | 再現可能な一連の運用 | 未完成 | Firebase・OAuth・Chat・IAM等を含む初期設定全体はCLI・画面操作に依存 |
 
 2026-11-07にGitHub ActionsからのCDをmainへ反映し、対象リソースに限定した鍵なし認証で初回配信が成功した。以下の図は以前の手動配信の経路として残す。
@@ -147,7 +147,7 @@ options:
 timeout: 1200s
 ```
 
-設定をローカルの `cloudbuild.yaml` に置き、実行用の環境変数ファイルを [設定例](../deploy/cloudrun.env.example.yaml) から用意する。公開設定のみをファイルに入れ、秘密値はSecret Manager参照にする。以下は説明用のコマンドで、この記録の作成時には実行していない。
+設定をローカルの `cloudbuild.yaml` に置く。環境変数・Secret参照・リソース上限は [Terraform](../deploy/terraform/run.tf) で設定済みなので、手動配信ではイメージだけを変える。以下は説明用のコマンドで、この記録の作成時には実行していない。
 
 ```bash
 DOPAGAKI_PROJECT=devfest-2026-513816
@@ -164,7 +164,7 @@ gcloud builds submit . \
   --billing-project="$DOPAGAKI_PROJECT"
 ```
 
-本番更新では、完成したイメージのdigestを確認して固定する。`gcloud run deploy` へ、実行用SA、環境変数ファイル、Secret参照、リソース上限を明示する。OAuthとSchedulerのSecretバージョンは、使用するものを確認して指定する。手動配信後は [検証記録](verification-2026-11-06.md) の範囲で確認する。
+本番更新では、完成したイメージのdigestを確認して固定し、`deploy/cloud-run.sh` に渡す（候補確認と切替はCDと同じ）。手動配信後は [検証記録](verification-2026-11-06.md) の範囲で確認する。
 
 次は2026-11-06の初期確認時の配信値で、旧イメージを再配信するコマンド例。新しいビルドを配信する場合は、その結果のdigestへ置き換える。Secretの `:1` も配信時点の値である。
 
@@ -185,7 +185,7 @@ gcloud run deploy dopagaki \
 
 ## TerraformとCDを整備するときに決めること
 
-以下は未実施の作業一覧で、導入済みの仕組みではない。
+以下は2026-11-06時点の作業一覧。Terraformの管理範囲・既存環境の取り込み・state管理は、2026-11-08に [Terraformへの移行](terraform-2026-11-08.md) で決めた。
 
 | 項目 | 必要な判断・確認 |
 |---|---|
