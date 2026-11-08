@@ -10,7 +10,9 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -48,7 +50,9 @@ interface NavItem {
     AccountMenu,
     FocusBar,
     MatButtonModule,
+    MatDividerModule,
     MatIconModule,
+    MatMenuModule,
     MatProgressBarModule,
     MatTooltipModule,
     RouterLink,

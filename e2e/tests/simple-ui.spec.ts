@@ -71,7 +71,9 @@ test('calendar adapts to mobile while preserving an explicit view choice', async
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('radio', { name: '週', exact: true })).toBeChecked();
 
-  await page.getByRole('link', { name: '課題', exact: true }).click();
+  // スマホの幅ではページの移動はハンバーガーメニューから
+  await page.getByRole('button', { name: 'メニューを開く', exact: true }).click();
+  await page.getByRole('menuitem', { name: '課題', exact: true }).click();
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   const edit = page.getByRole('button', { name: '課題を編集', exact: true });
   const icon = await edit.locator('mat-icon').boundingBox();

@@ -27,12 +27,18 @@
 
   <div class="main-column">
     <header class="topbar">
+      <!-- スマホではサイドバーを隠すので、ロゴを上部に出す -->
+      <a class="brand mobile-brand" href="/" aria-label="DOPAGAKI ホーム">
+        <img src="/logo.png" alt="" width="32" height="32" />
+      </a>
       <div class="topbar-right" data-tour="settings">
         @if (auth.mode() === 'demo') {
           <span class="demo-badge">デモ</span>
         }
         <span class="today">{{ today() }}</span>
-        <button mat-button type="button" (click)="tutorial.start()">使い方</button>
+        <button mat-button type="button" class="wide-only" (click)="tutorial.start()">
+          使い方
+        </button>
         @if (auth.mode() === 'demo') {
           <a mat-icon-button routerLink="/settings" matTooltip="設定" aria-label="設定を開く">
             <mat-icon>settings</mat-icon>
@@ -40,8 +46,38 @@
         } @else {
           <app-account-menu />
         }
+        <button
+          mat-icon-button
+          type="button"
+          class="menu-button"
+          [matMenuTriggerFor]="mobileMenu"
+          aria-label="メニューを開く"
+        >
+          <span class="hamburger" aria-hidden="true"></span>
+        </button>
       </div>
     </header>
+
+    <mat-menu #mobileMenu="matMenu" xPosition="before" aria-label="メインメニュー">
+      <p class="menu-today">{{ today() }}</p>
+      @for (item of nav; track item.path) {
+        <a
+          mat-menu-item
+          class="menu-link"
+          [routerLink]="item.path"
+          routerLinkActive="selected"
+          ariaCurrentWhenActive="page"
+        >
+          <mat-icon>{{ item.icon }}</mat-icon>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+      <mat-divider />
+      <button mat-menu-item type="button" (click)="tutorial.start()">
+        <mat-icon>help</mat-icon>
+        <span>使い方</span>
+      </button>
+    </mat-menu>
 
     @if (work.session()) {
       <app-focus-bar class="focus" />
