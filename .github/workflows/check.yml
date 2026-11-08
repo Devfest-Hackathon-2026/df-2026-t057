@@ -12,91 +12,86 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       deploy: ${{ steps.changes.outputs.deploy }}
     steps:
       - uses: actions/checkout@v7
-      # Keep the check result even for documentation-only PRs.
+      # 文書だけの変更では、重い検証を省く。結果（成功）は残す。
       - uses: dorny/paths-filter@v4
         id: changes
         with:
           base: ${{ github.ref }}
           filters: |
-            frontend: &frontend
-              - 'web/**'
-              - 'extension/**'
-              - 'shared/**'
-              - 'scripts/build-extension.mjs'
+            code:
+              - 'apps/**'
+              - 'packages/**'
+              - 'e2e/**'
               - 'package.json'
-              - 'package-lock.json'
-              - 'angular.json'
-              - 'tsconfig.json'
-              - '.github/workflows/check.yml'
-            api: &api
-              - 'api/**'
-              - '.github/workflows/check.yml'
-            unit:
-              - *frontend
-              - 'tests/*.test.ts'
-              - 'deploy/cloud-run.sh'
-            e2e:
-              - *frontend
-              - *api
-              - 'tests/e2e/**'
-              - 'playwright.config.ts'
-            container:
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'mise.toml'
+              - '.nvmrc'
+              - 'eslint.config.js'
+              - 'stylelint.config.js'
+              - 'tsconfig.base.json'
+              - '.prettierrc.json'
+              - '.prettierignore'
               - 'Dockerfile'
               - '.dockerignore'
+              - 'deploy/**'
               - '.github/workflows/check.yml'
             deploy:
-              - 'api/**'
-              - 'web/**'
-              - 'shared/**'
+              - 'apps/api/**'
+              - 'apps/web/**'
+              - 'packages/contract/**'
+              - 'packages/tokens/**'
+              - 'packages/messages/**'
               - 'package.json'
-              - 'package-lock.json'
-              - 'angular.json'
-              - 'tsconfig.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'mise.toml'
               - 'Dockerfile'
               - '.dockerignore'
               - 'deploy/cloud-run.sh'
               - '.github/workflows/check.yml'
-      - uses: actions/setup-node@v7
-        if: steps.changes.outputs.unit == 'true' || steps.changes.outputs.e2e == 'true'
+      # Node・pnpm・Go・golangci-lint のバージョンは mise.toml を正とする。
+      - uses: jdx/mise-action@v3
+        if: steps.changes.outputs.code == 'true'
         with:
-          node-version: '24'
-          cache: npm
-      - uses: actions/setup-go@v6
-        if: steps.changes.outputs.api == 'true' || steps.changes.outputs.e2e == 'true'
-        with:
-          go-version-file: api/go.mod
-          cache-dependency-path: api/go.sum
-      - run: npm ci
-        if: steps.changes.outputs.unit == 'true' || steps.changes.outputs.e2e == 'true'
-      - run: npm run build
-        if: steps.changes.outputs.e2e == 'true'
-      - run: npm run typecheck
-        if: steps.changes.outputs.frontend == 'true'
-      - run: npm run test:unit
-        if: steps.changes.outputs.unit == 'true'
-      - run: go test -race ./...
-        if: steps.changes.outputs.api == 'true'
-        working-directory: api
-      - run: go vet ./...
-        if: steps.changes.outputs.api == 'true'
-        working-directory: api
-      - run: npx playwright install --with-deps chromium
-        if: steps.changes.outputs.e2e == 'true'
-      - run: npm run test:e2e
+          cache: true
+      - name: Install dependencies
+        if: steps.changes.outputs.code == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Generated code is up to date
+        if: steps.changes.outputs.code == 'true'
+        run: |
+          pnpm generate
+          git diff --exit-code || { echo '::error::生成物が古いままです。pnpm generate を実行してコミットしてください。'; exit 1; }
+      - name: Format, lint and typecheck
+        if: steps.changes.outputs.code == 'true'
+        run: pnpm check
+      - name: Unit tests
+        if: steps.changes.outputs.code == 'true'
+        run: pnpm test
+      - name: Build
+        if: steps.changes.outputs.code == 'true'
+        run: pnpm build
+      - name: Install browser
+        if: steps.changes.outputs.code == 'true'
+        run: pnpm --filter @dopagaki/e2e exec playwright install --with-deps chromium
+      - name: E2E tests (including accessibility)
         id: e2e
-        if: steps.changes.outputs.e2e == 'true'
+        if: steps.changes.outputs.code == 'true'
+        run: pnpm test:e2e
       - name: Validate production container
-        if: github.event_name == 'pull_request' && steps.changes.outputs.container == 'true'
+        if: github.event_name == 'pull_request' && steps.changes.outputs.deploy == 'true'
         run: docker build --platform linux/amd64 -t dopagaki-check .
       - uses: actions/upload-artifact@v4
         if: failure() && steps.e2e.outcome == 'failure'
         with:
           name: browser-test-results
-          path: test-results
+          path: e2e/test-results
   deploy:
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check.outputs.deploy == 'true'
