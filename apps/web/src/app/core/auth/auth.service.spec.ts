@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
+import { messages } from '@dopagaki/messages';
 import { FakeBackend, flush } from '../../../testing/fake-backend';
 import { ConfigStore } from '../config/config.store';
 import { AccountScope } from './account-scope';
-import { firebaseConfigMissingMessage } from './auth-errors';
 import { AuthService } from './auth.service';
 import { FIREBASE_AUTH_LOADER, type FirebaseAuthPort, type FirebaseUser } from './firebase-auth';
 
@@ -80,7 +80,7 @@ describe('AuthService', () => {
     await auth.start();
     expect(auth.status()).toBe('signedOut');
     await auth.login();
-    expect(auth.error()).toBe(firebaseConfigMissingMessage);
+    expect(auth.error()).toBe(messages.ja.web.app.auth.firebaseConfigMissing);
   });
 
   it('ID トークンが更新されると idToken が変わり、アカウントが変わると store を空に戻す', async () => {

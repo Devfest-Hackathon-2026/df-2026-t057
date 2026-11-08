@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { LocaleStore } from '../../../core/i18n/locale.store';
 import { CalendarStore } from '../../calendar/calendar.store';
 
 /** Google カレンダーとの連携を解除する前の確認。 */
@@ -8,12 +9,13 @@ import { CalendarStore } from '../../calendar/calendar.store';
   selector: 'app-disconnect-calendar-dialog',
   imports: [MatButtonModule, MatDialogModule],
   template: `
-    <h2 mat-dialog-title>Googleカレンダーとの連携を解除しますか？</h2>
+    @let t = text().settings.disconnectDialog;
+    <h2 mat-dialog-title>{{ t.title }}</h2>
     <mat-dialog-content>
       <ul class="points">
-        <li>登録した課題と予定はそのまま残ります。</li>
-        <li>Googleカレンダーの予定との結び付きだけが外れます。</li>
-        <li>設定から、いつでも連携し直せます。</li>
+        <li>{{ t.keepsTasks }}</li>
+        <li>{{ t.unlinksEvents }}</li>
+        <li>{{ t.canReconnect }}</li>
       </ul>
       @if (calendar.disconnect.error(); as error) {
         <p class="error" role="alert">{{ error.message }}</p>
@@ -21,7 +23,7 @@ import { CalendarStore } from '../../calendar/calendar.store';
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button type="button" mat-dialog-close [disabled]="calendar.disconnect.pending()">
-        キャンセル
+        {{ t.cancel }}
       </button>
       <button
         mat-flat-button
@@ -29,7 +31,7 @@ import { CalendarStore } from '../../calendar/calendar.store';
         (click)="disconnect()"
         [disabled]="calendar.disconnect.pending()"
       >
-        {{ calendar.disconnect.pending() ? '解除しています…' : '連携を解除する' }}
+        {{ calendar.disconnect.pending() ? t.disconnecting : t.disconnect }}
       </button>
     </mat-dialog-actions>
   `,
@@ -55,6 +57,7 @@ import { CalendarStore } from '../../calendar/calendar.store';
 })
 export class DisconnectCalendarDialog {
   protected readonly calendar = inject(CalendarStore);
+  protected readonly text = inject(LocaleStore).web;
   private readonly dialogRef =
     inject<MatDialogRef<DisconnectCalendarDialog, boolean>>(MatDialogRef);
 

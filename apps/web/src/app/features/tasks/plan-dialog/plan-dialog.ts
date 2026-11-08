@@ -7,9 +7,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ApiError, type Draft, type PlanChange } from '@dopagaki/contract';
-import { fieldMessages, planReasonLabels } from '@dopagaki/messages';
 import { ConfigStore } from '../../../core/config/config.store';
 import type { OperationError } from '../../../core/http/operation';
+import { LocaleStore } from '../../../core/i18n/locale.store';
 import { DateTimePipe, TimePipe } from '../../../shared/ui/format';
 import { fromLocalInput, toLocalInput } from '../local-datetime';
 import { TasksStore } from '../tasks.store';
@@ -46,6 +46,8 @@ export class PlanDialog {
   private readonly dialogRef = inject<MatDialogRef<PlanDialog, boolean>>(MatDialogRef);
   protected readonly tasks = inject(TasksStore);
   private readonly config = inject(ConfigStore);
+  private readonly locale = inject(LocaleStore);
+  protected readonly text = this.locale.web;
 
   protected readonly draft = signal<Draft | null>(
     this.data.draft ? structuredClone(this.data.draft) : null,
@@ -69,7 +71,8 @@ export class PlanDialog {
     if (!draft) return [];
     const reasons = new Set(draft.changes.map((change) => change.after.reason));
     if (draft.shortened) reasons.add('snooze_shortened');
-    return [...reasons].map((reason) => planReasonLabels[reason]);
+    const labels = this.locale.shared().planReasons;
+    return [...reasons].map((reason) => labels[reason]);
   });
 
   protected readonly toLocal = toLocalInput;
@@ -171,10 +174,11 @@ export class PlanDialog {
     this.error.set(error.message);
     if (error.code !== undefined && staleCodes.has(error.code)) this.stale.set(true);
     if (!(error.cause instanceof ApiError)) return;
+    const fields = this.locale.shared().fields;
     const errors = new Map<number, string>();
     for (const field of error.cause.fields) {
       const index = changeIndexOf(field.field);
-      if (index !== undefined && !errors.has(index)) errors.set(index, fieldMessages[field.code]);
+      if (index !== undefined && !errors.has(index)) errors.set(index, fields[field.code]);
     }
     this.changeErrors.set(errors);
   }

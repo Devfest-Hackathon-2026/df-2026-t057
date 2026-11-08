@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { problemMessages } from '@dopagaki/messages';
+import { messages } from '@dopagaki/messages';
 import { AccountScope } from '../../core/auth/account-scope';
 import { RealtimeService } from '../../core/realtime/realtime.service';
 import {
@@ -82,7 +82,7 @@ describe('TasksStore', () => {
     });
     const outcome = await store.startTask('t1');
     expect(outcome.ok).toBe(false);
-    expect(store.start.error()?.message).toBe(problemMessages['task.another_active']);
+    expect(store.start.error()?.message).toBe(messages.ja.shared.problems['task.another_active']);
     expect(store.start.pending()).toBe(false);
     expect(store.complete.error()).toBeUndefined();
     expect(store.create.error()).toBeUndefined();

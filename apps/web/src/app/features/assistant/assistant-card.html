@@ -1,23 +1,21 @@
 <mat-card appearance="outlined" class="suggestion-card">
   @if (pending()) {
-    <mat-progress-bar mode="indeterminate" aria-label="カードを処理中" />
+    <mat-progress-bar mode="indeterminate" [attr.aria-label]="text().assistant.card.processing" />
   }
   <mat-card-content>
     @if (sleepCard(); as card) {
       <div class="card-heading">
         <mat-icon>bedtime</mat-icon>
-        <span>毎日の就寝予定</span>
-        <span class="card-status">{{ sleepSet() ? '設定済み' : '提案' }}</span>
+        <span>{{ text().assistant.card.sleepHeading }}</span>
+        <span class="card-status">
+          {{ sleepSet() ? text().assistant.card.sleepSet : text().assistant.card.suggested }}
+        </span>
       </div>
-      <h3>{{ card.sleep.bedtime }} 就寝 ・ {{ card.sleep.wake }} 起床</h3>
-      <p class="card-note">
-        就寝1時間前からの課題の報酬は翌朝に受け取り。ショートを見ずに寝られた朝は最大{{
-          sleepBonus()
-        }}（残高{{ balanceCap() }}まで）。
-      </p>
+      <h3>{{ text().assistant.card.sleepTimes(card.sleep.bedtime, card.sleep.wake) }}</h3>
+      <p class="card-note">{{ text().assistant.card.sleepNote(sleepBonus(), balanceCap()) }}</p>
       @if (!sleepSet()) {
         <button mat-flat-button type="button" (click)="setSleep()" [disabled]="pending()">
-          この時間で就寝予定を入れる
+          {{ text().assistant.card.setSleep }}
         </button>
       }
     } @else if (updateCard(); as card) {
@@ -25,15 +23,19 @@
     } @else if (memoryCard()) {
       <div class="card-heading">
         <mat-icon>psychology</mat-icon>
-        <span>覚えておくこと</span>
-        <span class="card-status">{{ remembered() ? '確認済み' : '提案' }}</span>
+        <span>{{ text().assistant.card.memoryHeading }}</span>
+        <span class="card-status">
+          {{
+            remembered() ? text().assistant.card.memoryConfirmed : text().assistant.card.suggested
+          }}
+        </span>
       </div>
       @if (remembered()) {
-        <p class="card-text">確認した内容を作業の傾向に追加しました。</p>
-        <p class="card-note">覚えている内容は「作業の傾向」からいつでも編集できます。</p>
+        <p class="card-text">{{ text().assistant.card.memoryAdded }}</p>
+        <p class="card-note">{{ text().assistant.card.memoryEditable }}</p>
       } @else {
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>覚える内容を確認・編集</mat-label>
+          <mat-label>{{ text().assistant.card.memoryLabel }}</mat-label>
           <textarea matInput [formControl]="memoryText" maxlength="500" rows="2"></textarea>
         </mat-form-field>
         <button
@@ -42,39 +44,43 @@
           (click)="remember()"
           [disabled]="pending() || memoryText.invalid"
         >
-          この内容を覚える
+          {{ text().assistant.card.remember }}
         </button>
       }
     } @else {
       <div class="card-heading">
         <mat-icon>calendar_month</mat-icon>
-        <span>{{ demo() ? '予定カード（デモ）' : 'Googleカレンダー' }}</span>
+        <span>
+          {{ demo() ? text().assistant.card.demoHeading : text().assistant.common.googleCalendar }}
+        </span>
         <span class="card-status">
           @if (createCard() && !task()) {
-            登録前
+            {{ text().assistant.card.notRegistered }}
           } @else if (task(); as task) {
             {{
               task.status === 'completed'
-                ? '完了'
+                ? text().assistant.card.completed
                 : task.status === 'active'
-                  ? '作業中'
-                  : '現在の予定'
+                  ? text().assistant.card.active
+                  : text().assistant.card.scheduled
             }}
           } @else {
-            削除済み
+            {{ text().assistant.card.deleted }}
           }
         </span>
       </div>
       @if (task(); as task) {
         <h3>{{ task.title }}</h3>
         @if (task.why) {
-          <p class="card-note">なぜ：{{ task.why }}</p>
+          <p class="card-note">{{ text().assistant.card.why(task.why) }}</p>
         }
         @if (task.notes) {
           <p class="card-text">{{ task.notes }}</p>
         }
         <p class="event-time">{{ task.plan.start | dateTime }} — {{ task.plan.end | time }}</p>
-        <p class="card-note">締切 {{ task.deadline | dateTime }} · 見積もり {{ task.minutes }}分</p>
+        <p class="card-note">
+          {{ text().assistant.card.deadlineAndEstimate(task.deadline | dateTime, task.minutes) }}
+        </p>
         @if (task.url) {
           <p class="task-link">
             <a [href]="task.url" target="_blank" rel="noopener">{{ task.url }}</a>
@@ -83,7 +89,8 @@
         @if (rescheduleCard(); as card) {
           @if (card.preview && rescheduleFresh()) {
             <p class="proposed-time">
-              変更案 {{ card.preview.start | dateTime }} — {{ card.preview.end | time }}
+              {{ text().assistant.card.proposed }} {{ card.preview.start | dateTime }} —
+              {{ card.preview.end | time }}
             </p>
           }
         }
@@ -96,9 +103,7 @@
           }
         </ul>
         @if (calendar.needsRetry()) {
-          <p class="card-note">
-            Googleカレンダーへの同期待ちです。カレンダーの「Googleと同期」から再試行できます。
-          </p>
+          <p class="card-note">{{ text().assistant.card.syncPending }}</p>
         }
         <button
           mat-stroked-button
@@ -106,39 +111,39 @@
           (click)="adjust(task)"
           [disabled]="pending() || task.status !== 'pending'"
         >
-          予定・手順を調整
+          {{ text().assistant.card.adjust }}
         </button>
       } @else if (createCard() && confirmed(); as confirmed) {
         @if (editing()) {
           <form class="edit-fields" [formGroup]="form" (submit)="$event.preventDefault(); check()">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>課題名</mat-label>
+              <mat-label>{{ text().assistant.card.titleLabel }}</mat-label>
               <input matInput formControlName="title" maxlength="200" />
             </mat-form-field>
             <div class="time-fields">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>締切</mat-label>
+                <mat-label>{{ text().assistant.card.deadlineLabel }}</mat-label>
                 <input matInput type="datetime-local" formControlName="deadline" />
               </mat-form-field>
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>必要時間（分）</mat-label>
+                <mat-label>{{ text().assistant.card.minutesLabel }}</mat-label>
                 <input matInput type="number" min="1" max="720" formControlName="minutes" />
               </mat-form-field>
             </div>
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>やること・メモ</mat-label>
+              <mat-label>{{ text().assistant.card.notesLabel }}</mat-label>
               <textarea matInput formControlName="notes" maxlength="4000" rows="2"></textarea>
             </mat-form-field>
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>作業リンク（任意）</mat-label>
+              <mat-label>{{ text().assistant.card.urlLabel }}</mat-label>
               <input matInput type="url" formControlName="url" />
             </mat-form-field>
             <div class="card-actions">
               <button mat-button type="button" (click)="cancelEdit()" [disabled]="pending()">
-                キャンセル
+                {{ text().assistant.common.cancel }}
               </button>
               <button mat-stroked-button type="submit" [disabled]="pending() || form.invalid">
-                変更内容を確認
+                {{ text().assistant.card.checkChanges }}
               </button>
             </div>
           </form>
@@ -150,7 +155,12 @@
             </p>
           }
           <p class="card-note">
-            締切 {{ confirmed.deadline | dateTime }} · {{ confirmed.minutes }}分
+            {{
+              text().assistant.card.deadlineAndMinutes(
+                confirmed.deadline | dateTime,
+                confirmed.minutes
+              )
+            }}
           </p>
           @if (confirmed.notes) {
             <p class="card-text">{{ confirmed.notes }}</p>
@@ -160,17 +170,17 @@
               <a [href]="confirmed.url" target="_blank" rel="noopener">{{ confirmed.url }}</a>
             </p>
           }
-          <p class="card-note">
-            登録すると未完了の予定を締切から再計算します。手順は保存時に具体化します。
-          </p>
+          <p class="card-note">{{ text().assistant.card.registerNote }}</p>
           @if (needsCalendar()) {
-            <p class="card-note">先に右上の設定からGoogleカレンダーを連携してください。</p>
+            <p class="card-note">{{ text().assistant.card.connectCalendarFirst }}</p>
           }
           <div class="card-actions">
-            <button mat-button type="button" (click)="edit()" [disabled]="pending()">編集</button>
+            <button mat-button type="button" (click)="edit()" [disabled]="pending()">
+              {{ text().assistant.card.edit }}
+            </button>
             @if (stale()) {
               <button mat-stroked-button type="button" (click)="check()" [disabled]="pending()">
-                最新の予定で再確認
+                {{ text().assistant.card.recheck }}
               </button>
             } @else {
               <button
@@ -185,7 +195,7 @@
           </div>
         }
       } @else {
-        <p class="card-note">この予定は削除されているため、カードから再登録しません。</p>
+        <p class="card-note">{{ text().assistant.card.deletedNote }}</p>
       }
     }
     @if (error(); as message) {

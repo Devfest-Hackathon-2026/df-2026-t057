@@ -13,6 +13,7 @@ import (
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/companion"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/profile"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
@@ -403,6 +404,8 @@ func ReadTool(name string, s Snapshot) any {
 
 // ConsultInput は相談のために AI に渡す内容（本人が入力した相談と、過去の相談・選んだ課題）。
 type ConsultInput struct {
+	// Locale は返答の言語。AI への指示に使い、入力の JSON には入れない。
+	Locale       locale.Locale `json:"-"`
 	TimeZone     string        `json:"timeZone"`
 	History      []HistoryTurn `json:"history"`
 	SelectedTask *SelectedTask `json:"selectedTask"`

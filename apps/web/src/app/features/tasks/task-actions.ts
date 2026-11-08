@@ -1,9 +1,10 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { MatDialog, type MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { Draft, Task } from '@dopagaki/contract';
+import type { Draft, Task, WorkRecord } from '@dopagaki/contract';
 import { firstValueFrom } from 'rxjs';
 import type { OperationError } from '../../core/http/operation';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { WalletStore } from '../wallet/wallet.store';
 import { workRecordedMessage } from '../work/work-messages';
 import { WorkSessionStore } from '../work/work-session.store';
@@ -25,6 +26,7 @@ export class TaskActions {
   private readonly tasks = inject(TasksStore);
   private readonly work = inject(WorkSessionStore);
   private readonly wallet = inject(WalletStore);
+  private readonly locale = inject(LocaleStore);
   private previewRef: MatDialogRef<unknown> | undefined;
 
   /** 通知プレビューに出している課題。 */
@@ -90,7 +92,7 @@ export class TaskActions {
       this.notifyError(outcome.error);
       return false;
     }
-    this.snackBar.open(workRecordedMessage(outcome.value.work), '閉じる', { duration: 5000 });
+    this.notifyWorkRecorded(outcome.value.work);
     return true;
   }
 
@@ -98,12 +100,12 @@ export class TaskActions {
   async confirmWork(): Promise<boolean> {
     const outcome = await this.work.confirmWork();
     if (!outcome.ok) {
-      this.notifyError(outcome.error, '作業を保存できませんでした。');
+      this.notifyError(outcome.error, this.locale.web().tasks.actions.saveWorkFailed);
       return false;
     }
     void this.tasks.refresh();
     void this.wallet.refresh();
-    this.snackBar.open(workRecordedMessage(outcome.value), '閉じる', { duration: 5000 });
+    this.notifyWorkRecorded(outcome.value);
     return true;
   }
 
@@ -119,7 +121,7 @@ export class TaskActions {
       maxWidth: '100vw',
       height: '100dvh',
       panelClass: 'notice-pane',
-      ariaLabel: '通知プレビュー',
+      ariaLabel: this.locale.web().tasks.actions.previewLabel,
     });
     this.previewRef = ref;
     ref.afterClosed().subscribe(() => {
@@ -138,9 +140,15 @@ export class TaskActions {
 
   /** 操作の失敗を知らせる。 */
   notifyError(error: OperationError, prefix?: string): void {
-    this.snackBar.open(prefix ? `${prefix}${error.message}` : error.message, '閉じる', {
+    const close = this.locale.web().tasks.common.close;
+    this.snackBar.open(prefix ? `${prefix}${error.message}` : error.message, close, {
       duration: 8000,
       politeness: 'assertive',
     });
+  }
+
+  private notifyWorkRecorded(work: WorkRecord | undefined): void {
+    const message = workRecordedMessage(work, this.locale.shared(), this.locale.web().work);
+    this.snackBar.open(message, this.locale.web().tasks.common.close, { duration: 5000 });
   }
 }

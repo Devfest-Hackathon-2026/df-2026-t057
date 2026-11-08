@@ -30,12 +30,13 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import type { NoticeMode, Profile, Settings, TimePolicyMode } from '@dopagaki/contract';
-import { durationLabel, timePolicyModeLabels } from '@dopagaki/messages';
+import type { Locale, NoticeMode, Profile, Settings, TimePolicyMode } from '@dopagaki/contract';
+import { localeNames, locales } from '@dopagaki/messages';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ConfigStore } from '../../../core/config/config.store';
-import { DateTimePipe } from '../../../shared/ui/format';
+import { LocaleStore } from '../../../core/i18n/locale.store';
+import { DateTimePipe, DurationPipe } from '../../../shared/ui/format';
 import { PageHeading } from '../../../shared/ui/page-heading';
 import { CalendarStore } from '../../calendar/calendar.store';
 import { ShortcutStore } from '../../shortcut/shortcut.store';
@@ -55,6 +56,7 @@ interface MainValue {
   readonly sound: boolean;
   readonly reducedMotion: boolean;
   readonly grime: boolean;
+  readonly locale: Locale;
   readonly name: string;
   readonly context: string;
 }
@@ -73,7 +75,7 @@ interface SleepValue {
 const required: ValidatorFn = (control) => Validators.required(control);
 
 const settingKeys = ['mode', 'snoozeMinutes', 'sound', 'reducedMotion', 'grime'] as const;
-const profileKeys = ['name', 'context'] as const;
+const profileKeys = ['locale', 'name', 'context'] as const;
 
 function sameKeys<K extends string>(
   a: Readonly<Record<K, unknown>>,
@@ -87,15 +89,6 @@ function toDailyLimit(seconds: number): DailyLimit {
   return seconds === 600 || seconds === 1200 ? seconds : 1800;
 }
 
-const syncStatusLabels = {
-  disconnected: '未連携',
-  synced: '同期済み',
-  pending: '反映待ち',
-  failed: '反映に失敗',
-  reauth_required: '再連携が必要',
-  conflict: '競合の解消待ち',
-} as const;
-
 /** 設定。各まとまりは自分の操作の通信状態とエラーを持つ。 */
 @Component({
   selector: 'app-settings-page',
@@ -104,6 +97,7 @@ const syncStatusLabels = {
     CalendarConflicts,
     AccountTools,
     DateTimePipe,
+    DurationPipe,
     MatButtonModule,
     MatButtonToggleModule,
     MatExpansionModule,
@@ -125,8 +119,11 @@ export class SettingsPage {
   protected readonly settings = inject(SettingsStore);
   protected readonly profile = inject(ProfileStore);
   protected readonly wallet = inject(WalletStore);
+  private readonly localeStore = inject(LocaleStore);
+  protected readonly text = this.localeStore.web;
+  protected readonly shared = this.localeStore.shared;
   protected readonly sleepBonus = computed(() =>
-    durationLabel(this.wallet.value()?.rules.sleepBonusSeconds ?? 900),
+    this.shared().durationLabel(this.wallet.value()?.rules.sleepBonusSeconds ?? 900),
   );
   protected readonly sleep = inject(SleepStore);
   protected readonly shortcut = inject(ShortcutStore);
@@ -138,19 +135,19 @@ export class SettingsPage {
   private readonly dialog = inject(MatDialog);
 
   protected readonly modes = [
-    { id: 'pachinko', title: 'ゴールド', sub: 'はじまりに、少しの光。', icon: 'flare' },
-    { id: 'mahjong', title: 'ステップ', sub: '一手ずつ、着実に。', icon: 'task_alt' },
-    { id: 'simple', title: 'シンプル', sub: '静かに、必要な情報を。', icon: 'notifications' },
-  ] as const satisfies readonly { id: NoticeMode; title: string; sub: string; icon: string }[];
-  protected readonly policyModes = (Object.keys(timePolicyModeLabels) as TimePolicyMode[]).map(
-    (id) => ({ id, label: timePolicyModeLabels[id] }),
-  );
-  protected readonly limits: readonly { value: DailyLimit; label: string }[] = [
-    { value: 600, label: '10分' },
-    { value: 1200, label: '20分' },
-    { value: 1800, label: '30分' },
+    { id: 'pachinko', icon: 'flare' },
+    { id: 'mahjong', icon: 'task_alt' },
+    { id: 'simple', icon: 'notifications' },
+  ] as const satisfies readonly { id: NoticeMode; icon: string }[];
+  protected readonly policyModes: readonly TimePolicyMode[] = [
+    'rewards',
+    'fixed',
+    'reminder',
+    'self',
   ];
-  protected readonly syncStatusLabels = syncStatusLabels;
+  protected readonly limits: readonly DailyLimit[] = [600, 1200, 1800];
+  protected readonly locales = locales;
+  protected readonly localeNames = localeNames;
   protected readonly shortcutUrl = `${location.origin}/api/shortcut/open`;
   protected readonly browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -163,6 +160,7 @@ export class SettingsPage {
     sound: new FormControl(true, { nonNullable: true }),
     reducedMotion: new FormControl(false, { nonNullable: true }),
     grime: new FormControl(false, { nonNullable: true }),
+    locale: new FormControl<Locale>(this.localeStore.locale(), { nonNullable: true }),
     name: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(100)] }),
     context: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
   });
@@ -199,12 +197,9 @@ export class SettingsPage {
   });
   protected readonly changed = computed(() => this.settingsChanged() || this.profileChanged());
 
-  protected readonly selectedMode = computed(
-    () => this.modes.find((mode) => mode.id === this.main().mode) ?? this.modes[0],
-  );
   protected readonly policyTitle = computed(() => {
     const mode = this.wallet.value()?.policy.mode;
-    return mode ? timePolicyModeLabels[mode] : '';
+    return mode ? this.shared().timePolicyModes[mode] : '';
   });
   protected readonly unlimitedPolicy = computed(
     () => this.policy().mode === 'reminder' || this.policy().mode === 'self',
@@ -212,19 +207,26 @@ export class SettingsPage {
   /** ルールの説明。数値はサーバーのルールの定数から作る。 */
   protected readonly policyHelp = computed(() => {
     const rules = this.wallet.value()?.rules;
+    const text = this.text().settings.policy;
+    const shared = this.shared();
     switch (this.policy().mode) {
       case 'rewards':
         return rules
-          ? `作業${durationLabel(rules.workSecondsPerReward)}で視聴${durationLabel(rules.rewardSecondsPerUnit)}（1日${durationLabel(rules.dailyRewardCapSeconds)}まで）。毎日の補充もあります。`
-          : '作業に応じて視聴時間が増えます。毎日の補充もあります。';
+          ? text.helpRewards(
+              shared.durationLabel(rules.workSecondsPerReward),
+              shared.durationLabel(rules.rewardSecondsPerUnit),
+              shared.durationLabel(rules.dailyRewardCapSeconds),
+            )
+          : text.helpRewardsLoading;
       case 'fixed':
-        return '毎日、選んだ枠まで補充。作業での追加はなし。';
+        return text.helpFixed;
       case 'reminder': {
-        const choices = rules?.viewingChoicesSeconds.map((seconds) => durationLabel(seconds));
-        return `上限なし。${choices?.join('・') ?? '5分・10分'}の区切りだけ知らせます。`;
+        // ルールを読み込む前は、サーバーの既定の区切り（5分・10分）を出す。
+        const choices = rules?.viewingChoicesSeconds ?? [300, 600];
+        return text.helpReminder(choices.map((seconds) => shared.durationLabel(seconds)));
       }
       case 'self':
-        return '視聴枠と区切りの表示を止めます。';
+        return text.helpSelf;
     }
   });
   protected readonly zoneMismatch = computed(() => {
@@ -320,7 +322,10 @@ export class SettingsPage {
   private syncProfile(saved: Profile): void {
     const current = this.mainForm.getRawValue();
     if (!this.syncedProfile || sameKeys(current, this.syncedProfile, profileKeys)) {
-      this.mainForm.patchValue({ name: saved.name, context: saved.context }, { emitEvent: false });
+      this.mainForm.patchValue(
+        { locale: saved.locale, name: saved.name, context: saved.context },
+        { emitEvent: false },
+      );
       this.refreshMain();
     }
     this.syncedProfile = saved;
@@ -365,13 +370,16 @@ export class SettingsPage {
           name: value.name,
           context: value.context,
           timeZone: profile.timeZone,
+          locale: value.locale,
         });
         if (!outcome.ok) {
           this.profileFailed.set(true);
           return;
         }
       }
-      this.snackBar.open('設定を保存しました', '閉じる', { duration: 3000 });
+      // 言語を変えたときは、保存後の言語で知らせる。
+      const text = this.text().settings;
+      this.snackBar.open(text.page.saved, text.common.close, { duration: 3000 });
     } finally {
       this.saving.set(false);
     }
@@ -384,8 +392,11 @@ export class SettingsPage {
       name: profile.name,
       context: profile.context,
       timeZone: this.browserTimeZone,
+      locale: profile.locale,
     });
-    if (outcome.ok) this.snackBar.open('タイムゾーンを保存しました', '閉じる', { duration: 3000 });
+    if (!outcome.ok) return;
+    const text = this.text().settings;
+    this.snackBar.open(text.profile.timeZoneSaved, text.common.close, { duration: 3000 });
   }
 
   protected async savePolicy(): Promise<void> {
@@ -393,7 +404,8 @@ export class SettingsPage {
     const value = this.policyForm.getRawValue();
     const outcome = await this.wallet.updatePolicy(value);
     if (outcome.ok) {
-      this.snackBar.open('視聴時間の設定を保存しました', '閉じる', { duration: 3000 });
+      const text = this.text().settings;
+      this.snackBar.open(text.policy.saved, text.common.close, { duration: 3000 });
     }
   }
 
@@ -401,18 +413,19 @@ export class SettingsPage {
     if (this.sleepForm.invalid) return;
     const outcome = await this.sleep.update(this.sleepForm.getRawValue());
     if (!outcome.ok) return;
+    const text = this.text().settings;
     this.snackBar.open(
-      outcome.value.sleep?.calendarPending
-        ? '就寝の予定を保存しました（カレンダーへの登録は再試行してください）'
-        : '就寝の予定を保存しました',
-      '閉じる',
+      outcome.value.sleep?.calendarPending ? text.sleep.savedCalendarPending : text.sleep.saved,
+      text.common.close,
       { duration: 4000 },
     );
   }
 
   protected async removeSleep(): Promise<void> {
     const outcome = await this.sleep.remove();
-    if (outcome.ok) this.snackBar.open('就寝の予定を外しました', '閉じる', { duration: 4000 });
+    if (!outcome.ok) return;
+    const text = this.text().settings;
+    this.snackBar.open(text.sleep.removed, text.common.close, { duration: 4000 });
   }
 
   /** 確認してから連携を解除する。解除後は、連携状態と課題（カレンダーとの結び付き）を取り直す。 */
@@ -424,7 +437,8 @@ export class SettingsPage {
     if ((await firstValueFrom(ref.afterClosed())) !== true) return;
     void this.calendar.refresh();
     void this.tasks.refresh();
-    this.snackBar.open('Googleカレンダーとの連携を解除しました', '閉じる', { duration: 4000 });
+    const text = this.text().settings;
+    this.snackBar.open(text.google.disconnected, text.common.close, { duration: 4000 });
   }
 
   protected async issueShortcut(): Promise<void> {
@@ -433,17 +447,20 @@ export class SettingsPage {
 
   protected async revokeShortcut(): Promise<void> {
     const outcome = await this.shortcut.revokeKey();
-    if (outcome.ok) this.snackBar.open('接続キーを無効にしました', '閉じる', { duration: 3000 });
+    if (!outcome.ok) return;
+    const text = this.text().settings;
+    this.snackBar.open(text.shortcut.revoked, text.common.close, { duration: 3000 });
   }
 
   protected copyShortcutKey(key: string): void {
     const copied = this.clipboard.copy(key);
+    const text = this.text().settings;
     this.snackBar.open(
-      copied
-        ? '接続キーをコピーしました'
-        : 'コピーできませんでした。キーを選択してコピーしてください。',
-      '閉じる',
-      { duration: 3000 },
+      copied ? text.shortcut.copied : text.shortcut.copyFailed,
+      text.common.close,
+      {
+        duration: 3000,
+      },
     );
   }
 }

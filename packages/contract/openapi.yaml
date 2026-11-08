@@ -1452,11 +1452,12 @@ components:
     # ── profile / settings ──
     ProfileInput:
       type: object
-      required: [name, context, timeZone]
+      required: [name, context, timeZone, locale]
       properties:
         name: { type: string, maxLength: 100 }
         context: { type: string, maxLength: 2000, description: 作業傾向。AI に渡す }
         timeZone: { type: string, description: IANA のタイムゾーン名, minLength: 1 }
+        locale: { $ref: '#/components/schemas/Locale' }
     Profile:
       allOf:
         - { $ref: '#/components/schemas/ProfileInput' }
@@ -1483,6 +1484,10 @@ components:
     NoticeMode:
       type: string
       enum: [pachinko, mahjong, simple]
+    Locale:
+      type: string
+      description: 画面の言語。カレンダーの予定、AI の返答、通知など、サーバーが作る文もこの言語にする
+      enum: [ja, en]
 
     # ── tasks / plans ──
     TaskInput:

@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../core/auth/auth.service';
 import { ConfigStore } from '../../core/config/config.store';
+import { LocaleStore } from '../../core/i18n/locale.store';
 
 /** ログイン前の画面（live）。設定を読み込む間もここを出す。 */
 @Component({
@@ -16,6 +17,7 @@ import { ConfigStore } from '../../core/config/config.store';
 export class LoginScreen {
   protected readonly auth = inject(AuthService);
   protected readonly config = inject(ConfigStore);
+  protected readonly text = inject(LocaleStore).web;
   /** 使い方のサンプルで「完了」を押したか（表示だけ）。 */
   protected readonly completed = signal(false);
 
@@ -23,7 +25,9 @@ export class LoginScreen {
   protected readonly signingIn = computed(() => this.auth.status() === 'signingIn');
   /** ログインを押せるのは、ログインしていない状態が確定したときだけ。 */
   protected readonly loginDisabled = computed(() => this.auth.status() !== 'signedOut');
-  protected readonly loginLabel = computed(() =>
-    this.signingIn() ? 'ログイン中…' : this.initializing() ? '読み込み中…' : 'Googleでログイン',
-  );
+  protected readonly loginLabel = computed(() => {
+    const text = this.text().login.screen;
+    if (this.signingIn()) return text.signingIn;
+    return this.initializing() ? text.loading : text.signIn;
+  });
 }

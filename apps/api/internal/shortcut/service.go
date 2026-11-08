@@ -11,6 +11,7 @@ import (
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 )
@@ -46,19 +47,19 @@ func (l *limiter) allow(key string, limit int, now time.Time) bool {
 
 // Service はショートカットのユースケース。
 type Service struct {
-	runner  *store.Runner
-	clock   clock.Clock
-	tasks   *task.Service
-	zones   ZoneSource
-	lines   Lines
-	appURL  string
-	log     *slog.Logger
-	limiter limiter
+	runner   *store.Runner
+	clock    clock.Clock
+	tasks    *task.Service
+	profiles Profiles
+	lines    Lines
+	appURL   string
+	log      *slog.Logger
+	limiter  limiter
 }
 
 // New は Service を作る。appURL は通知から開く管理画面のオリジン。
-func New(runner *store.Runner, c clock.Clock, tasks *task.Service, zones ZoneSource, lines Lines, appURL string, log *slog.Logger) *Service {
-	return &Service{runner: runner, clock: c, tasks: tasks, zones: zones, lines: lines, appURL: appURL, log: log}
+func New(runner *store.Runner, c clock.Clock, tasks *task.Service, profiles Profiles, lines Lines, appURL string, log *slog.Logger) *Service {
+	return &Service{runner: runner, clock: c, tasks: tasks, profiles: profiles, lines: lines, appURL: appURL, log: log}
 }
 
 // Status は接続キーを発行済みか。
@@ -122,6 +123,7 @@ func (s *Service) Open(ctx context.Context, key string) (Notification, error) {
 		return Notification{}, apperr.RateLimited("shortcut.rate_limited", time.Minute)
 	}
 	var next *task.Task
+	var lang locale.Locale
 	err := s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
 		k, found, err := store.Get[Key](ctx, tx, keyRef(uid))
 		if err != nil {
@@ -136,6 +138,9 @@ func (s *Service) Open(ctx context.Context, key string) (Notification, error) {
 		if next, err = s.tasks.NextPending(ctx, tx, uid); err != nil {
 			return err
 		}
+		if lang, err = s.profiles.Locale(ctx, tx, uid); err != nil {
+			return err
+		}
 		opens, _, err := store.Get[AppOpens](ctx, tx, opensRef(uid))
 		if err != nil {
 			return err
@@ -145,7 +150,7 @@ func (s *Service) Open(ctx context.Context, key string) (Notification, error) {
 	if err != nil {
 		return Notification{}, err
 	}
-	n := Notification{Title: notificationTitle, URL: s.appURL + "/"}
+	n := Notification{Title: notificationTitles[lang], URL: s.appURL + "/"}
 	taskID, title, why := "", "", ""
 	if next != nil {
 		taskID, title, why = next.ID, next.Title, next.Why
@@ -156,7 +161,7 @@ func (s *Service) Open(ctx context.Context, key string) (Notification, error) {
 		s.log.WarnContext(ctx, "shortcut line failed", "code", apperr.As(err).Code)
 	}
 	if line == "" {
-		line = fallbackLine(title, why)
+		line = fallbackLine(lang, title, why)
 	}
 	n.Message = line
 	return n, nil
@@ -172,7 +177,7 @@ func (s *Service) AppOpenCounts(ctx context.Context, tx *store.Tx, uid string, n
 	if err != nil {
 		return 0, 0, true, err
 	}
-	loc, err := s.zones.Location(ctx, tx, uid)
+	loc, err := s.profiles.Location(ctx, tx, uid)
 	if err != nil {
 		return 0, 0, true, err
 	}

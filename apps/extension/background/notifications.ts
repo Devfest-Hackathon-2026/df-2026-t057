@@ -1,9 +1,9 @@
 // 課題の開始時刻の通知、就寝前の声かけ、朝のあいさつ。
 // 通知は chrome.alarms で各課題の `plan.start` に鳴らす。Shorts を見ていれば画面の上に、そうでなければデスクトップ通知で出す。
 import type { CompanionMoment } from '@dopagaki/contract';
-import { companionFallbacks, extensionCopy, rewardDescription } from '@dopagaki/messages';
 import { z } from 'zod';
 import { MANAGEMENT_ORIGIN } from '../lib/config';
+import { messagesFor } from '../lib/locale';
 import { shownReplySchema, type TabCommand } from '../lib/protocol';
 import {
   alarmTime,
@@ -41,10 +41,11 @@ async function loadRecord(
 
 /** 相棒の一言。API が使えなければ決まった文にする。 */
 export async function companionLine(moment: CompanionMoment, taskId?: string): Promise<string> {
+  const fallback = messagesFor(await getState()).shared.companionFallbacks[moment];
   try {
-    return (await api.companionLine(moment, taskId)) || companionFallbacks[moment];
+    return (await api.companionLine(moment, taskId)) || fallback;
   } catch {
-    return companionFallbacks[moment];
+    return fallback;
   }
 }
 
@@ -103,15 +104,13 @@ export async function notifyDueTask(): Promise<void> {
   const line = await noticeLine(task);
   const shown = await showOnActiveShorts({ type: 'SHOW_NOTICE', task, state, line });
   if (!shown) {
+    const copy = messagesFor(state).extension;
     await chrome.notifications.create(`task:${task.id}`, {
       type: 'basic',
       iconUrl: chrome.runtime.getURL('icon-128.png'),
-      title: extensionCopy.notificationTitle,
-      message: `${task.title}\n${line || rewardDescription(state.wallet)}`,
-      buttons: [
-        { title: extensionCopy.notificationStart },
-        { title: extensionCopy.notificationSnooze },
-      ],
+      title: copy.notificationTitle,
+      message: `${task.title}\n${line || copy.rewardDescription(state.wallet)}`,
+      buttons: [{ title: copy.notificationStart }, { title: copy.notificationSnooze }],
       priority: 2,
       requireInteraction: true,
     });
@@ -148,15 +147,16 @@ export async function greetMorning(state: ExtensionState | undefined): Promise<v
   if (!morning) return;
   await refetch(['wallet', 'viewing', 'sleep']).catch(() => undefined);
   if (version !== connectionVersion()) return;
+  const copy = messagesFor(state).extension;
   const gains = [
-    morning.kept ? extensionCopy.morningBonus(morning.bonusSeconds) : '',
-    morning.releasedSeconds ? extensionCopy.morningReleased(morning.releasedSeconds) : '',
+    morning.kept ? copy.morningBonus(morning.bonusSeconds) : '',
+    morning.releasedSeconds ? copy.morningReleased(morning.releasedSeconds) : '',
   ].filter(Boolean);
   const line = await companionLine('morning');
   await chrome.notifications.create('morning', {
     type: 'basic',
     iconUrl: chrome.runtime.getURL('icon-128.png'),
-    title: extensionCopy.morningTitle,
+    title: copy.morningTitle,
     message: [line, ...gains].join('\n'),
   });
 }

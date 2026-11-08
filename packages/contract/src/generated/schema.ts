@@ -1018,6 +1018,7 @@ export interface components {
             context: string;
             /** @description IANA のタイムゾーン名 */
             timeZone: string;
+            locale: components["schemas"]["Locale"];
         };
         Profile: components["schemas"]["ProfileInput"] & {
             revision: number;
@@ -1035,6 +1036,11 @@ export interface components {
         };
         /** @enum {string} */
         NoticeMode: "pachinko" | "mahjong" | "simple";
+        /**
+         * @description 画面の言語。カレンダーの予定、AI の返答、通知など、サーバーが作る文もこの言語にする
+         * @enum {string}
+         */
+        Locale: "ja" | "en";
         TaskInput: {
             title: string;
             notes: string;

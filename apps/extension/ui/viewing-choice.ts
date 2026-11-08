@@ -1,5 +1,6 @@
 // 視聴の区切りを選ぶ画面。区切りを使うルールでは、長さを選ぶまで動画を再生しない。
-import { clockLabel, extensionCopy } from '@dopagaki/messages';
+import { clockLabel } from '@dopagaki/messages';
+import { currentMessages } from '../lib/locale';
 import type { Request } from '../lib/protocol';
 import { send } from '../content/messaging';
 import { runAction } from './action';
@@ -29,26 +30,27 @@ export function showViewingChoice(
   const session = state.viewing?.session ?? null;
   const active = session !== null && !session.endedAt;
   const available = availableSeconds(host);
+  const copy = currentMessages().extension;
   const dialog = host.open('choice', {
-    label: offline ? extensionCopy.choiceOfflineLabel : extensionCopy.choiceLabel,
+    label: offline ? copy.choiceOfflineLabel : copy.choiceLabel,
     className: `${overlayClass(state.settings, 'simple')} choice`,
   });
   const { panel } = dialog;
   panel.append(
     el('h2', {
       text: offline
-        ? extensionCopy.choiceOffline
+        ? copy.choiceOffline
         : active
-          ? extensionCopy.choiceActive
+          ? copy.choiceActive
           : session
-            ? extensionCopy.choiceEnded
-            : extensionCopy.choiceNone,
+            ? copy.choiceEnded
+            : copy.choiceNone,
     }),
     el('p', {
       text:
         state.wallet?.policy.mode === 'reminder'
-          ? extensionCopy.choiceReminder
-          : extensionCopy.choiceRemaining(clockLabel(available)),
+          ? copy.choiceReminder
+          : copy.choiceRemaining(clockLabel(available)),
     }),
   );
 
@@ -72,7 +74,7 @@ export function showViewingChoice(
   if (offline) {
     actions.append(
       button(
-        extensionCopy.reconnect,
+        copy.reconnect,
         () => {
           resume({ type: 'GET_STATE', refresh: true });
         },
@@ -82,7 +84,7 @@ export function showViewingChoice(
   } else if (active && available > 0) {
     actions.append(
       button(
-        extensionCopy.continueHere(clockLabel(session.plannedSeconds - session.consumedSeconds)),
+        copy.continueHere(clockLabel(session.plannedSeconds - session.consumedSeconds)),
         () => {
           resume({ type: 'CLAIM_VIEWING', sessionId: session.id });
         },
@@ -95,11 +97,8 @@ export function showViewingChoice(
       // 押し直しても同じ区切りになるよう、ボタンごとに区切りの ID を決めておく。
       const sessionId = crypto.randomUUID();
       const label = session
-        ? extensionCopy.extend
-        : extensionCopy.choose(
-            seconds / 60,
-            available < seconds ? clockLabel(available) : undefined,
-          );
+        ? copy.extend
+        : copy.choose(seconds / 60, available < seconds ? clockLabel(available) : undefined);
       actions.append(
         button(
           label,
@@ -115,15 +114,15 @@ export function showViewingChoice(
       );
     }
   } else {
-    panel.append(el('p', { className: 'exhausted', text: extensionCopy.exhausted }));
+    panel.append(el('p', { className: 'exhausted', text: copy.exhausted }));
   }
   actions.append(
-    button(session && !active ? extensionCopy.endHere : extensionCopy.notNow, () => {
+    button(session && !active ? copy.endHere : copy.notNow, () => {
       if (active && host.context.ownsViewing) handlers.stop(panel);
       else host.close();
     }),
     button(
-      extensionCopy.nextWork,
+      copy.nextWork,
       () => {
         void send({ type: 'OPEN_APP' });
         host.close();

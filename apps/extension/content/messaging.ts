@@ -1,5 +1,5 @@
 // content script から background への送受信。受け取った値は必ず zod で検証する。
-import { extensionCopy } from '@dopagaki/messages';
+import { currentMessages } from '../lib/locale';
 import {
   PORT_NAME,
   portPushSchema,
@@ -19,20 +19,18 @@ export function extensionAlive(): boolean {
   }
 }
 
-const transportFailure: Reply = {
-  ok: false,
-  error: extensionCopy.transportFailed,
-  retryable: true,
-};
+function transportFailure(): Reply {
+  return { ok: false, error: currentMessages().extension.transportFailed, retryable: true };
+}
 
 export async function send(request: Request): Promise<Reply> {
-  if (!extensionAlive()) return transportFailure;
+  if (!extensionAlive()) return transportFailure();
   try {
     const reply: unknown = await chrome.runtime.sendMessage(request);
     const parsed = replySchema.safeParse(reply);
-    return parsed.success ? parsed.data : transportFailure;
+    return parsed.success ? parsed.data : transportFailure();
   } catch {
-    return transportFailure;
+    return transportFailure();
   }
 }
 

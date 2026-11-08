@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { clockLabel } from '@dopagaki/messages';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { TaskActions } from '../tasks/task-actions';
 import { TasksStore } from '../tasks/tasks.store';
 import { WorkSessionStore } from './work-session.store';
@@ -18,6 +19,7 @@ export class FocusBar {
   protected readonly work = inject(WorkSessionStore);
   protected readonly tasks = inject(TasksStore);
   protected readonly actions = inject(TaskActions);
+  protected readonly text = inject(LocaleStore).web;
 
   protected readonly task = computed(() => {
     const session = this.work.session();

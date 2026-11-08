@@ -11,11 +11,13 @@ export function managementMatches(origin: string): string[] {
 
 export function manifestFor(origin: string, version: string) {
   return {
-    name: 'DOPAGAKI',
+    // 名前と説明は public/_locales の messages.json から、ブラウザーの言語で選ばれる。
+    name: '__MSG_appName__',
     version,
     // 拡張IDを固定する（開発ビルドと配布ビルドで同じIDにする）。extension-key.ts を参照。
     key: EXTENSION_PUBLIC_KEY,
-    description: '課題を終えて、次の楽しみに。カレンダー連携と作業タイマー。',
+    description: '__MSG_appDescription__',
+    default_locale: 'en',
     minimum_chrome_version: '120',
     permissions: ['storage', 'alarms', 'notifications', 'scripting', 'activeTab', 'offscreen'],
     host_permissions: [
@@ -25,7 +27,7 @@ export function manifestFor(origin: string, version: string) {
       'https://securetoken.googleapis.com/*',
     ],
     optional_host_permissions: ['https://*/*', 'http://*/*'],
-    action: { default_title: 'DOPAGAKI' },
+    action: { default_title: '__MSG_appName__' },
     icons: { 16: 'icon-16.png', 48: 'icon-48.png', 128: 'icon-128.png' },
     web_accessible_resources: [{ resources: ['gold-light.png'], matches: [YOUTUBE_MATCH] }],
     content_security_policy: {

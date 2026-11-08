@@ -1,9 +1,15 @@
-<h2 mat-dialog-title>{{ data.mode === 'adjust' ? '予定を調整' : 'スヌーズ後の予定を確認' }}</h2>
+<h2 mat-dialog-title>
+  {{
+    data.mode === 'adjust'
+      ? text().tasks.planDialog.titleAdjust
+      : text().tasks.planDialog.titleSnooze
+  }}
+</h2>
 @if (pending()) {
-  <mat-progress-bar mode="indeterminate" aria-label="予定を処理中" />
+  <mat-progress-bar mode="indeterminate" [attr.aria-label]="text().tasks.planDialog.processing" />
 }
 <mat-dialog-content>
-  <p class="muted">保存するまで、現在の予定は変わりません。</p>
+  <p class="muted">{{ text().tasks.planDialog.intro }}</p>
   @if (draft(); as d) {
     <div class="notice" role="note">
       @for (reason of reasons(); track reason) {
@@ -20,7 +26,7 @@
             <button
               mat-icon-button
               type="button"
-              [attr.aria-label]="'「' + change.title + '」の順番を上に移動'"
+              [attr.aria-label]="text().tasks.planDialog.moveUp(change.title)"
               (click)="move(i)"
               [disabled]="i === 0 || pending()"
             >
@@ -28,12 +34,17 @@
             </button>
           </div>
           <p class="muted">
-            変更前 {{ change.before.start | dateTime }} — {{ change.before.end | time }} ·
-            元の見積もり {{ change.originalMinutes }}分
+            {{
+              text().tasks.planDialog.before(
+                change.before.start | dateTime,
+                change.before.end | time,
+                change.originalMinutes
+              )
+            }}
           </p>
           <div class="times">
             <mat-form-field appearance="outline">
-              <mat-label>開始</mat-label>
+              <mat-label>{{ text().tasks.planDialog.start }}</mat-label>
               <input
                 matInput
                 type="datetime-local"
@@ -42,7 +53,7 @@
               />
             </mat-form-field>
             <mat-form-field appearance="outline">
-              <mat-label>終了</mat-label>
+              <mat-label>{{ text().tasks.planDialog.end }}</mat-label>
               <input
                 matInput
                 type="datetime-local"
@@ -53,15 +64,19 @@
           </div>
           <details class="steps">
             <summary>
-              手順（{{ change.after.steps.length }}件）{{ change.after.start | time }}–{{
-                change.after.end | time
+              {{
+                text().tasks.planDialog.steps(
+                  change.after.steps.length,
+                  change.after.start | time,
+                  change.after.end | time
+                )
               }}
             </summary>
             <ul>
               @for (step of change.after.steps; track $index; let s = $index) {
                 <li class="plan-step">
                   <mat-form-field appearance="outline" class="step-title">
-                    <mat-label>手順{{ s + 1 }}の内容</mat-label>
+                    <mat-label>{{ text().tasks.planDialog.stepTitle(s + 1) }}</mat-label>
                     <input
                       matInput
                       maxlength="100"
@@ -70,7 +85,7 @@
                     />
                   </mat-form-field>
                   <mat-form-field appearance="outline">
-                    <mat-label>手順{{ s + 1 }}の開始</mat-label>
+                    <mat-label>{{ text().tasks.planDialog.stepStart(s + 1) }}</mat-label>
                     <input
                       matInput
                       type="datetime-local"
@@ -79,7 +94,7 @@
                     />
                   </mat-form-field>
                   <mat-form-field appearance="outline">
-                    <mat-label>手順{{ s + 1 }}の終了</mat-label>
+                    <mat-label>{{ text().tasks.planDialog.stepEnd(s + 1) }}</mat-label>
                     <input
                       matInput
                       type="datetime-local"
@@ -100,7 +115,7 @@
 
     <div class="box">
       <mat-form-field appearance="outline">
-        <mat-label>開始時刻を指定</mat-label>
+        <mat-label>{{ text().tasks.planDialog.startAt }}</mat-label>
         <input matInput type="datetime-local" [formControl]="startAt" />
       </mat-form-field>
       <button
@@ -109,19 +124,19 @@
         (click)="rebuildFromStart()"
         [disabled]="pending() || !startAt.value"
       >
-        この時刻から作り直す
+        {{ text().tasks.planDialog.rebuild }}
       </button>
     </div>
 
     @if (aiEnabled()) {
       <div class="box">
         <mat-form-field appearance="outline">
-          <mat-label>調整を相談</mat-label>
+          <mat-label>{{ text().tasks.planDialog.instructionLabel }}</mat-label>
           <textarea
             matInput
             [formControl]="instruction"
             maxlength="2000"
-            placeholder="最初の課題を15分にして、見直しに時間を回して"
+            [placeholder]="text().tasks.planDialog.instructionPlaceholder"
             rows="2"
           ></textarea>
         </mat-form-field>
@@ -131,25 +146,29 @@
           (click)="adjust()"
           [disabled]="pending() || !instruction.value.trim()"
         >
-          {{ tasks.adjust.pending() ? '調整しています…' : '候補を作り直す' }}
+          {{
+            tasks.adjust.pending()
+              ? text().tasks.planDialog.adjusting
+              : text().tasks.planDialog.adjust
+          }}
         </button>
       </div>
     }
   } @else if (!error()) {
-    <p role="status">変更する予定を準備しています…</p>
+    <p role="status">{{ text().tasks.planDialog.preparing }}</p>
   }
   @if (error(); as message) {
     <p role="alert" class="error">{{ message }}</p>
   }
   @if (stale() || (!draft() && error())) {
     <button mat-stroked-button type="button" (click)="load()" [disabled]="pending()">
-      最新の予定で作り直す
+      {{ text().tasks.planDialog.reload }}
     </button>
   }
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button mat-button type="button" (click)="cancel()" [disabled]="tasks.commit.pending()">
-    キャンセル
+    {{ text().tasks.common.cancel }}
   </button>
   <button
     mat-flat-button
@@ -157,6 +176,6 @@
     (click)="commit()"
     [disabled]="pending() || !draft() || stale()"
   >
-    {{ tasks.commit.pending() ? '保存しています…' : 'この予定に変更' }}
+    {{ tasks.commit.pending() ? text().tasks.planDialog.saving : text().tasks.planDialog.commit }}
   </button>
 </mat-dialog-actions>
