@@ -1,0 +1,48 @@
+<div class="backdrop">
+  <p class="preview-label">通知プレビュー</p>
+  <div class="content">
+    <h2 mat-dialog-title class="heading">{{ heading() }}</h2>
+    @if (companionLine(); as line) {
+      <p class="companion">{{ line }}</p>
+    }
+    <mat-dialog-content class="notice-task">
+      @if (task(); as task) {
+        <mat-icon class="task-icon">assignment</mat-icon>
+        <h3>{{ task.title }}</h3>
+        @if (task.why) {
+          <p class="why">なぜ：{{ task.why }}</p>
+        }
+        @if (firstStep(); as step) {
+          <p class="first-step">最初の一手：{{ step }}</p>
+        }
+        <p class="time">
+          {{ task.plan.start | time }}–{{ task.plan.end | time }} · {{ task.plan | planMinutes }}分
+        </p>
+        <strong class="reward">{{ reward() }}</strong>
+      } @else {
+        <p>この課題は見つかりません。</p>
+      }
+    </mat-dialog-content>
+    @if (startError(); as error) {
+      <p class="error" role="alert">はじめられませんでした。{{ error.message }}</p>
+    }
+    <div class="notice-buttons">
+      <button
+        mat-flat-button
+        type="button"
+        class="primary"
+        (click)="start()"
+        [disabled]="!task() || starting()"
+      >
+        {{ starting() ? '開始しています…' : '作業をはじめる' }}
+      </button>
+      <button mat-stroked-button type="button" (click)="snooze()" [disabled]="!task()">
+        {{ settings.value()?.snoozeMinutes }}分スヌーズ・予定を確認
+      </button>
+      <button mat-stroked-button type="button" (click)="adjust()" [disabled]="!task()">
+        予定を調整する
+      </button>
+      <button mat-stroked-button type="button" (click)="later()">あとで</button>
+    </div>
+  </div>
+</div>

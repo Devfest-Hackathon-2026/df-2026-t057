@@ -23,7 +23,13 @@ new_roles = {
     f"projects/{project}/roles/dopagakiGeminiInference",
     f"projects/{project}/roles/dopagakiDataAccess",
 }
-managed_roles = old_roles | new_roles
+# Conditioned on the per-user calendar secret namespace, like secretVersionAdder.
+conditioned_roles = {
+    f"projects/{project}/roles/dopagakiCalendarTokenLifecycle": "secret-write-condition.json",
+    "roles/secretmanager.secretAccessor": "secret-access-condition.json",
+    "roles/secretmanager.secretVersionAdder": "secret-write-condition.json",
+}
+managed_roles = old_roles | new_roles | set(conditioned_roles)
 policy = json.loads(args.current.read_text())
 if not policy.get("etag"):
     parser.error("the current policy must include an etag")
@@ -46,10 +52,7 @@ else:
         parser.error("runtime roles differ from the reviewed baseline; inspect the current policy first")
     root = Path(__file__).resolve().parent
     additions = [{"role": role, "members": [member]} for role in sorted(new_roles)]
-    for role, condition in [
-        ("roles/secretmanager.secretAccessor", "secret-access-condition.json"),
-        ("roles/secretmanager.secretVersionAdder", "secret-write-condition.json"),
-    ]:
+    for role, condition in sorted(conditioned_roles.items()):
         additions.append({
             "role": role, "members": [member],
             "condition": json.loads((root / condition).read_text()),

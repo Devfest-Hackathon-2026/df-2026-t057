@@ -1,0 +1,1730 @@
+openapi: 3.1.0
+info:
+  title: DOPAGAKI API
+  version: 1.0.0
+  description: |
+    DOPAGAKI の API 仕様。このファイルを正とし、Go のサーバーと TS のクライアントはここから生成する。
+
+    ## 約束ごと
+    - 時刻は RFC 3339（UTC）。期間は `…Seconds`（秒）か `minutes`（分）の整数で表す。
+    - 状態を変えるリクエスト（POST / PUT / DELETE）には `Idempotency-Key` が必須。同じキーで再送すると、最初の結果をそのまま返す。
+      同じキーで内容の違うリクエストを送ると 409 `idempotency.key_reused`。
+    - 版を持つリソースは `ETag` を返す。更新には `If-Match` が必須で、無ければ 428、版が違えば 412 を返す。
+    - エラーは RFC 9457 の Problem Details。`code` を必ず含み、表示する文言はクライアントが `code` から決める。
+    - サーバーは表示用の文言を返さない。例外は AI が生成した文章（相談の返答、相棒の一言、AI が付けた手順名）だけ。
+    - 状態が変わると `GET /api/events`（SSE）で `{resource, revision}` を通知する。クライアントはそのリソースだけを取り直す。
+servers:
+  - url: /api
+security:
+  - firebase: []
+  - demo: []
+
+tags:
+  - name: system
+  - name: profile
+  - name: tasks
+  - name: plans
+  - name: work
+  - name: wallet
+  - name: viewing
+  - name: records
+  - name: sleep
+  - name: shortcut
+  - name: companion
+  - name: assistant
+  - name: calendar
+  - name: realtime
+  - name: internal
+
+paths:
+  # ───────────────────────── system ─────────────────────────
+  /health:
+    get:
+      tags: [system]
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: 稼働している
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: ok }
+  /config:
+    get:
+      tags: [system]
+      operationId: getConfig
+      security: []
+      responses:
+        '200':
+          description: クライアントの初期化に必要な設定
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Config' }
+  /extension/token:
+    post:
+      tags: [system]
+      operationId: issueExtensionToken
+      summary: デモモードで、拡張が同じデモ利用者として接続するためのトークンを発行する
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 発行したトークン
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authorization]
+                properties:
+                  authorization:
+                    type: string
+                    description: '`Authorization` ヘッダーにそのまま入れる値（`Demo <token>`）'
+        default: { $ref: '#/components/responses/Problem' }
+  /demo/sample:
+    post:
+      tags: [system]
+      operationId: addSampleTasks
+      summary: デモモードで、課題がないときにサンプルの課題を3件追加する
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 追加後の課題一覧
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskList' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── profile / settings ─────────────────────────
+  /profile:
+    get:
+      tags: [profile]
+      operationId: getProfile
+      responses:
+        '200':
+          description: 本人の情報
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [profile]
+      operationId: updateProfile
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileInput' }
+      responses:
+        '200':
+          description: 更新後の情報
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        default: { $ref: '#/components/responses/Problem' }
+  /settings:
+    get:
+      tags: [profile]
+      operationId: getSettings
+      responses:
+        '200':
+          description: 表示と通知の設定
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [profile]
+      operationId: updateSettings
+      description: スヌーズの長さが変わると、計画の版が上がる（確認中のスヌーズ案は無効になる）。
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettingsInput' }
+      responses:
+        '200':
+          description: 更新後の設定
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── tasks ─────────────────────────
+  /tasks:
+    get:
+      tags: [tasks]
+      operationId: listTasks
+      responses:
+        '200':
+          description: 課題の一覧と、次のスヌーズ案。ETag は計画の版。
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskList' }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [tasks]
+      operationId: createTask
+      description: |
+        課題を登録する。AI が手順を具体化し、締切から逆算して全体の計画を組み直す。登録の報酬（300秒）を一度だけ付与する。
+        `If-Match` は任意。相談のカードから登録するときは、カードを作った時点の計画の版を渡す。
+        Google カレンダーへの反映は Outbox で非同期に行う。
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatchOptional' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskCreateInput' }
+      responses:
+        '201':
+          description: 登録した課題
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        default: { $ref: '#/components/responses/Problem' }
+  /tasks/extract:
+    post:
+      tags: [tasks]
+      operationId: extractTasks
+      summary: 自由な文章から課題の候補を AI で取り出す。保存はしない
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 6000 }
+      responses:
+        '200':
+          description: 取り出した候補（1〜12件）
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tasks]
+                properties:
+                  tasks:
+                    type: array
+                    items: { $ref: '#/components/schemas/TaskInput' }
+        default: { $ref: '#/components/responses/Problem' }
+  /tasks/preview:
+    post:
+      tags: [tasks]
+      operationId: previewNewTask
+      summary: 新しい課題を登録した場合の計画を計算する。保存はしない
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskInput' }
+      responses:
+        '200':
+          description: 計算した計画と、計算に使った計画の版
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [plan, revision]
+                properties:
+                  plan: { $ref: '#/components/schemas/Plan' }
+                  revision: { type: integer }
+        default: { $ref: '#/components/responses/Problem' }
+  /tasks/{taskId}:
+    parameters: [{ $ref: '#/components/parameters/TaskId' }]
+    get:
+      tags: [tasks]
+      operationId: getTask
+      responses:
+        '200':
+          description: 課題
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [tasks]
+      operationId: updateTask
+      description: |
+        開始前の課題の内容を変更し、未開始の課題を締切から組み直す。サーバーが変更案を計算し直して検証する（クライアントの計算結果は使わない）。
+        `If-Match` は計画の版。AI の処理中に計画か作業傾向が変わったら 412。
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskInput' }
+      responses:
+        '200':
+          description: 変更後の課題
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Task' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [tasks]
+      operationId: deleteTask
+      description: 課題を削除し、計画を組み直す。付与済みの報酬は残す。カレンダーの予定の削除は Outbox で行う。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '204': { description: 削除した }
+        default: { $ref: '#/components/responses/Problem' }
+  /tasks/{taskId}/edit-preview:
+    parameters: [{ $ref: '#/components/parameters/TaskId' }]
+    post:
+      tags: [tasks]
+      operationId: previewTaskEdit
+      summary: 課題の内容を変更した場合の、変更前後の計画を計算する。保存はしない
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskInput' }
+      responses:
+        '200':
+          description: 変更案
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Draft' }
+        default: { $ref: '#/components/responses/Problem' }
+  /tasks/{taskId}/start:
+    parameters: [{ $ref: '#/components/parameters/TaskId' }]
+    post:
+      tags: [work]
+      operationId: startTask
+      description: 作業を開始する。同じ課題の作業中に再送しても、タイマーはそのまま。ほかの課題の作業中なら 409。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 開始した作業
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkSession' }
+        default: { $ref: '#/components/responses/Problem' }
+  /tasks/{taskId}/complete:
+    parameters: [{ $ref: '#/components/parameters/TaskId' }]
+    post:
+      tags: [work]
+      operationId: completeTask
+      description: 課題を完了する。この課題の作業中なら、作業を記録して報酬を計算する。完了済みなら何もしない。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 完了した課題と、記録した作業
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task]
+                properties:
+                  task: { $ref: '#/components/schemas/Task' }
+                  work: { $ref: '#/components/schemas/WorkRecord' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── plans (reschedule) ─────────────────────────
+  /tasks/{taskId}/reschedule:
+    parameters: [{ $ref: '#/components/parameters/TaskId' }]
+    get:
+      tags: [plans]
+      operationId: getRescheduleDraft
+      description: |
+        この課題以降の未開始の課題をずらす案を計算する。保存はしない。
+        - `mode=snooze`（既定）：現在時刻＋スヌーズの長さから開始する
+        - `mode=adjust`：現在の開始時刻から（過ぎていれば1分後から）
+        - `start` を指定すると、その時刻から開始する。このとき `revision` も必須で、計画の版と違えば 412。
+      parameters:
+        - name: mode
+          in: query
+          schema: { type: string, enum: [snooze, adjust], default: snooze }
+        - name: start
+          in: query
+          schema: { type: string, format: date-time }
+        - name: revision
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: 変更案
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Draft' }
+        default: { $ref: '#/components/responses/Problem' }
+  /reschedule/adjust:
+    post:
+      tags: [plans]
+      operationId: adjustDraft
+      summary: 確認中の変更案を、指示に従って AI で調整する。保存はしない
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [draft, instruction]
+              properties:
+                draft: { $ref: '#/components/schemas/Draft' }
+                instruction: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '200':
+          description: 調整した変更案
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Draft' }
+        default: { $ref: '#/components/responses/Problem' }
+  /reschedule/commit:
+    post:
+      tags: [plans]
+      operationId: commitDraft
+      description: 変更案を確定する。本人が選んだ順番と時刻をそのまま保存し、組み直しはしない。`If-Match` は案の元にした計画の版。
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [changes]
+              properties:
+                changes:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { $ref: '#/components/schemas/PlanChangeInput' }
+      responses:
+        '200':
+          description: 確定後の課題一覧
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskList' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── work session ─────────────────────────
+  /work-session:
+    get:
+      tags: [work]
+      operationId: getWorkSession
+      responses:
+        '200':
+          description: 実行中の作業。無ければ `session` は null。
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [session]
+                properties:
+                  session:
+                    oneOf:
+                      - { $ref: '#/components/schemas/WorkSession' }
+                      - { type: 'null' }
+        default: { $ref: '#/components/responses/Problem' }
+  /work-session/pause:
+    post:
+      tags: [work]
+      operationId: pauseWork
+      description: 作業を一時停止する。一時停止中に再送しても何もしない。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 一時停止した作業
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkSession' }
+        default: { $ref: '#/components/responses/Problem' }
+  /work-session/resume:
+    post:
+      tags: [work]
+      operationId: resumeWork
+      description: 一時停止した作業を再開する。実行中に再送しても何もしない。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 再開した作業
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkSession' }
+        default: { $ref: '#/components/responses/Problem' }
+  /work-session/confirm:
+    post:
+      tags: [work]
+      operationId: confirmWork
+      description: ここまでの作業を記録して報酬を計算し、課題を未開始に戻す。記録済みのセッションなら同じ結果を返す。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId]
+              properties:
+                sessionId: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200':
+          description: 記録した作業
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkRecord' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── wallet ─────────────────────────
+  /wallet:
+    get:
+      tags: [wallet]
+      operationId: getWallet
+      responses:
+        '200':
+          description: 視聴時間の残高とルール
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Wallet' }
+        default: { $ref: '#/components/responses/Problem' }
+  /wallet/policy:
+    put:
+      tags: [wallet]
+      operationId: updateTimePolicy
+      description: 視聴時間のルールを変える。残高と今日の集計は変えない。作業中は 409。
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TimePolicyInput' }
+      responses:
+        '200':
+          description: 変更後の残高とルール
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Wallet' }
+        default: { $ref: '#/components/responses/Problem' }
+  /wallet/ledger:
+    get:
+      tags: [wallet]
+      operationId: listLedger
+      description: 台帳を新しい順に返す。
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+        - name: before
+          in: query
+          description: このIDより前の項目を返す（ページ送り）
+          schema: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200':
+          description: 台帳
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries:
+                    type: array
+                    items: { $ref: '#/components/schemas/LedgerEntry' }
+                  next: { $ref: '#/components/schemas/Id' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── viewing ─────────────────────────
+  /viewing:
+    get:
+      tags: [viewing]
+      operationId: getViewing
+      responses:
+        '200':
+          description: 視聴の区切りの状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Viewing' }
+        default: { $ref: '#/components/responses/Problem' }
+  /viewing/sessions:
+    post:
+      tags: [viewing]
+      operationId: startViewing
+      description: |
+        視聴の区切りを始める。`Idempotency-Key` は区切りのIDとして使う。
+        区切りの途中なら 409（ほかのタブは今の区切りを引き継ぐ）。延長は `extendFrom` に今の区切りのIDを入れる。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ViewingStartInput' }
+      responses:
+        '201':
+          description: 始めた区切り
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Viewing' }
+        default: { $ref: '#/components/responses/Problem' }
+  /viewing/sessions/{sessionId}/end:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/Id' }
+    post:
+      tags: [viewing]
+      operationId: endViewing
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, enum: [stop, limit] }
+      responses:
+        '200':
+          description: 終えた後の状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Viewing' }
+        default: { $ref: '#/components/responses/Problem' }
+  /viewing/reports:
+    post:
+      tags: [viewing]
+      operationId: reportViewing
+      description: |
+        視聴した秒数を報告する。`Idempotency-Key` は受付の ID として使い、再送で二重に減らさない。
+        減らす秒数は、報告した秒数・前回の報告からの経過時間・区切りの残り・今日の残りの最小値。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seconds]
+              properties:
+                seconds: { type: integer, minimum: 1, maximum: 65 }
+                sessionId: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200':
+          description: 報告を反映した後の状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Viewing' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── records ─────────────────────────
+  /records:
+    get:
+      tags: [records]
+      operationId: getRecords
+      description: 記録の画面の集計。日付は本人のタイムゾーンで区切る。
+      responses:
+        '200':
+          description: 集計
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Records' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── sleep ─────────────────────────
+  /sleep:
+    get:
+      tags: [sleep]
+      operationId: getSleep
+      responses:
+        '200':
+          description: 睡眠の設定。未設定なら `sleep` は null。
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepState' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [sleep]
+      operationId: updateSleep
+      description: 就寝と起床の時刻を設定する。時刻が変わると、その夜からの判定をやり直す。カレンダーへの反映は Outbox で行う。
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SleepInput' }
+      responses:
+        '200':
+          description: 設定後の状態
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepState' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [sleep]
+      operationId: clearSleep
+      description: 睡眠の設定をやめる。朝まで保留していた報酬は、上限の範囲で受け取る。
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      responses:
+        '200':
+          description: 解除後の状態
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepState' }
+        default: { $ref: '#/components/responses/Problem' }
+  /sleep/morning:
+    post:
+      tags: [sleep]
+      operationId: settleMorning
+      description: 前の夜の結果を精算する。一晩に一度だけ行い、精算するものが無ければ `morning` は null（何も書き込まない）。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 精算の結果
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [morning]
+                properties:
+                  morning:
+                    oneOf:
+                      - { $ref: '#/components/schemas/Morning' }
+                      - { type: 'null' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── shortcut ─────────────────────────
+  /shortcut:
+    get:
+      tags: [shortcut]
+      operationId: getShortcut
+      responses:
+        '200':
+          description: iPhone ショートカットの接続状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShortcutStatus' }
+        default: { $ref: '#/components/responses/Problem' }
+  /shortcut/key:
+    post:
+      tags: [shortcut]
+      operationId: issueShortcutKey
+      description: 接続キーを発行する。キーはこの応答でだけ返す。以前のキーは使えなくなる。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '201':
+          description: 発行したキー
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [key]
+                properties:
+                  key: { type: string }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [shortcut]
+      operationId: revokeShortcutKey
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '204': { description: 無効にした }
+        default: { $ref: '#/components/responses/Problem' }
+  /shortcut/open:
+    post:
+      tags: [shortcut]
+      operationId: openFromShortcut
+      description: iPhone で YouTube を開いたときにショートカットが呼ぶ。アカウントを作らない。
+      security: [{ shortcut: [] }]
+      responses:
+        '200':
+          description: 通知に表示する内容
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShortcutOpen' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── companion ─────────────────────────
+  /companion/lines:
+    post:
+      tags: [companion]
+      operationId: getCompanionLine
+      summary: 場面に合わせた相棒の一言を返す。AI が使えないときは決まった文を返す
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [moment]
+              properties:
+                moment: { $ref: '#/components/schemas/CompanionMoment' }
+                taskId: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200':
+          description: 一言
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompanionLine' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── assistant ─────────────────────────
+  /assistant/turns:
+    get:
+      tags: [assistant]
+      operationId: listAssistantTurns
+      responses:
+        '200':
+          description: 直近20件の相談（古い順）
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [turns]
+                properties:
+                  turns:
+                    type: array
+                    items: { $ref: '#/components/schemas/AssistantTurn' }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [assistant]
+      operationId: sendAssistantMessage
+      description: |
+        相談を送る。`Idempotency-Key` は相談の ID として使う。返答済みの相談を再送すると、AI を呼ばずに同じ結果を返す。
+        AI が失敗しても、`status: error` の相談として 200 で返す（利用上限は 429、AI が使えない環境は 503）。
+        カードは何も保存しない。本人が押したときに、それぞれのエンドポイントで確定する。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 2000 }
+                taskId: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200':
+          description: 相談とその返答
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssistantTurn' }
+        default: { $ref: '#/components/responses/Problem' }
+  /assistant/memories:
+    post:
+      tags: [assistant]
+      operationId: rememberContext
+      description: 作業傾向に1行追加する。同じ内容が既にあれば追加しない。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '200':
+          description: 更新後の本人の情報
+          headers: { ETag: { $ref: '#/components/headers/ETag' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── calendar ─────────────────────────
+  /calendar:
+    get:
+      tags: [calendar]
+      operationId: getCalendar
+      responses:
+        '200':
+          description: Google カレンダーとの連携状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarStatus' }
+        default: { $ref: '#/components/responses/Problem' }
+  /calendar/connect:
+    post:
+      tags: [calendar]
+      operationId: connectCalendar
+      summary: Google の同意画面の URL を返す
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 同意画面の URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url: { type: string, format: uri }
+        default: { $ref: '#/components/responses/Problem' }
+  /calendar/callback:
+    get:
+      tags: [calendar]
+      operationId: calendarCallback
+      security: []
+      description: Google の同意画面から戻る先。結果に応じて `/?calendar=connected` か `/?calendar=error` へ移動させる。
+      parameters:
+        - { name: state, in: query, required: true, schema: { type: string } }
+        - { name: code, in: query, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string } }
+      responses:
+        '303':
+          description: 管理画面へ戻す
+          headers:
+            Location: { schema: { type: string } }
+  /calendar/disconnect:
+    post:
+      tags: [calendar]
+      operationId: disconnectCalendar
+      description: |
+        Google カレンダーとの連携をやめる。保存した OAuth トークンと変更通知のチャンネルを破棄し、同期待ちのジョブを取り消す。
+        課題は残し、カレンダーの予定との結び付き（`calendarLinked`）だけを外す。専用の DOPAGAKI カレンダー自体は消さない。
+        連携していないときに呼んでも 200（何もしない）。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 解除後の連携状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarStatus' }
+        default: { $ref: '#/components/responses/Problem' }
+  /calendar/sync:
+    post:
+      tags: [calendar]
+      operationId: syncCalendar
+      summary: Google カレンダーの変更を今すぐ取り込む
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 取り込み後の連携状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarStatus' }
+        default: { $ref: '#/components/responses/Problem' }
+  /calendar/webhook:
+    post:
+      tags: [calendar]
+      operationId: calendarWebhook
+      security: []
+      description: Google Calendar の変更通知。チャンネルの ID とトークンを照合し、取り込みのジョブを登録する。
+      parameters:
+        - { name: X-Goog-Channel-ID, in: header, required: true, schema: { type: string } }
+        - { name: X-Goog-Channel-Token, in: header, required: true, schema: { type: string } }
+        - { name: X-Goog-Resource-State, in: header, schema: { type: string } }
+      responses:
+        '204': { description: 受け付けた }
+        '403': { description: 照合できなかった }
+        '404': { description: この環境ではカレンダー連携を使えない }
+
+  # ───────────────────────── realtime ─────────────────────────
+  /events:
+    get:
+      tags: [realtime]
+      operationId: subscribeEvents
+      description: |
+        変更の通知（Server-Sent Events）。データ本体は送らない。各イベントの `data` は `ChangeEvent` の JSON。
+        接続した直後に、すべてのリソースの現在の版を送る。15秒ごとにコメント行を送って接続を保つ。
+        EventSource はヘッダーを付けられないので、ブラウザーからは `token` クエリで ID トークンを渡してよい。
+      parameters:
+        - name: token
+          in: query
+          description: '`Authorization` の代わりに使う ID トークン（EventSource 用）'
+          schema: { type: string }
+      responses:
+        '200':
+          description: イベントの流れ
+          content:
+            text/event-stream:
+              # OpenAPI 3.1 には SSE の各イベントの型を書く場所がないため、各イベントの data の型をここに書く。
+              schema: { $ref: '#/components/schemas/ChangeEvent' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────── internal ─────────────────────────
+  /internal/outbox/{jobId}:
+    post:
+      tags: [internal]
+      operationId: runOutboxJob
+      security: [{ cloudTasks: [] }]
+      description: Cloud Tasks が呼ぶ。Outbox のジョブを実行する。失敗すると 5xx を返し、Cloud Tasks が再試行する。
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uid]
+              properties:
+                uid: { type: string }
+      responses:
+        '204': { description: 実行した（または実行済み） }
+        default: { $ref: '#/components/responses/Problem' }
+  /internal/calendar/renew:
+    post:
+      tags: [internal]
+      operationId: renewCalendarChannels
+      security: [{ scheduler: [] }]
+      description: Cloud Scheduler が毎日呼ぶ。期限が24時間以内の変更通知のチャンネルを更新する。
+      responses:
+        '204': { description: 更新した }
+        default: { $ref: '#/components/responses/Problem' }
+
+components:
+  securitySchemes:
+    firebase:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
+    demo:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: デモモードだけ。`Demo <token>`。管理画面は Cookie を使う。
+    shortcut:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: '`Shortcut <key>`'
+    scheduler:
+      type: http
+      scheme: bearer
+      description: Cloud Scheduler の OIDC トークン
+    cloudTasks:
+      type: http
+      scheme: bearer
+      description: Cloud Tasks の OIDC トークン
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, pattern: '^[A-Za-z0-9_-]{8,80}$' }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: 取得したときの `ETag`
+      schema: { type: string }
+    IfMatchOptional:
+      name: If-Match
+      in: header
+      required: false
+      schema: { type: string }
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+
+  headers:
+    ETag:
+      description: リソースの版（`"<revision>"`）
+      schema: { type: string }
+
+  responses:
+    Problem:
+      description: エラー
+      headers:
+        Retry-After:
+          description: 429 のとき、再試行してよいまでの秒数
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Id:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{1,80}$'
+
+    # ── errors ──
+    Problem:
+      type: object
+      required: [type, status, code]
+      properties:
+        type:
+          { type: string, description: 'エラーの種類の URI（`about:blank` か `/problems/<code>`）' }
+        status: { type: integer }
+        code: { $ref: '#/components/schemas/ProblemCode' }
+        errors:
+          type: array
+          description: 入力項目ごとのエラー
+          items: { $ref: '#/components/schemas/FieldProblem' }
+    FieldProblem:
+      type: object
+      required: [field, code]
+      properties:
+        field:
+          {
+            type: string,
+            description: 'JSON Pointer 風の項目名（例 `title`、`changes/0/after/steps`）',
+          }
+        code: { $ref: '#/components/schemas/FieldCode' }
+    ProblemCode:
+      type: string
+      enum:
+        # 共通
+        - internal
+        - request.malformed
+        - request.too_large
+        - request.invalid
+        - origin.forbidden
+        - auth.required
+        - auth.expired
+        - idempotency.key_required
+        - idempotency.key_reused
+        - idempotency.in_progress
+        - precondition.required
+        - precondition.failed
+        - external.failed
+        - not_found
+        # 課題
+        - task.not_found
+        - task.limit_reached
+        - task.already_completed
+        - task.not_editable
+        - task.another_active
+        - task.duplicate
+        # 計画
+        - plan.start_in_past
+        - plan.deadline_passed
+        - plan.insufficient_time
+        - plan.invalid_changes
+        - plan.changes_mismatch
+        # 作業
+        - work.no_session
+        - work.session_mismatch
+        - work.active
+        # 視聴
+        - viewing.policy_missing
+        - viewing.session_active
+        - viewing.extend_mismatch
+        - viewing.exhausted
+        - viewing.session_required
+        - viewing.session_unknown
+        # 作業傾向・相談
+        - memory.full
+        - assistant.busy
+        - assistant.turn_conflict
+        - assistant.context_changed
+        # AI
+        - ai.unavailable
+        - ai.rate_limited
+        - ai.failed
+        - ai.unreadable
+        - ai.no_tasks
+        # ショートカット
+        - shortcut.key_malformed
+        - shortcut.key_invalid
+        - shortcut.rate_limited
+        # カレンダー
+        - calendar.unavailable
+        - calendar.not_connected
+        - calendar.reauth_required
+        # デモ
+        - demo.only
+        - demo.tasks_exist
+    FieldCode:
+      type: string
+      description: 入力項目ごとのエラーの種類
+      enum:
+        - required
+        - too_long
+        - out_of_range
+        - invalid_format
+        - in_past
+        - not_allowed
+        - task.title_length
+        - task.minutes_range
+        - task.deadline_past
+        - task.notes_length
+        - task.why_length
+        - task.url_scheme
+        - plan.empty
+        - plan.duplicate_task
+        - plan.invalid_time
+        - plan.exceeds_deadline
+        - plan.overlap
+        - plan.steps_missing
+        - plan.steps_invalid
+        - plan.end_mismatch
+        - plan.overlaps_other
+        - profile.timezone
+        - sleep.time_format
+        - sleep.duration_range
+
+    # ── system ──
+    Config:
+      type: object
+      required: [mode, features]
+      properties:
+        mode: { type: string, enum: [demo, live] }
+        firebase:
+          description: Firebase の Web 設定（live だけ）
+          type: object
+          additionalProperties: { type: string }
+        features:
+          type: object
+          required: [ai, calendar]
+          properties:
+            ai: { type: boolean }
+            calendar: { type: boolean }
+
+    # ── profile / settings ──
+    ProfileInput:
+      type: object
+      required: [name, context, timeZone]
+      properties:
+        name: { type: string, maxLength: 100 }
+        context: { type: string, maxLength: 2000, description: 作業傾向。AI に渡す }
+        timeZone: { type: string, description: IANA のタイムゾーン名, minLength: 1 }
+    Profile:
+      allOf:
+        - { $ref: '#/components/schemas/ProfileInput' }
+        - type: object
+          required: [revision]
+          properties:
+            revision: { type: integer }
+    SettingsInput:
+      type: object
+      required: [snoozeMinutes, mode, sound, reducedMotion, grime]
+      properties:
+        snoozeMinutes: { type: integer, minimum: 1, maximum: 120 }
+        mode: { $ref: '#/components/schemas/NoticeMode' }
+        sound: { type: boolean }
+        reducedMotion: { type: boolean }
+        grime: { type: boolean, description: カレンダーの画面を少しずつ汚す演出 }
+    Settings:
+      allOf:
+        - { $ref: '#/components/schemas/SettingsInput' }
+        - type: object
+          required: [revision]
+          properties:
+            revision: { type: integer }
+    NoticeMode:
+      type: string
+      enum: [pachinko, mahjong, simple]
+
+    # ── tasks / plans ──
+    TaskInput:
+      type: object
+      required: [title, notes, why, deadline, minutes, url]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        notes: { type: string, maxLength: 4000 }
+        why: { type: string, maxLength: 200, description: やる理由 }
+        deadline: { type: string, format: date-time }
+        minutes: { type: integer, minimum: 1, maximum: 720 }
+        url: { type: string, maxLength: 2000, description: 作業に使うページ。空か http(s) の URL }
+    TaskCreateInput:
+      allOf:
+        - { $ref: '#/components/schemas/TaskInput' }
+        - type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/Id'
+              description: 指定すると、この ID で登録する（相談のカードを押し直しても二重に登録しない）
+    TaskStatus:
+      type: string
+      enum: [pending, active, completed]
+    Task:
+      type: object
+      required:
+        [id, title, notes, why, deadline, minutes, url, status, createdAt, plan, calendarLinked]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        title: { type: string }
+        notes: { type: string }
+        why: { type: string }
+        deadline: { type: string, format: date-time }
+        minutes: { type: integer, description: 本人が見積もった時間 }
+        url: { type: string }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, description: 初めて開始した時刻 }
+        scheduledStartAt:
+          { type: string, format: date-time, description: 初めて開始したときの予定の開始時刻 }
+        completedAt: { type: string, format: date-time }
+        plan: { $ref: '#/components/schemas/Plan' }
+        calendarLinked: { type: boolean, description: Google カレンダーの予定と結び付いている }
+    PlanReason:
+      type: string
+      description: 計画がこの形になった理由
+      enum:
+        - backward # 締切と必要時間から逆算した
+        - ai_detailed # 作業傾向を参考に手順を具体化した
+        - ai_limit_fallback # AI の利用上限のため、逆算だけで作った
+        - snooze_kept # 作業時間を保って後ろへずらした
+        - snooze_shortened # 締切に合わせて作業時間を短縮した
+        - edit_replanned # 内容の変更に合わせて組み直した
+        - ai_adjusted # 指示に合わせて AI が調整した
+        - manual # 本人が手で調整した
+    Step:
+      type: object
+      required: [title, start, end]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+    Plan:
+      type: object
+      required: [start, end, steps, reason]
+      properties:
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Step' }
+        reason: { $ref: '#/components/schemas/PlanReason' }
+        note: { type: string, maxLength: 500, description: AI が付けた補足（ある場合だけ） }
+    TaskList:
+      type: object
+      required: [items, revision, nextSnooze]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Task' }
+        revision: { type: integer, description: 計画の版 }
+        nextSnooze:
+          description: 次の課題をスヌーズした場合の変更案。通知から往復なしで確認できるように、あらかじめ計算しておく。
+          oneOf:
+            - { $ref: '#/components/schemas/Draft' }
+            - { type: 'null' }
+    DraftKind:
+      type: string
+      enum: [snooze, adjust, edit]
+    Draft:
+      type: object
+      required: [id, kind, taskId, baseRevision, createdAt, shortened, changes]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        kind: { $ref: '#/components/schemas/DraftKind' }
+        taskId: { $ref: '#/components/schemas/Id' }
+        baseRevision: { type: integer, description: 案の元にした計画の版。確定するときの If-Match }
+        createdAt: { type: string, format: date-time }
+        start: { type: string, format: date-time }
+        shortened: { type: boolean, description: 作業時間を短縮した案 }
+        changes:
+          type: array
+          items: { $ref: '#/components/schemas/PlanChange' }
+    PlanChange:
+      type: object
+      required: [taskId, title, before, after, originalMinutes, plannedSeconds]
+      properties:
+        taskId: { $ref: '#/components/schemas/Id' }
+        title: { type: string }
+        before: { $ref: '#/components/schemas/Plan' }
+        after: { $ref: '#/components/schemas/Plan' }
+        originalMinutes: { type: integer, description: 本人が見積もった時間 }
+        plannedSeconds: { type: integer, description: 変更後に割り当てた時間 }
+    PlanChangeInput:
+      type: object
+      required: [taskId, after]
+      properties:
+        taskId: { $ref: '#/components/schemas/Id' }
+        after: { $ref: '#/components/schemas/Plan' }
+
+    # ── work ──
+    WorkSession:
+      type: object
+      required: [id, taskId, startedAt, limitSeconds, elapsedSeconds, running, asOf]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        taskId: { $ref: '#/components/schemas/Id' }
+        startedAt: { type: string, format: date-time }
+        limitSeconds: { type: integer, description: 記録できる作業の上限 }
+        elapsedSeconds: { type: integer, description: '`asOf` の時点で記録された作業時間' }
+        running: { type: boolean }
+        asOf:
+          type: string
+          format: date-time
+          description: 'クライアントは `running` の間、`elapsedSeconds + (now − asOf)` を `limitSeconds` までカウントアップして表示する'
+        pausedAt: { type: string, format: date-time }
+    WorkRecord:
+      type: object
+      required: [sessionId, taskId, workSeconds, rewardSeconds, deferred]
+      properties:
+        sessionId: { $ref: '#/components/schemas/Id' }
+        taskId: { $ref: '#/components/schemas/Id' }
+        workSeconds: { type: integer, description: 今回記録した作業時間（今日の分） }
+        rewardSeconds: { type: integer, description: 今回付与した視聴時間 }
+        deferred: { type: boolean, description: 夜の間なので、朝に受け取る }
+
+    # ── wallet ──
+    TimePolicyMode:
+      type: string
+      enum: [rewards, fixed, reminder, self]
+    TimePolicyInput:
+      type: object
+      required: [mode, dailyLimitSeconds]
+      properties:
+        mode: { $ref: '#/components/schemas/TimePolicyMode' }
+        dailyLimitSeconds: { type: integer, enum: [600, 1200, 1800] }
+    Wallet:
+      type: object
+      required: [revision, balanceSeconds, availableSeconds, deferredSeconds, policy, rules]
+      properties:
+        revision: { type: integer }
+        balanceSeconds: { type: integer, description: 残高 }
+        availableSeconds:
+          { type: integer, description: 今から視聴できる秒数（ルールと今日の上限を反映） }
+        deferredSeconds: { type: integer, description: 朝に受け取る予定の報酬 }
+        policy:
+          type: object
+          required:
+            [mode, dailyLimitSeconds, day, resetAt, viewedSeconds, rewardSeconds, workSeconds]
+          properties:
+            mode: { $ref: '#/components/schemas/TimePolicyMode' }
+            dailyLimitSeconds: { type: integer }
+            day: { type: string, format: date, description: 集計中の日 }
+            resetAt: { type: string, format: date-time, description: 次に日が切り替わる時刻 }
+            viewedSeconds: { type: integer, description: 今日視聴した秒数 }
+            rewardSeconds: { type: integer, description: 今日作業で得た秒数 }
+            workSeconds: { type: integer, description: 今日記録した作業の秒数 }
+        rules:
+          description: ルールの定数。表示の説明に使う
+          type: object
+          required:
+            [
+              balanceCapSeconds,
+              workSecondsPerReward,
+              rewardSecondsPerUnit,
+              dailyRewardCapSeconds,
+              registrationRewardSeconds,
+              dailyRefillSeconds,
+              sleepBonusSeconds,
+              viewingChoicesSeconds,
+            ]
+          properties:
+            balanceCapSeconds: { type: integer }
+            workSecondsPerReward: { type: integer }
+            rewardSecondsPerUnit: { type: integer }
+            dailyRewardCapSeconds: { type: integer }
+            registrationRewardSeconds: { type: integer }
+            dailyRefillSeconds:
+              type: integer
+              description: rewards モードで毎日この秒数まで補充する（fixed モードは dailyLimitSeconds まで）
+            sleepBonusSeconds: { type: integer, description: Shorts を見ずに眠れた夜の報酬の上限 }
+            viewingChoicesSeconds:
+              type: array
+              items: { type: integer }
+    LedgerKind:
+      type: string
+      enum: [initial, registration, daily, work, sleep, viewing, release]
+    LedgerEntry:
+      type: object
+      required: [id, kind, seconds, at, deferred]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        kind: { $ref: '#/components/schemas/LedgerKind' }
+        seconds: { type: integer, description: 残高の増減（視聴は負） }
+        at: { type: string, format: date-time }
+        deferred: { type: boolean, description: 朝まで保留している }
+        taskId: { $ref: '#/components/schemas/Id' }
+        taskTitle: { type: string, description: 記録した時点の課題名 }
+        workSeconds: { type: integer }
+
+    # ── viewing ──
+    ViewingStartInput:
+      type: object
+      required: [seconds]
+      properties:
+        seconds: { type: integer, enum: [300, 600] }
+        extendFrom: { $ref: '#/components/schemas/Id' }
+    ViewingSession:
+      type: object
+      required: [id, startedAt, plannedSeconds, consumedSeconds]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        extendFrom: { $ref: '#/components/schemas/Id' }
+        startedAt: { type: string, format: date-time }
+        plannedSeconds: { type: integer }
+        consumedSeconds: { type: integer }
+        endedAt: { type: string, format: date-time }
+        endReason: { type: string, enum: [stop, limit] }
+    Viewing:
+      type: object
+      required: [session, availableSeconds, balanceSeconds, requiresSession]
+      properties:
+        session:
+          oneOf:
+            - { $ref: '#/components/schemas/ViewingSession' }
+            - { type: 'null' }
+        availableSeconds: { type: integer }
+        balanceSeconds: { type: integer }
+        requiresSession:
+          { type: boolean, description: 視聴の前に区切りを選ぶ必要がある（self 以外） }
+
+    # ── records ──
+    Records:
+      type: object
+      required: [days, totals, practice]
+      properties:
+        days:
+          type: array
+          description: 今日までの84日（古い順）
+          items:
+            type: object
+            required: [date, completed, earnedSeconds]
+            properties:
+              date: { type: string, format: date }
+              completed: { type: integer }
+              earnedSeconds: { type: integer }
+        totals:
+          type: object
+          required: [completed, earnedSeconds]
+          properties:
+            completed: { type: integer }
+            earnedSeconds: { type: integer }
+        practice:
+          description: 過去7日の「自分で区切る練習」の集計
+          type: object
+          required:
+            [
+              viewingSessions,
+              endedSessions,
+              extensions,
+              startedTasks,
+              onTimeStarts,
+              missedStarts,
+              history,
+            ]
+          properties:
+            viewingSessions: { type: integer }
+            endedSessions: { type: integer }
+            extensions: { type: integer }
+            startedTasks: { type: integer }
+            onTimeStarts: { type: integer, description: 予定から5分以内に開始した }
+            missedStarts: { type: integer, description: 予定の開始を過ぎて未開始 }
+            history:
+              type: array
+              description: 日ごとの視聴と作業（新しい順、最大14日）
+              items:
+                type: object
+                required: [date, viewedSeconds, workSeconds]
+                properties:
+                  date: { type: string, format: date }
+                  viewedSeconds: { type: integer }
+                  workSeconds: { type: integer }
+
+    # ── sleep ──
+    SleepInput:
+      type: object
+      required: [bedtime, wake]
+      properties:
+        bedtime: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        wake: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+    Sleep:
+      type: object
+      required: [bedtime, wake, keptNights, night, calendarPending]
+      properties:
+        bedtime: { type: string }
+        wake: { type: string }
+        keptNights: { type: integer, description: Shorts を見ずに眠れた連続の夜 }
+        night:
+          description: 今夜（または今の）夜の時間帯。就寝1時間前から起床まで
+          type: object
+          required: [start, end, active]
+          properties:
+            start: { type: string, format: date-time }
+            end: { type: string, format: date-time }
+            active: { type: boolean }
+        calendarPending: { type: boolean, description: カレンダーへの反映を待っている }
+    SleepState:
+      type: object
+      required: [sleep, revision]
+      properties:
+        revision: { type: integer }
+        sleep:
+          oneOf:
+            - { $ref: '#/components/schemas/Sleep' }
+            - { type: 'null' }
+    Morning:
+      type: object
+      required: [night, kept, bonusSeconds, releasedSeconds]
+      properties:
+        night: { type: string, format: date }
+        kept: { type: boolean, description: Shorts を見ずに眠れた }
+        bonusSeconds: { type: integer }
+        releasedSeconds:
+          { type: integer, description: 夜の間に保留していた報酬のうち受け取った秒数 }
+
+    # ── shortcut ──
+    ShortcutStatus:
+      type: object
+      required: [configured]
+      properties:
+        configured: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ShortcutOpen:
+      type: object
+      required: [title, message, url]
+      properties:
+        title: { type: string }
+        message: { type: string }
+        url: { type: string, format: uri }
+
+    # ── companion ──
+    CompanionMoment:
+      type: string
+      enum: [notice, snooze, complete, balance_zero, app_open, night, morning]
+    CompanionLine:
+      type: object
+      required: [line, generated]
+      properties:
+        line: { type: string, maxLength: 60 }
+        generated: { type: boolean, description: AI が作った一言か（false なら決まった文） }
+
+    # ── assistant ──
+    AssistantTurn:
+      type: object
+      required: [id, text, status, reply, cards, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        text: { type: string }
+        taskId: { $ref: '#/components/schemas/Id' }
+        status: { type: string, enum: [pending, ready, error] }
+        failure: { $ref: '#/components/schemas/ProblemCode' }
+        reply: { type: string }
+        cards:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/AssistantCard' }
+        createdAt: { type: string, format: date-time }
+    AssistantCard:
+      description: 相談の返答に付く提案。押すまで何も保存しない。
+      oneOf:
+        - { $ref: '#/components/schemas/CreateCard' }
+        - { $ref: '#/components/schemas/RescheduleCard' }
+        - { $ref: '#/components/schemas/UpdateCard' }
+        - { $ref: '#/components/schemas/MemoryCard' }
+        - { $ref: '#/components/schemas/SleepCard' }
+      discriminator:
+        propertyName: kind
+        mapping:
+          create: '#/components/schemas/CreateCard'
+          reschedule: '#/components/schemas/RescheduleCard'
+          update: '#/components/schemas/UpdateCard'
+          memory: '#/components/schemas/MemoryCard'
+          sleep: '#/components/schemas/SleepCard'
+    CreateCard:
+      type: object
+      required: [kind, id, input, preview, revision]
+      properties:
+        kind: { type: string, const: create }
+        id: { $ref: '#/components/schemas/Id' }
+        input: { $ref: '#/components/schemas/TaskCreateInput' }
+        preview: { $ref: '#/components/schemas/Plan' }
+        revision: { type: integer, description: 登録するときの If-Match }
+    RescheduleCard:
+      type: object
+      required: [kind, id, taskId, revision]
+      properties:
+        kind: { type: string, const: reschedule }
+        id: { $ref: '#/components/schemas/Id' }
+        taskId: { $ref: '#/components/schemas/Id' }
+        start: { type: string, format: date-time, description: 提案した開始時刻 }
+        preview: { $ref: '#/components/schemas/Plan' }
+        revision: { type: integer }
+    UpdateCard:
+      type: object
+      required: [kind, id, taskId, input, draft, revision]
+      properties:
+        kind: { type: string, const: update }
+        id: { $ref: '#/components/schemas/Id' }
+        taskId: { $ref: '#/components/schemas/Id' }
+        input: { $ref: '#/components/schemas/TaskInput' }
+        draft: { $ref: '#/components/schemas/Draft' }
+        revision: { type: integer }
+    MemoryCard:
+      type: object
+      required: [kind, id, memory]
+      properties:
+        kind: { type: string, const: memory }
+        id: { $ref: '#/components/schemas/Id' }
+        memory: { type: string, maxLength: 500 }
+    SleepCard:
+      type: object
+      required: [kind, id, sleep]
+      properties:
+        kind: { type: string, const: sleep }
+        id: { $ref: '#/components/schemas/Id' }
+        sleep: { $ref: '#/components/schemas/SleepInput' }
+
+    # ── calendar ──
+    CalendarStatus:
+      type: object
+      required: [enabled, connected, sync, failedJobs]
+      properties:
+        enabled: { type: boolean, description: この環境でカレンダー連携を使える }
+        connected: { type: boolean }
+        sync: { type: string, enum: [disconnected, synced, pending, failed] }
+        lastSync: { type: string, format: date-time }
+        failedJobs: { type: integer, description: 再試行しても反映できなかったジョブの数 }
+
+    # ── realtime ──
+    Resource:
+      type: string
+      enum:
+        [
+          profile,
+          settings,
+          tasks,
+          workSession,
+          wallet,
+          viewing,
+          sleep,
+          shortcut,
+          assistant,
+          calendar,
+        ]
+    ChangeEvent:
+      type: object
+      required: [resource, revision]
+      properties:
+        resource: { $ref: '#/components/schemas/Resource' }
+        revision: { type: integer }

@@ -1,0 +1,71 @@
+.chip {
+  max-width: 14rem;
+}
+
+.chip-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  font: var(--mat-sys-label-large);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &.large {
+    width: 4rem;
+    height: 4rem;
+    font: var(--mat-sys-headline-small);
+  }
+}
+
+.identity {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 1rem;
+  text-align: center;
+}
+
+.email {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+  overflow-wrap: anywhere;
+}
+
+.greeting {
+  margin: 0;
+  font: var(--mat-sys-title-medium);
+}
+
+.item-text {
+  display: grid;
+
+  small {
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-body-small);
+  }
+}

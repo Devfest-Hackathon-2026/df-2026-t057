@@ -4,33 +4,39 @@ DOPAGAKIの開発に参加するときの手順と決まりごとです。アプ
 
 ## 準備
 
-Node.js 24.15以上とGo 1.26以上が必要です。
+設計方針とコードの決まりごとは [AGENTS.md](AGENTS.md) にまとめています。変更の前に読んでください。
+
+ツールのバージョンは [mise.toml](mise.toml) で固定しています（Node.js・pnpm・Go・golangci-lint）。[mise](https://mise.jdx.dev/) を入れてから、次を実行します。
 
 ```bash
-npm ci
+mise install
+pnpm install
 ```
 
 ## 起動
 
 | 対象 | コマンド | 補足 |
 |---|---|---|
-| API と管理画面をまとめて | `./dev.sh` | ブラウザーも開く。Goが無ければ `.local/go` に取得する |
-| API だけ（:8080） | `npm run dev:api` | デモモード。Google認証や有料APIを使わない |
-| 管理画面だけ（:4200） | `npm run dev:web` | `/api` は :8080 へ中継するので、先にAPIを起動する |
-| Chrome拡張 | `npm run build:extension` | `chrome://extensions` で `dist/extension` を読み込む。変更後は再ビルドして再読み込み |
+| API と管理画面をまとめて | `pnpm dev` | デモモード。Google認証や有料APIを使わない |
+| API だけ（:8080） | `pnpm --filter @dopagaki/api dev` | |
+| 管理画面だけ（:4200） | `pnpm --filter @dopagaki/web dev` | `/api` は :8080 へ中継するので、先にAPIを起動する |
+| Chrome拡張 | `pnpm --filter @dopagaki/extension build` | `chrome://extensions` で `apps/extension/.output/chrome-mv3` を読み込む。開発中は `pnpm --filter @dopagaki/extension dev` で自動で再読み込みされる |
 
 デモのデータはAPIのメモリーにあり、APIを止めると消えます。
 
-## テスト
+## 確認
 
 ```bash
-npm test            # 型チェック・単体テスト・Goのテスト
-npm run test:e2e    # Playwright（初回は npx playwright install chromium）
-(cd api && go vet ./...)
-npm run format      # Prettier
+pnpm generate     # API仕様（packages/contract/openapi.yaml）からGoとTSのコードを生成する
+pnpm check        # フォーマット・Lint（Go / TS / CSS / API仕様 / コントラスト）・型チェック
+pnpm test         # 単体テスト
+pnpm test:e2e     # e2e（アクセシビリティの自動検査を含む。初回は pnpm --filter @dopagaki/e2e exec playwright install chromium）
+pnpm format       # フォーマットを直す
 ```
 
-Vertex AIへの実接続テストは料金がかかるため、通常は実行しません。必要なときだけ `DOPAGAKI_LIVE_GCP=1` を付けて実行します（[README](README.md#検証)）。
+CIでも同じものを実行します。生成物が古いまま、またはLint・フォーマットの違反があるPRはマージできません。
+
+Vertex AIやGoogle Calendarへの実接続テストは料金がかかるため、通常は実行しません。必要なときだけ環境変数を付けて実行します。
 
 ## 作業の流れ
 
@@ -72,7 +78,7 @@ feat: スヌーズを確定したとき相棒の一言を出す
 
 ## mainへのマージは本番への配信になる
 
-`api/` `web/` `shared/` `Dockerfile` などを変えたPRをmainへマージすると、CIの検証が通ったあと **Cloud Runへ自動で配信** されます（[継続的デプロイ](engineering/continuous-deployment.md)）。文書だけ・拡張だけの変更では配信しません。
+`apps/api/` `apps/web/` `packages/` `Dockerfile` などを変えたPRをmainへマージすると、CIの検証が通ったあと **Cloud Runへ自動で配信** されます（[継続的デプロイ](engineering/continuous-deployment.md)）。文書だけ・拡張だけの変更では配信しません。
 
 - Firestoreの保存形式を変える場合は、既存ユーザーのデータを読めることを確かめてからマージします。
 - 配信直後の確認に失敗した場合は、自動で前のリビジョンへ戻ります。それ以外で公開環境に問題が出たら、すぐにチームへ知らせてください（[運用記録](engineering/operations.md)）。

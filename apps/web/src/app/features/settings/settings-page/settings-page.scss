@@ -1,0 +1,210 @@
+@use '@angular/material' as mat;
+
+:host {
+  display: block;
+  max-width: 62.5rem;
+}
+
+.start-note {
+  max-width: 45rem;
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+.group-title {
+  margin: 1.75rem 0 0.5rem;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-title-small);
+}
+
+.panel {
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  @include mat.expansion-overrides(
+    (
+      container-background-color: transparent,
+      container-elevation-shadow: none,
+      container-shape: 0,
+      header-collapsed-state-height: 4.5rem,
+      header-expanded-state-height: 4.5rem,
+    )
+  );
+
+  mat-panel-title {
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  mat-panel-description {
+    justify-content: flex-end;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.panel-body {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+
+  mat-form-field {
+    flex: 1 1 12rem;
+  }
+}
+
+.setting-icon {
+  flex-shrink: 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.setting-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.25rem;
+  min-height: 5rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.setting-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+
+  p {
+    margin: 0.25rem 0 0;
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-body-medium);
+  }
+}
+
+.minutes-field {
+  width: 7rem;
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin: 0.5rem 0 1.25rem;
+  border: 0;
+
+  @include mat.button-toggle-overrides(
+    (
+      height: auto,
+      shape: var(--mat-sys-corner-medium),
+      divider-color: transparent,
+    )
+  );
+}
+
+.mode-card {
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  text-align: start;
+  white-space: normal;
+
+  &.pachinko {
+    @include mat.button-toggle-overrides(
+      (
+        background-color: var(--dpg-sys-pachinko-container),
+        text-color: var(--dpg-sys-on-pachinko-container),
+        selected-state-background-color: var(--dpg-sys-pachinko-container),
+        selected-state-text-color: var(--dpg-sys-on-pachinko-container),
+      )
+    );
+  }
+
+  &.mahjong {
+    @include mat.button-toggle-overrides(
+      (
+        background-color: var(--dpg-sys-mahjong-container),
+        text-color: var(--dpg-sys-on-mahjong-container),
+        selected-state-background-color: var(--dpg-sys-mahjong-container),
+        selected-state-text-color: var(--dpg-sys-on-mahjong-container),
+      )
+    );
+  }
+
+  &.chosen {
+    border: 2px solid var(--mat-sys-primary);
+  }
+}
+
+.mode-content {
+  display: grid;
+  gap: 0.375rem;
+  padding: 1rem 0.25rem;
+
+  strong {
+    font: var(--mat-sys-title-small);
+  }
+
+  small {
+    font: var(--mat-sys-body-medium);
+  }
+}
+
+.mode-top {
+  display: flex;
+  justify-content: space-between;
+}
+
+.hint {
+  margin: 0.25rem 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+.error,
+.warning {
+  margin: 0.25rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  font: var(--mat-sys-body-medium);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.account-email {
+  overflow-wrap: anywhere;
+}
+
+.account-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.disclosure ol {
+  padding-inline-start: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.save-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 1.25rem;
+}

@@ -10,6 +10,7 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       APP_URL: https://dopagaki-1032251723022.asia-northeast1.run.app
       RELEASE_TAG: ${{ github.ref_name }}
@@ -17,22 +18,30 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      # Node と pnpm のバージョンは mise.toml を正とする（拡張のビルドに Go は使わない）。
+      - uses: jdx/mise-action@v3
         with:
-          node-version: '24'
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run test:unit
-      - run: npm run build:extension
+          install_args: node pnpm
+          cache: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dopagaki/extension typecheck
+      - run: pnpm --filter @dopagaki/extension test
+      # APP_URL（管理画面のオリジン）と RELEASE_TAG（拡張のバージョン）はビルド時に埋め込み、不正なら失敗する。
+      - run: pnpm --filter @dopagaki/extension zip
       - name: Package extension
         run: |
-          mkdir -p release
-          cp extension/INSTALL.txt dist/INSTALL.txt
-          (cd dist && zip -r "../release/dopagaki-extension-${RELEASE_TAG}.zip" extension INSTALL.txt)
+          version="${RELEASE_TAG#v}"
+          artifact="apps/extension/.output/dopagaki-extension-${version}-chrome.zip"
+          test -f "$artifact"
+          rm -rf release && mkdir -p release/package/extension
+          unzip -q "$artifact" -d release/package/extension
+          grep -q "\"version\":\"${version}\"" release/package/extension/manifest.json
+          grep -q "\"${APP_URL}/\*\"" release/package/extension/manifest.json
+          cp apps/extension/INSTALL.txt release/package/INSTALL.txt
+          (cd release/package && zip -qr "../dopagaki-extension-${RELEASE_TAG}.zip" extension INSTALL.txt)
           unzip -t "release/dopagaki-extension-${RELEASE_TAG}.zip"
           (cd release && sha256sum "dopagaki-extension-${RELEASE_TAG}.zip" > SHA256SUMS.txt)
-          cp extension/INSTALL.txt release/notes.md
+          cp apps/extension/INSTALL.txt release/notes.md
           printf '\nソース: %s\n' "$GITHUB_SHA" >> release/notes.md
       - name: Publish release
         env:

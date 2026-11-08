@@ -1,0 +1,36 @@
+/* 管理画面のテーマを読み込まない静的ページなので、ブラウザーのシステムカラーでライト・ダークに対応する。 */
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.9;
+  color: CanvasText;
+  background: Canvas;
+  margin: 0;
+}
+
+main {
+  max-width: 47.5rem;
+  margin: auto;
+  padding: 2rem 1.5rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-top: 2rem;
+}
+
+a {
+  color: LinkText;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}

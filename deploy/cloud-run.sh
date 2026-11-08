@@ -10,7 +10,7 @@ smoke() {
   local url=$1 status
   curl --fail --silent --show-error --retry 3 --retry-delay 2 --max-time 15 \
     "$url/api/health" | jq -e '.status == "ok"' > /dev/null || return 1
-  status=$(curl --silent --show-error --max-time 15 -o /dev/null -w '%{http_code}' "$url/api/state")
+  status=$(curl --silent --show-error --max-time 15 -o /dev/null -w '%{http_code}' "$url/api/profile")
   [[ "$status" == 401 ]]
 }
 
@@ -46,6 +46,6 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "- Revision: \`$revision\`"
     echo "- Image: \`$image\`"
     echo "- URL: $SERVICE_URL"
-    echo '- Health: 200; unauthenticated state: 401'
+    echo '- Health: 200; unauthenticated profile: 401'
   } >> "$GITHUB_STEP_SUMMARY"
 fi

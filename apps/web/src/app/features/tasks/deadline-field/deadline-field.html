@@ -1,0 +1,48 @@
+<fieldset [disabled]="disabled()">
+  <legend>締切</legend>
+  <div class="quick" role="group" aria-label="締切の日付をすばやく選ぶ">
+    @for (option of quick; track option.label) {
+      <button
+        type="button"
+        [matButton]="option.key === date() ? 'tonal' : 'outlined'"
+        [attr.aria-pressed]="option.key === date()"
+        [disabled]="disabled()"
+        (click)="setDate(option.key)"
+      >
+        {{ option.label }}
+      </button>
+    }
+  </div>
+  <div class="pickers">
+    <mat-form-field appearance="outline">
+      <mat-label>締切日</mat-label>
+      <input
+        matInput
+        class="date-input"
+        [matDatepicker]="picker"
+        [min]="today"
+        [value]="dateObject()"
+        (dateChange)="pickDate($event.value)"
+        (click)="picker.open()"
+        (blur)="onTouched()"
+        [disabled]="disabled()"
+        required
+      />
+      <mat-datepicker-toggle matIconSuffix [for]="picker" />
+      <mat-datepicker #picker />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>締切時刻</mat-label>
+      <mat-select [value]="time()" (valueChange)="setTime($event)" [disabled]="disabled()">
+        @for (option of times(); track option) {
+          <mat-option [value]="option">{{ option }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+  @if (summary(); as summary) {
+    <p class="summary" [class.past]="summary.past" [attr.role]="summary.past ? 'alert' : null">
+      {{ summary.text }}
+    </p>
+  }
+</fieldset>
