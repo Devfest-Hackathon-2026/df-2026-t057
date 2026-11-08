@@ -22,14 +22,18 @@ type Store struct {
 func New(client *firestore.Client) *Store { return &Store{client: client} }
 
 // Run はトランザクションを実行する。競合したときは Firestore が fn を呼び直す。
-func (s *Store) Run(ctx context.Context, readOnly bool, fn func(ctx context.Context, tx store.BackendTx) error) error {
-	var opts []firestore.TransactionOption
-	if readOnly {
-		opts = append(opts, firestore.ReadOnly)
+// 要求ごとのトランザクション（Scope）も同じ仕組みで動く。読み書きは溜めた書き込みを確定する直前までサーバーに送らないので、
+// fn の中の時間のかかる処理（AI の呼び出し）の間にドキュメントをロックすることはない。
+func (s *Store) Run(ctx context.Context, opts store.RunOptions, fn func(ctx context.Context, tx store.BackendTx) error) error {
+	var txOpts []firestore.TransactionOption
+	if opts.ReadOnly {
+		txOpts = append(txOpts, firestore.ReadOnly)
 	}
-	return s.client.RunTransaction(ctx, func(ctx context.Context, t *firestore.Transaction) error { //nolint:wrapcheck // fn のエラー（apperr）をそのまま返す。
+	// fn には呼び出し元の ctx を渡す。クライアントが fn に渡す ctx はトランザクションの印を持ち、その中で別のトランザクション
+	// （要求ごとのトランザクションに加わらない View）を始められないため。Transaction は自分の ctx を持つので印は要らない。
+	return s.client.RunTransaction(ctx, func(_ context.Context, t *firestore.Transaction) error { //nolint:wrapcheck // fn のエラー（apperr）をそのまま返す。
 		return fn(ctx, &tx{client: s.client, t: t})
-	}, opts...)
+	}, txOpts...)
 }
 
 type tx struct {

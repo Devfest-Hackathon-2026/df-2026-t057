@@ -1,4 +1,5 @@
 // Package testkit は、サービスのテストで使う組み立て済みの依存（メモリのストア・進められる時計）。テストからだけ使う。
+// エミュレーターの Firestore など別の保存先で組み立てるときは NewWithBackend を使う。
 package testkit
 
 import (
@@ -35,11 +36,14 @@ var JST = func() *time.Location {
 	return loc
 }()
 
-// World はメモリ上で組み立てたすべての機能。
+// World は組み立てたすべての機能。
 type World struct {
-	Clock       *clock.Fake
-	IDs         *id.Sequence
-	Store       *memory.Store
+	Clock *clock.Fake
+	IDs   *id.Sequence
+	// Store はメモリの保存先（NewWithBackend で別の保存先を使ったときは nil）。
+	Store *memory.Store
+	// Backend は実際に使っている保存先。
+	Backend     store.Backend
 	Runner      *store.Runner
 	Idempotency *idempotency.Service
 	Planner     *FakePlanner
@@ -82,12 +86,21 @@ type lines struct{}
 
 func (lines) AppOpenLine(context.Context, string, string) (string, error) { return "", nil }
 
-// New は now の時点の World を作る。AI は使えない（逆算の計画になる）。
+// New は now の時点の、メモリの保存先で組み立てた World を作る。AI は使えない（逆算の計画になる）。
 func New(t testing.TB, now time.Time) *World {
 	t.Helper()
-	w := &World{Clock: clock.NewFake(now), IDs: &id.Sequence{Prefix: "id"}, Store: memory.NewStore()}
+	mem := memory.NewStore()
+	w := NewWithBackend(t, now, mem)
+	w.Store = mem
+	return w
+}
+
+// NewWithBackend は backend を保存先にして World を作る。
+func NewWithBackend(t testing.TB, now time.Time, backend store.Backend) *World {
+	t.Helper()
+	w := &World{Clock: clock.NewFake(now), IDs: &id.Sequence{Prefix: "id"}, Backend: backend}
 	w.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
-	w.Runner = store.NewRunner(w.Store)
+	w.Runner = store.NewRunner(backend)
 	w.Idempotency = idempotency.New(w.Runner, w.Clock, w.IDs)
 	w.Planner = &FakePlanner{Err: unavailable()}
 	hooks := calendar.Disabled{}

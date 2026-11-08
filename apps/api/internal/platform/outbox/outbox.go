@@ -38,6 +38,8 @@ const (
 	StatusPending Status = "pending"
 	StatusDone    Status = "done"
 	StatusFailed  Status = "failed"
+	// StatusCancelled は、実行する前に不要になったジョブ（カレンダー連携の解除）。Cloud Tasks から呼ばれても何もしない。
+	StatusCancelled Status = "cancelled"
 )
 
 // MaxAttempts はジョブを失敗とみなすまでの試行回数。Cloud Tasks のキューの上限（deploy/setup-cloud-tasks.sh）より小さくする。
@@ -197,6 +199,33 @@ func (o *Outbox) finish(ctx context.Context, job Job, runErr error, permanent bo
 		}
 	}
 	return nil
+}
+
+// Cancel は利用者の pending・failed のジョブをすべて取り消す（連携の解除）。取り消したジョブは DoneTTL の後に消える。
+// 取り消した数を返す。同じトランザクションの中で、このコレクションを検索した後に呼ぶ。
+func (o *Outbox) Cancel(ctx context.Context, tx *store.Tx, uid string) (int, error) {
+	now := o.clock.Now()
+	expires := now.Add(DoneTTL)
+	cancelled := 0
+	for _, s := range []Status{StatusPending, StatusFailed} {
+		jobs, err := store.List[Job](ctx, tx, store.Query{Collection: store.UserCollection(uid, Collection), Filters: []store.Filter{{Field: "status", Op: store.Eq, Value: string(s)}}})
+		if err != nil {
+			return 0, err
+		}
+		for _, j := range jobs {
+			j.Status, j.UpdatedAt, j.ExpiresAt = StatusCancelled, now, &expires
+			if err := tx.Set(ref(uid, j.ID), j); err != nil {
+				return 0, err
+			}
+			cancelled++
+		}
+	}
+	if cancelled > 0 {
+		if _, err := tx.Touch(ctx, uid, store.ResourceCalendar); err != nil {
+			return 0, err
+		}
+	}
+	return cancelled, nil
 }
 
 // Counts は pending と failed のジョブの数。

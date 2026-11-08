@@ -44,7 +44,7 @@ func TestBeginReplayReuseInProgress(t *testing.T) {
 	if err := mutate(idempotency.WithAttempt(ctx, a), r); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Complete(ctx, a, 201, map[string]string{"Etag": `"1"`}, []byte(`{}`)); err != nil {
+	if err := s.Complete(ctx, a, idempotency.Response{Status: 201, Headers: map[string]string{"Etag": `"1"`}, Body: []byte(`{}`)}); err != nil {
 		t.Fatal(err)
 	}
 	_, replay, err = s.Begin(ctx, "u", "key-0001", "h1")
@@ -74,7 +74,7 @@ func TestMutationAppliedOnlyOnceAfterLeaseTakeover(t *testing.T) {
 	}
 	// 何も反映していない失敗は記録を消し、同じキーで再試行できる。
 	third, _, _ := s.Begin(ctx, "u", "key-0003", "h")
-	if err := s.Complete(ctx, third, 412, nil, nil); err != nil {
+	if err := s.Complete(ctx, third, idempotency.Response{Status: 412}); err != nil {
 		t.Fatal(err)
 	}
 	if _, replay, err := s.Begin(ctx, "u", "key-0003", "h"); err != nil || replay != nil {

@@ -2,6 +2,7 @@
 package memory
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"encoding/json"
@@ -9,7 +10,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 )
@@ -19,10 +19,13 @@ type document struct {
 	data []byte
 }
 
-// Store はメモリ上のドキュメントストア。トランザクションは1つずつ順に実行する（直列化で整合性を保つ）。
+// Store はメモリ上のドキュメントストア。1つの Update・View は1つずつ順に実行する（直列化で整合性を保つ）。
+// 要求ごとのトランザクション（Scope つき）は fn の間ロックを持たず、同じ Scope の要求を直列に実行し、
+// 確定するときに読んだ内容が変わっていないことを確かめる。
 type Store struct {
 	mu       sync.RWMutex
 	docs     map[string]document
+	scopes   sync.Map // Scope → *sync.Mutex
 	watchMu  sync.Mutex
 	watchers map[string]map[int]func(store.Meta)
 	nextID   int
@@ -44,7 +47,12 @@ type op struct {
 type tx struct {
 	s   *Store
 	ops []op
+	// seen は読んだドキュメントの内容（無ければ nil）。要求ごとのトランザクションの確定で、変わっていないことを確かめる。
+	seen map[string][]byte
 }
+
+// maxAttempts は要求ごとのトランザクションを競合でやり直す回数の上限。
+const maxAttempts = 5
 
 // FailNextCommit は、次の書き込みトランザクションのコミットを err で失敗させる（ロールバックのテスト用）。
 func (s *Store) FailNextCommit(err error) {
@@ -54,11 +62,14 @@ func (s *Store) FailNextCommit(err error) {
 }
 
 // Run はトランザクションを実行する。
-func (s *Store) Run(ctx context.Context, readOnly bool, fn func(ctx context.Context, tx store.BackendTx) error) error {
-	if readOnly {
+func (s *Store) Run(ctx context.Context, opts store.RunOptions, fn func(ctx context.Context, tx store.BackendTx) error) error {
+	if opts.ReadOnly {
 		s.mu.RLock()
 		defer s.mu.RUnlock()
 		return fn(ctx, &tx{s: s})
+	}
+	if opts.Scope != "" {
+		return s.runRequest(ctx, opts.Scope, fn)
 	}
 	s.mu.Lock()
 	t := &tx{s: s}
@@ -66,10 +77,62 @@ func (s *Store) Run(ctx context.Context, readOnly bool, fn func(ctx context.Cont
 		s.mu.Unlock()
 		return err
 	}
+	changed, err := s.commit(t)
+	s.mu.Unlock()
+	s.notifyAll(changed)
+	return err
+}
+
+// runRequest は要求ごとのトランザクション。fn の間は全体のロックを持たず（fn の中の View や Detach した Update が
+// 動けるように）、同じ Scope の要求どうしだけを直列にする。確定で読んだ内容が変わっていれば fn をやり直す。
+func (s *Store) runRequest(ctx context.Context, scope string, fn func(ctx context.Context, tx store.BackendTx) error) error {
+	lock, _ := s.scopes.LoadOrStore(scope, &sync.Mutex{})
+	mu := lock.(*sync.Mutex) // LoadOrStore には *sync.Mutex しか入れない。
+	mu.Lock()
+	defer mu.Unlock()
+	for range maxAttempts {
+		t := &tx{s: s, seen: map[string][]byte{}}
+		if err := fn(ctx, t); err != nil {
+			return err
+		}
+		s.mu.Lock()
+		if !t.unchanged() {
+			s.mu.Unlock()
+			continue
+		}
+		changed, err := s.commit(t)
+		s.mu.Unlock()
+		s.notifyAll(changed)
+		return err
+	}
+	return store.ErrConflict
+}
+
+// unchanged は読んだドキュメントが今も同じ内容か（s.mu を持って呼ぶ）。
+func (t *tx) unchanged() bool {
+	for path, data := range t.seen {
+		d, ok := t.s.docs[path]
+		if ok != (data != nil) || (ok && !bytes.Equal(d.data, data)) {
+			return false
+		}
+	}
+	return true
+}
+
+func (t *tx) note(path string, data []byte) {
+	if t.seen == nil {
+		return
+	}
+	if _, already := t.seen[path]; !already {
+		t.seen[path] = data
+	}
+}
+
+// commit は溜めた書き込みを反映し、変わった版のドキュメントを返す（s.mu を持って呼ぶ）。
+func (s *Store) commit(t *tx) (map[string]store.Meta, error) {
 	if err := s.failNext; err != nil {
 		s.failNext = nil
-		s.mu.Unlock()
-		return err
+		return nil, err
 	}
 	changed := map[string]store.Meta{}
 	for _, o := range t.ops {
@@ -87,18 +150,28 @@ func (s *Store) Run(ctx context.Context, readOnly bool, fn func(ctx context.Cont
 			changed[path] = m
 		}
 	}
-	s.mu.Unlock()
+	return changed, nil
+}
+
+// notifyAll はロックを外した後に版の変更を通知する。
+func (s *Store) notifyAll(changed map[string]store.Meta) {
 	for path, m := range changed {
 		s.notify(path, m)
 	}
-	return nil
 }
 
 func (t *tx) Get(_ context.Context, ref store.Ref, dst any) (bool, error) {
+	if t.seen != nil {
+		// 要求ごとのトランザクションは全体のロックを持たない。
+		t.s.mu.RLock()
+		defer t.s.mu.RUnlock()
+	}
 	d, ok := t.s.docs[ref.Path()]
 	if !ok {
+		t.note(ref.Path(), nil)
 		return false, nil
 	}
+	t.note(ref.Path(), d.data)
 	if err := json.Unmarshal(d.data, dst); err != nil {
 		return false, fmt.Errorf("memory: decode %s: %w", ref.Path(), err)
 	}
@@ -125,29 +198,13 @@ type row struct {
 }
 
 func (t *tx) Query(_ context.Context, q store.Query, each func(ref store.Ref, decode func(dst any) error) error) error {
-	var rows []row
-	for _, d := range t.s.docs {
-		if d.ref.Collection != q.Collection {
-			continue
-		}
-		var fields map[string]any
-		if err := json.Unmarshal(d.data, &fields); err != nil {
-			return fmt.Errorf("memory: decode %s: %w", d.ref.Path(), err)
-		}
-		match := true
-		for _, f := range q.Filters {
-			if !matches(fields[f.Field], f) {
-				match = false
-				break
-			}
-		}
-		if match {
-			rows = append(rows, row{doc: d, fields: fields})
-		}
+	rows, err := t.collect(q)
+	if err != nil {
+		return err
 	}
 	slices.SortFunc(rows, func(a, b row) int {
 		if q.OrderBy != "" {
-			if c := compare(a.fields[q.OrderBy], b.fields[q.OrderBy]); c != 0 {
+			if c := store.Compare(a.fields[q.OrderBy], b.fields[q.OrderBy]); c != 0 {
 				if q.Desc {
 					return -c
 				}
@@ -160,6 +217,7 @@ func (t *tx) Query(_ context.Context, q store.Query, each func(ref store.Ref, de
 		rows = rows[:q.Limit]
 	}
 	for _, r := range rows {
+		t.note(r.doc.ref.Path(), r.doc.data)
 		data := r.doc.data
 		err := each(r.doc.ref, func(dst any) error {
 			if err := json.Unmarshal(data, dst); err != nil {
@@ -174,81 +232,27 @@ func (t *tx) Query(_ context.Context, q store.Query, each func(ref store.Ref, de
 	return nil
 }
 
-// matches は JSON で保存した値が条件に合うか。
-func matches(value any, f store.Filter) bool {
-	c, ok := compareFilter(value, f.Value)
-	if !ok {
-		return false
+// collect は条件に合うドキュメントを集める。Firestore と同じく、並べ替えの項目が無いドキュメントは返さない。
+func (t *tx) collect(q store.Query) ([]row, error) {
+	if t.seen != nil {
+		t.s.mu.RLock()
+		defer t.s.mu.RUnlock()
 	}
-	switch f.Op {
-	case store.Eq:
-		return c == 0
-	case store.Lt:
-		return c < 0
-	case store.Le:
-		return c <= 0
-	case store.Gt:
-		return c > 0
-	case store.Ge:
-		return c >= 0
-	default:
-		return false
+	var rows []row
+	for _, d := range t.s.docs {
+		if d.ref.Collection != q.Collection {
+			continue
+		}
+		var fields map[string]any
+		if err := json.Unmarshal(d.data, &fields); err != nil {
+			return nil, fmt.Errorf("memory: decode %s: %w", d.ref.Path(), err)
+		}
+		if _, ordered := fields[q.OrderBy]; (q.OrderBy != "" && !ordered) || !store.Matches(fields, q.Filters) {
+			continue
+		}
+		rows = append(rows, row{doc: d, fields: fields})
 	}
-}
-
-// compareFilter は JSON の値と、Go の条件の値を比べる。型が合わなければ false。
-func compareFilter(value, want any) (int, bool) {
-	switch w := want.(type) {
-	case string:
-		v, ok := value.(string)
-		return cmp.Compare(v, w), ok
-	case bool:
-		v, ok := value.(bool)
-		if !ok {
-			return 0, false
-		}
-		if v == w {
-			return 0, true
-		}
-		return 1, true
-	case int:
-		v, ok := value.(float64)
-		return cmp.Compare(v, float64(w)), ok
-	case int64:
-		v, ok := value.(float64)
-		return cmp.Compare(v, float64(w)), ok
-	case time.Time:
-		s, ok := value.(string)
-		if !ok {
-			return 0, false
-		}
-		v, err := time.Parse(time.RFC3339Nano, s)
-		if err != nil {
-			return 0, false
-		}
-		return v.Compare(w), true
-	default:
-		return 0, false
-	}
-}
-
-// compare は JSON の値どうしを比べる（並べ替え用）。
-func compare(a, b any) int {
-	switch x := a.(type) {
-	case float64:
-		y, _ := b.(float64)
-		return cmp.Compare(x, y)
-	case string:
-		y, _ := b.(string)
-		tx, errX := time.Parse(time.RFC3339Nano, x)
-		ty, errY := time.Parse(time.RFC3339Nano, y)
-		if errX == nil && errY == nil {
-			return tx.Compare(ty)
-		}
-		return cmp.Compare(x, y)
-	default:
-		return 0
-	}
+	return rows, nil
 }
 
 // WatchMeta は利用者の版のドキュメントを監視し、変わるたびに fn を呼ぶ。最初に今の値で1回呼ぶ。ctx が終わるまで戻らない。

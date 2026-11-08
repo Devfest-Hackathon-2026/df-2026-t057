@@ -32,6 +32,13 @@ func (m *memoryTokens) Save(_ context.Context, uid string, token []byte) error {
 	return nil
 }
 
+func (m *memoryTokens) Delete(_ context.Context, uid string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.tokens, uid)
+	return nil
+}
+
 func (m *memoryTokens) Load(_ context.Context, uid string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

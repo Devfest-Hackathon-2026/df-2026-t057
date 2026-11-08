@@ -32,6 +32,11 @@ func (c CalendarLink) SyncNow(ctx context.Context, uid string) (oapi.CalendarSta
 	return calendarStatusOut(s), err
 }
 
+func (c CalendarLink) Disconnect(ctx context.Context, uid string) (oapi.CalendarStatus, error) {
+	s, err := c.Service.Disconnect(ctx, uid)
+	return calendarStatusOut(s), err
+}
+
 func (c CalendarLink) Webhook(ctx context.Context, channelID, token, state string) error {
 	return c.Service.Webhook(ctx, channelID, token, state)
 }

@@ -2,6 +2,8 @@ package firestore_test
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"os"
 	"testing"
 
@@ -27,7 +29,10 @@ func TestFirestoreBackend(t *testing.T) {
 		ID  string `json:"id" firestore:"id"`
 		Seq int64  `json:"seq" firestore:"seq"`
 	}
-	uid := "emulator-" + t.Name()
+	// エミュレーターは実行をまたいでデータを残すので、利用者を実行ごとに変える。
+	var suffix [8]byte
+	_, _ = rand.Read(suffix[:])
+	uid := "emulator-" + hex.EncodeToString(suffix[:])
 	err = r.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
 		for i := range 3 {
 			id := string(rune('a' + i))

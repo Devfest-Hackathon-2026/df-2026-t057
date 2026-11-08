@@ -581,3 +581,102 @@ func TestRenewRedispatchesStaleJobs(t *testing.T) {
 		t.Fatal("stale jobs not redispatched")
 	}
 }
+
+func TestDisconnectClearsLinkageAndCancelsJobs(t *testing.T) {
+	e := newEnv(t)
+	e.connect()
+	e.mustDrain()
+	created := e.createTask("課題A", 60, e.clock.Now().Add(5*time.Hour))
+	e.mustDrain()
+	if !e.list().Linked[created.ID] {
+		t.Fatal("task should be linked before disconnecting")
+	}
+	before := e.connection()
+	// まだ実行していないジョブと、失敗したジョブを残しておく。
+	e.createTask("課題B", 30, e.clock.Now().Add(6*time.Hour))
+	e.disp.take()
+	if pending, _ := e.jobCounts(); pending == 0 {
+		t.Fatal("expected pending jobs before disconnecting")
+	}
+	tasksRev, calRev := e.revision(store.ResourceTasks), e.revision(store.ResourceCalendar)
+
+	st, err := e.svc.Disconnect(e.ctx, uid)
+	if err != nil || st.Connected || st.Sync != SyncDisconnected || !st.Enabled || st.FailedJobs != 0 {
+		t.Fatalf("status after disconnect: %+v %v", st, err)
+	}
+	c := e.connection()
+	if c.Connected || c.ChannelID != "" || c.ChannelToken != "" || c.ChannelResource != "" || c.SyncToken != "" || c.LastSync != nil || c.ContentSeq != nil {
+		t.Fatalf("connection not cleared: %+v", c)
+	}
+	if c.CalendarID != before.CalendarID || c.GoogleID != before.GoogleID {
+		t.Fatalf("calendar id should be kept for reconnecting: %+v", c)
+	}
+	if e.google.deleted[uid] != 1 || e.google.saved[uid] != nil {
+		t.Fatalf("token not deleted: %v", e.google.deleted)
+	}
+	if len(e.cal.stopped) != 1 || e.cal.stopped[0] != before.ChannelID {
+		t.Fatalf("channel not stopped: %v", e.cal.stopped)
+	}
+	if err := e.svc.Webhook(e.ctx, before.ChannelID, before.ChannelToken, "exists"); !errors.Is(err, apperr.Forbidden("not_found")) {
+		t.Fatalf("old channel still accepted: %v", err)
+	}
+	if pending, failed := e.jobCounts(); pending != 0 || failed != 0 {
+		t.Fatalf("jobs not cancelled: pending=%d failed=%d", pending, failed)
+	}
+	l := e.list()
+	if len(l.Items) != 2 || len(l.Linked) != 0 {
+		t.Fatalf("tasks must remain but unlinked: items=%d linked=%v", len(l.Items), l.Linked)
+	}
+	if _, linked := e.link(created.ID); linked {
+		t.Fatal("link document kept")
+	}
+	if e.revision(store.ResourceTasks) != tasksRev+1 || e.revision(store.ResourceCalendar) <= calRev {
+		t.Fatalf("revisions not bumped: tasks %d->%d calendar %d->%d", tasksRev, e.revision(store.ResourceTasks), calRev, e.revision(store.ResourceCalendar))
+	}
+	// 取り消したジョブは Cloud Tasks から呼ばれても何もしない。
+	if errs := e.drain(); len(errs) != 0 {
+		t.Fatalf("cancelled jobs ran: %v", errs)
+	}
+	// 課題の変更はジョブを積まない。
+	e.createTask("課題C", 30, e.clock.Now().Add(7*time.Hour))
+	if pending, _ := e.jobCounts(); pending != 0 {
+		t.Fatal("jobs enqueued after disconnecting")
+	}
+
+	// 連携していないときに呼んでも 200 で、何も変えない。
+	tasksRev, calRev = e.revision(store.ResourceTasks), e.revision(store.ResourceCalendar)
+	if st, err := e.svc.Disconnect(e.ctx, uid); err != nil || st.Connected {
+		t.Fatalf("second disconnect: %+v %v", st, err)
+	}
+	if e.revision(store.ResourceTasks) != tasksRev || e.revision(store.ResourceCalendar) != calRev || e.google.deleted[uid] != 1 {
+		t.Fatal("disconnect while disconnected changed state")
+	}
+
+	// つなぎ直すと、同じカレンダーに予定を結び付け直す（報酬は二重に付与しない）。
+	e.connect()
+	e.mustDrain()
+	if e.cal.calendars != 1 {
+		t.Fatalf("calendar recreated: %d", e.cal.calendars)
+	}
+	l = e.list()
+	if len(l.Items) != 3 || !l.Linked[created.ID] || e.rewards.total() != 900 {
+		t.Fatalf("reconnect: items=%d linked=%v rewards=%d", len(l.Items), l.Linked, e.rewards.total())
+	}
+	if ev, ok := e.cal.event(EventID(uid, created.ID)); !ok || ev.Status != EventConfirmed {
+		t.Fatalf("event lost on reconnect: %+v %v", ev, ok)
+	}
+}
+
+func TestDisconnectSucceedsWhenTokenDeleteFails(t *testing.T) {
+	e := newEnv(t)
+	e.connect()
+	e.mustDrain()
+	e.google.deleteErr = apperr.External("external.failed", errors.New("secret manager down"))
+	st, err := e.svc.Disconnect(e.ctx, uid)
+	if err != nil || st.Connected {
+		t.Fatalf("disconnect should not depend on the token store: %+v %v", st, err)
+	}
+	if e.connection().Connected {
+		t.Fatal("still connected")
+	}
+}

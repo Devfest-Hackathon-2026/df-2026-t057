@@ -195,6 +195,8 @@ type fakeGoogle struct {
 	grant     Grant
 	lastState string
 	saved     map[string][]byte
+	deleted   map[string]int
+	deleteErr error
 	clientErr map[string]error
 }
 
@@ -210,9 +212,21 @@ func (g *fakeGoogle) SaveToken(_ context.Context, uid string, token []byte) erro
 	return nil
 }
 
+func (g *fakeGoogle) DeleteToken(_ context.Context, uid string) error {
+	if g.deleteErr != nil {
+		return g.deleteErr
+	}
+	g.deleted[uid]++
+	delete(g.saved, uid)
+	return nil
+}
+
 func (g *fakeGoogle) Client(_ context.Context, uid string) (Client, error) {
 	if err := g.clientErr[uid]; err != nil {
 		return nil, err
+	}
+	if _, ok := g.saved[uid]; !ok {
+		return nil, apperr.Forbidden("calendar.reauth_required")
 	}
 	return g.cal, nil
 }
@@ -340,7 +354,7 @@ func newEnv(t *testing.T) *env {
 	e.disp = &fakeDispatcher{}
 	e.outbox = outbox.New(e.runner, e.disp, e.clock, ids, log)
 	e.cal = newFakeCalendar()
-	e.google = &fakeGoogle{cal: e.cal, grant: Grant{Subject: "google-1", HasRefreshToken: true, Token: []byte("token")}, saved: map[string][]byte{}, clientErr: map[string]error{}}
+	e.google = &fakeGoogle{cal: e.cal, grant: Grant{Subject: "google-1", HasRefreshToken: true, Token: []byte("token")}, saved: map[string][]byte{}, deleted: map[string]int{}, clientErr: map[string]error{}}
 	e.planner = &fakePlanner{err: apperr.Unavailable("ai.unavailable")}
 	e.sessions = &fakeSessions{}
 	e.rewards = &fakeRewards{granted: map[string]int{}}

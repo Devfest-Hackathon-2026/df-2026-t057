@@ -341,6 +341,60 @@ func (s *Service) SyncNow(ctx context.Context, uid string) (Status, error) {
 	return s.Status(ctx, uid)
 }
 
+// Disconnect は連携をやめる。連携の状態・チャンネルの記録・課題と予定の結び付きを消し、反映待ちと失敗のジョブを取り消し、
+// 課題の一覧の calendarLinked が変わるので課題の版も上げる。確定した後に、チャンネルを止めてトークンを破棄する
+// （外部の失敗で解除を止めない。チャンネルは期限で止まり、トークンはつなぎ直すと置き換わる）。
+// 専用のカレンダーは消さず、ID を残してつなぎ直したときに使う。連携していなければ何もせず、今の状態を返す。
+func (s *Service) Disconnect(ctx context.Context, uid string) (Status, error) {
+	if !s.cfg.Enabled {
+		return Status{}, apperr.Unavailable("calendar.unavailable")
+	}
+	err := s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
+		c, err := loadConnection(ctx, tx, uid)
+		if err != nil || !c.Connected {
+			return err
+		}
+		links, err := store.List[Link](ctx, tx, store.Query{Collection: linksCollection(uid)})
+		if err != nil {
+			return err
+		}
+		if _, err := s.outbox.Cancel(ctx, tx, uid); err != nil {
+			return err
+		}
+		for _, l := range links {
+			if err := tx.Delete(linkRef(uid, l.TaskID)); err != nil {
+				return err
+			}
+		}
+		if c.ChannelID != "" {
+			if err := tx.Delete(channelRef(c.ChannelID)); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.Touch(ctx, uid, store.ResourceTasks); err != nil {
+			return err
+		}
+		old := c
+		tx.AfterCommit(func() { s.teardown(context.WithoutCancel(ctx), uid, old) })
+		// つなぎ直したときに予定を結び付け直せるよう、カレンダーの ID と Google アカウントだけ残す。
+		return saveConnection(ctx, tx, uid, Connection{CalendarID: c.CalendarID, GoogleID: c.GoogleID})
+	})
+	if err != nil {
+		return Status{}, err
+	}
+	return s.Status(ctx, uid)
+}
+
+// teardown は解除を確定した後に、チャンネルを止めてトークンを破棄する。トークンを読めなければチャンネルは期限で止まる。
+func (s *Service) teardown(ctx context.Context, uid string, old Connection) {
+	if client, err := s.Google.Client(ctx, uid); err == nil {
+		s.stopChannel(ctx, client, old.ChannelID, old.ChannelResource)
+	}
+	if err := s.Google.DeleteToken(ctx, uid); err != nil {
+		s.Log.WarnContext(ctx, "calendar token delete failed", "code", apperr.As(err).Code)
+	}
+}
+
 // Webhook は Google Calendar の変更通知を受け付け、取り込みのジョブを積む。照合できなければ Forbidden。
 func (s *Service) Webhook(ctx context.Context, channelID, token, resourceState string) error {
 	if !s.cfg.Enabled {

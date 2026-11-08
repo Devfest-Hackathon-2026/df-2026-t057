@@ -13,6 +13,7 @@ import (
 	"time"
 
 	apihttp "github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/http"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/http/oapi"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/config"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/realtime"
@@ -223,5 +224,70 @@ func TestEventsStreamSendsInitialRevisions(t *testing.T) {
 			}
 			return
 		}
+	}
+}
+
+// fakeCalendar は連携の状態だけを持つ Calendar。
+type fakeCalendar struct {
+	connected   bool
+	disconnects int
+}
+
+func (f *fakeCalendar) status() oapi.CalendarStatus {
+	sync := oapi.CalendarStatusSyncDisconnected
+	if f.connected {
+		sync = oapi.CalendarStatusSyncSynced
+	}
+	return oapi.CalendarStatus{Enabled: true, Connected: f.connected, Sync: sync}
+}
+
+func (f *fakeCalendar) Status(context.Context, string) (oapi.CalendarStatus, error) {
+	return f.status(), nil
+}
+func (f *fakeCalendar) Connect(context.Context, string, string, string) (string, error) {
+	return "https://accounts.example/auth", nil
+}
+func (f *fakeCalendar) Callback(context.Context, string, string, string) string { return "/" }
+func (f *fakeCalendar) SyncNow(context.Context, string) (oapi.CalendarStatus, error) {
+	return f.status(), nil
+}
+func (f *fakeCalendar) Disconnect(context.Context, string) (oapi.CalendarStatus, error) {
+	f.disconnects++
+	f.connected = false
+	return f.status(), nil
+}
+func (f *fakeCalendar) Webhook(context.Context, string, string, string) error { return nil }
+func (f *fakeCalendar) Renew(context.Context) error                           { return nil }
+
+func TestDisconnectCalendar(t *testing.T) {
+	// 連携を使わない環境では 503 calendar.unavailable。
+	off, _ := newServer(t, config.ModeDemo)
+	expectProblem(t, call(t, off, "POST", "/api/calendar/disconnect", "", "Idempotency-Key", "disc-0001"), 503, "calendar.unavailable")
+
+	w := testkit.New(t, time.Date(2026, 11, 8, 12, 0, 0, 0, testkit.JST))
+	cal := &fakeCalendar{connected: true}
+	api, err := apihttp.NewAPI(apihttp.Deps{
+		Config: config.Config{Mode: config.ModeDemo, AppURL: "http://app.test"}, Clock: w.Clock, Log: w.Log, Idempotency: w.Idempotency,
+		Profiles: w.Profiles, Tasks: w.Tasks, Work: w.Work, Wallet: w.Wallet, Viewing: w.Viewing, Sleep: w.Sleep,
+		Records: w.Records, Shortcut: w.Shortcut, Events: realtime.NewHub(w.Store, w.Log), Calendar: cal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(apihttp.APIOnly(api))
+	t.Cleanup(srv.Close)
+	expectProblem(t, call(t, srv, "POST", "/api/calendar/disconnect", ""), 400, "idempotency.key_required")
+	r := call(t, srv, "POST", "/api/calendar/disconnect", "", "Idempotency-Key", "disc-0002")
+	if r.status != 200 || r.body["connected"] != false || r.body["sync"] != "disconnected" || r.body["enabled"] != true || cal.disconnects != 1 {
+		t.Fatalf("disconnect: %d %s", r.status, r.raw)
+	}
+	// 同じキーの再送は記録した応答を返し、解除をやり直さない。
+	again := call(t, srv, "POST", "/api/calendar/disconnect", "", "Idempotency-Key", "disc-0002")
+	if again.status != 200 || again.raw != r.raw || again.header.Get("Idempotent-Replayed") != "true" || cal.disconnects != 1 {
+		t.Fatalf("replay: %d %s", again.status, again.raw)
+	}
+	// 連携していないときに呼んでも 200。
+	if r := call(t, srv, "POST", "/api/calendar/disconnect", "", "Idempotency-Key", "disc-0003"); r.status != 200 || r.body["connected"] != false {
+		t.Fatalf("disconnect while disconnected: %d %s", r.status, r.raw)
 	}
 }

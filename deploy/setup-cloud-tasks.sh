@@ -73,7 +73,7 @@ else
   "${cloud[@]}" scheduler jobs create http "$scheduler_job" "${scheduler_flags[@]}"
 fi
 
-# Firestore の TTL（expiresAt を過ぎたドキュメントを自動で消す）。
+# Firestore の TTL（expiresAt を過ぎたドキュメントを自動で消す）。定義は deploy/firestore.indexes.json と同じ内容。
 for group in idempotency outbox oauthStates; do
   "${cloud[@]}" firestore fields ttls update expiresAt --collection-group="$group" --enable-ttl --async
 done
@@ -85,4 +85,7 @@ Cloud Run に次の環境変数を設定してください:
   CLOUD_TASKS_INVOKER=$invoker_sa
   SCHEDULER_INVOKER=$invoker_sa
   OIDC_AUDIENCE=$audience
+
+Firestore のインデックスの除外とルールは deploy/firestore.md の手順で反映してください
+（firebase deploy --only firestore、または gcloud firestore indexes fields update）。
 EOF

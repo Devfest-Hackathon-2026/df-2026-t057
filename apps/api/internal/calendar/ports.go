@@ -58,8 +58,10 @@ type Google interface {
 	AuthURL(state, loginHint string) string
 	// Exchange は認可コードをトークンに換え、ID トークンを検証する。
 	Exchange(ctx context.Context, code string) (Grant, error)
-	// SaveToken は利用者のトークンを保存する。
+	// SaveToken は利用者のトークンを保存する。前のトークンは破棄する。
 	SaveToken(ctx context.Context, uid string, token []byte) error
+	// DeleteToken は利用者のトークンを破棄する。保存されていなければ何もしない。
+	DeleteToken(ctx context.Context, uid string) error
 	// Client は保存したトークンで Calendar API を使う。
 	Client(ctx context.Context, uid string) (Client, error)
 	// ClientFor は受け取ったトークンで Calendar API を使う。

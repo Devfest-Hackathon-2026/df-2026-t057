@@ -16,7 +16,8 @@ import (
 
 // SecretStore は OAuth のトークンを Secret Manager に保存する。
 // 利用者ごとに secret を1つ作り（projects/<p>/secrets/dopagaki-calendar-<hex(sha256(uid))[:32]>）、つなぎ直すたびに版を加える。
-// 古い版は加えた直後に破棄する（使わないトークンを残さない）。
+// 古い版は加えた直後に破棄し（使わないトークンを残さない）、連携の解除で secret ごと消す。
+// 実行アカウントに必要な権限は deploy/iam/runtime-secret-role.yaml にある。
 type SecretStore struct {
 	client  *secretmanager.Client
 	project string
@@ -28,7 +29,12 @@ func NewSecretStore(ctx context.Context, project string) (*SecretStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gcal: secret manager client: %w", err)
 	}
-	return &SecretStore{client: c, project: project}, nil
+	return NewSecretStoreWithClient(c, project), nil
+}
+
+// NewSecretStoreWithClient は、用意した接続（テストでは偽のサーバーへの接続）で SecretStore を作る。
+func NewSecretStoreWithClient(c *secretmanager.Client, project string) *SecretStore {
+	return &SecretStore{client: c, project: project}
 }
 
 // Close は接続を閉じる。
@@ -73,7 +79,7 @@ func (s *SecretStore) Save(ctx context.Context, uid string, token []byte) error 
 	return nil
 }
 
-// destroyOlder は新しい版より前の有効な版を破棄する。失敗しても保存は成功しているので、続ける。
+// destroyOlder は新しい版より前の有効な版を破棄する。失敗しても保存は成功しているので、続ける（次の保存で改めて破棄する）。
 func (s *SecretStore) destroyOlder(ctx context.Context, uid, keep string) {
 	it := s.client.ListSecretVersions(ctx, &secretmanagerpb.ListSecretVersionsRequest{Parent: s.name(uid), Filter: "state:ENABLED"})
 	for {
@@ -87,6 +93,15 @@ func (s *SecretStore) destroyOlder(ctx context.Context, uid, keep string) {
 		}
 		_, _ = s.client.DestroySecretVersion(ctx, &secretmanagerpb.DestroySecretVersionRequest{Name: v.GetName()})
 	}
+}
+
+// Delete は secret を版ごと消す。無ければ何もしない。
+func (s *SecretStore) Delete(ctx context.Context, uid string) error {
+	err := s.client.DeleteSecret(ctx, &secretmanagerpb.DeleteSecretRequest{Name: s.name(uid)})
+	if err != nil && status.Code(err) != codes.NotFound {
+		return secretError("delete", err)
+	}
+	return nil
 }
 
 // Load は最新のトークンを読む。保存されていなければ calendar.reauth_required。

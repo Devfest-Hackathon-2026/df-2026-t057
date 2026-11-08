@@ -6,17 +6,28 @@
 // トランザクションの約束:
 //   - 書き込みはコミットまで溜めておき、最後にまとめて反映する（Firestore は「読み取りをすべて書き込みより前に行う」必要があるため）。
 //   - 同じトランザクションの中で書いたドキュメントを読むと、書いた内容が返る。
-//   - 書き込みを溜めているコレクションを Query すると ErrQueryAfterWrite を返す（溜めた書き込みは結果に反映できないため）。
-//     サービスは、先にまとめて読んでから書く。
+//   - 書き込みを溜めているコレクションを Query すると、実装の結果に溜めた書き込みを重ねて返す。
 //   - fn は競合で何度か呼ばれることがある。fn の中では外部に副作用を起こさず、確定後の処理は AfterCommit に登録する。
 //   - 状態を変えたリソースは Touch で版を上げる。版は users/{uid}/state/meta にまとめて持ち、変更通知（SSE）の元になる。
+//
+// 要求ごとのトランザクション（Request）:
+//   - HTTP の状態を変える要求は Runner.Request の中で処理する。その間の Update はすべて同じトランザクションに加わり
+//     （書き込みは溜まり、失敗した Update の分だけ取り消す）、要求が終わったときにまとめて確定する。
+//     Idempotency-Key の応答を、状態の変更と同じトランザクションに記録するため（platform/idempotency）。
+//   - View は、溜めた書き込みがあるときだけ同じトランザクションで読む（書いた内容が見えるように）。無ければ別の読み取り専用の
+//     トランザクションで読み、AI の呼び出しなど時間のかかる処理の間にドキュメントをロックしない。
+//   - 溜めた書き込みのあるコレクションの Query は、実装の結果に溜めた書き込みを重ねて返す。
+//   - 要求と関係なく、その場で確定したい書き込み（AI の利用量など）は Detach した context で Update する。
 package store
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -107,9 +118,17 @@ type Query struct {
 	Limit      int
 }
 
+// RunOptions はトランザクションの実行方法。
+type RunOptions struct {
+	ReadOnly bool
+	// Scope は要求ごとのトランザクション（Runner.Request）の範囲（利用者の ID）。空なら1つの Update・View。
+	// 実装は fn の間ロックを持たず、競合したら fn を呼び直す。メモリ実装は同じ Scope の要求を直列に実行する。
+	Scope string
+}
+
 // Backend はトランザクションを実行する実装（Firestore・メモリ）。
 type Backend interface {
-	Run(ctx context.Context, readOnly bool, fn func(ctx context.Context, tx BackendTx) error) error
+	Run(ctx context.Context, opts RunOptions, fn func(ctx context.Context, tx BackendTx) error) error
 }
 
 // BackendTx は実装側のトランザクション。Set と Delete はコミットの直前にだけ呼ばれる。
@@ -120,11 +139,11 @@ type BackendTx interface {
 	Delete(ref Ref) error
 }
 
-// ErrQueryAfterWrite は、書き込みを溜めているコレクションを検索したときのエラー。
-var ErrQueryAfterWrite = errors.New("store: query after write in the same transaction")
-
 // ErrReadOnly は、読み取り専用のトランザクションで書こうとしたときのエラー。
 var ErrReadOnly = errors.New("store: write in a read-only transaction")
+
+// ErrConflict は、要求ごとのトランザクションが読んだ内容が確定までに変わり、やり直しても解決しなかったときのエラー。
+var ErrConflict = errors.New("store: transaction conflict")
 
 type cached struct {
 	found bool
@@ -212,13 +231,22 @@ func (t *Tx) put(w *write) {
 	t.writes[path] = w
 }
 
-// Query はコレクションを検索し、各ドキュメントを each に渡す。
+// Query はコレクションを検索し、各ドキュメントを each に渡す。溜めた書き込みのあるコレクションでは、
+// 実装の結果に溜めた書き込み（置き換え・削除）を重ね、並べ替えと件数の上限を改めて適用する。
 func (t *Tx) Query(ctx context.Context, q Query, each func(ref Ref, decode func(dst any) error) error) error {
-	for _, w := range t.writes {
+	pending := map[string]*write{}
+	for path, w := range t.writes {
 		if w.ref.Collection == q.Collection {
-			return ErrQueryAfterWrite
+			pending[path] = w
 		}
 	}
+	if len(pending) == 0 {
+		return t.queryBackend(ctx, q, each)
+	}
+	return t.queryMerged(ctx, q, pending, each)
+}
+
+func (t *Tx) queryBackend(ctx context.Context, q Query, each func(ref Ref, decode func(dst any) error) error) error {
 	err := t.backend.Query(ctx, q, func(ref Ref, decode func(dst any) error) error {
 		return each(ref, func(dst any) error {
 			if err := decode(dst); err != nil {
@@ -236,6 +264,163 @@ func (t *Tx) Query(ctx context.Context, q Query, each func(ref Ref, decode func(
 		return fmt.Errorf("store: query %s: %w", q.Collection, err)
 	}
 	return nil
+}
+
+type queryRow struct {
+	ref    Ref
+	data   []byte
+	fields map[string]any
+}
+
+func (t *Tx) queryMerged(ctx context.Context, q Query, pending map[string]*write, each func(ref Ref, decode func(dst any) error) error) error {
+	var rows []queryRow
+	unlimited := q
+	unlimited.Limit = 0
+	err := t.backend.Query(ctx, unlimited, func(ref Ref, decode func(dst any) error) error {
+		if _, overridden := pending[ref.Path()]; overridden {
+			return nil
+		}
+		var fields map[string]any
+		if err := decode(&fields); err != nil {
+			return err
+		}
+		data, err := json.Marshal(fields)
+		if err != nil {
+			return fmt.Errorf("store: cache %s: %w", ref.Collection, err)
+		}
+		if err := json.Unmarshal(data, &fields); err != nil {
+			return fmt.Errorf("store: decode %s: %w", ref.Collection, err)
+		}
+		t.reads[ref.Path()] = cached{found: true, data: data}
+		rows = append(rows, queryRow{ref: ref, data: data, fields: fields})
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("store: query %s: %w", q.Collection, err)
+	}
+	for _, w := range pending {
+		if w.deleted {
+			continue
+		}
+		var fields map[string]any
+		if err := json.Unmarshal(w.data, &fields); err != nil {
+			return fmt.Errorf("store: decode %s: %w", w.ref.Collection, err)
+		}
+		if _, ordered := fields[q.OrderBy]; (q.OrderBy != "" && !ordered) || !Matches(fields, q.Filters) {
+			continue
+		}
+		rows = append(rows, queryRow{ref: w.ref, data: w.data, fields: fields})
+	}
+	slices.SortFunc(rows, func(a, b queryRow) int {
+		if q.OrderBy != "" {
+			if c := Compare(a.fields[q.OrderBy], b.fields[q.OrderBy]); c != 0 {
+				if q.Desc {
+					return -c
+				}
+				return c
+			}
+		}
+		return cmp.Compare(a.ref.ID, b.ref.ID)
+	})
+	if q.Limit > 0 && len(rows) > q.Limit {
+		rows = rows[:q.Limit]
+	}
+	for _, r := range rows {
+		if err := each(r.ref, func(dst any) error { return decodeJSON(r.data, dst) }); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Matches は JSON に変換したドキュメントが条件に合うか（項目が無ければ合わない）。メモリ実装と溜めた書き込みの検索で使う。
+func Matches(fields map[string]any, filters []Filter) bool {
+	for _, f := range filters {
+		c, ok := compareFilter(fields[f.Field], f.Value)
+		if !ok {
+			return false
+		}
+		switch f.Op {
+		case Eq:
+			if c != 0 {
+				return false
+			}
+		case Lt:
+			if c >= 0 {
+				return false
+			}
+		case Le:
+			if c > 0 {
+				return false
+			}
+		case Gt:
+			if c <= 0 {
+				return false
+			}
+		case Ge:
+			if c < 0 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// compareFilter は JSON の値と、Go の条件の値を比べる。型が合わなければ false。
+func compareFilter(value, want any) (int, bool) {
+	switch w := want.(type) {
+	case string:
+		v, ok := value.(string)
+		return cmp.Compare(v, w), ok
+	case bool:
+		v, ok := value.(bool)
+		if !ok {
+			return 0, false
+		}
+		if v == w {
+			return 0, true
+		}
+		return 1, true
+	case int:
+		v, ok := value.(float64)
+		return cmp.Compare(v, float64(w)), ok
+	case int64:
+		v, ok := value.(float64)
+		return cmp.Compare(v, float64(w)), ok
+	case time.Time:
+		s, ok := value.(string)
+		if !ok {
+			return 0, false
+		}
+		v, err := time.Parse(time.RFC3339Nano, s)
+		if err != nil {
+			return 0, false
+		}
+		return v.Compare(w), true
+	default:
+		return 0, false
+	}
+}
+
+// Compare は JSON の値どうしを比べる（並べ替え用）。日時の文字列は時刻として比べる。
+func Compare(a, b any) int {
+	switch x := a.(type) {
+	case float64:
+		y, _ := b.(float64)
+		return cmp.Compare(x, y)
+	case string:
+		y, _ := b.(string)
+		tx, errX := time.Parse(time.RFC3339Nano, x)
+		ty, errY := time.Parse(time.RFC3339Nano, y)
+		if errX == nil && errY == nil {
+			return tx.Compare(ty)
+		}
+		return cmp.Compare(x, y)
+	default:
+		return 0
+	}
 }
 
 // HasWrites は書き込みを溜めているか。
@@ -289,6 +474,31 @@ func (t *Tx) meta(ctx context.Context, uid string) (Meta, error) {
 // AfterCommit は確定した後に実行する処理を登録する（外部への通知など）。失敗してもトランザクションには影響しない。
 func (t *Tx) AfterCommit(fn func()) { t.after = append(t.after, fn) }
 
+// savepoint は要求ごとのトランザクションで、1つの Update の分だけ取り消すための控え。
+type savepoint struct {
+	writes  map[string]*write
+	order   []string
+	touched map[string]map[Resource]bool
+	after   int
+}
+
+func (t *Tx) save() savepoint {
+	touched := make(map[string]map[Resource]bool, len(t.touched))
+	for uid, rs := range t.touched {
+		touched[uid] = maps.Clone(rs)
+	}
+	return savepoint{writes: maps.Clone(t.writes), order: slices.Clone(t.order), touched: touched, after: len(t.after)}
+}
+
+func (t *Tx) restore(sp savepoint) {
+	t.writes, t.order, t.touched, t.after = sp.writes, sp.order, sp.touched, t.after[:sp.after]
+}
+
+// view は同じトランザクションを読み取り専用として使う。
+func (t *Tx) view() *Tx {
+	return &Tx{backend: t.backend, readOnly: true, reads: t.reads, writes: t.writes, touched: t.touched}
+}
+
 func (t *Tx) flush() error {
 	for _, path := range t.order {
 		w := t.writes[path]
@@ -320,10 +530,45 @@ func NewRunner(b Backend) *Runner { return &Runner{backend: b} }
 // AddHook はコミット直前の処理を加える。起動時にだけ呼ぶ。
 func (r *Runner) AddHook(h Hook) { r.hooks = append(r.hooks, h) }
 
+type ambientKey struct{}
+
+// ambient は context が属する要求ごとのトランザクション（無ければ nil）。
+func ambient(ctx context.Context) *Tx {
+	tx, _ := ctx.Value(ambientKey{}).(*Tx)
+	return tx
+}
+
+// Detach は要求ごとのトランザクションから切り離した context を返す。その context の Update はその場で確定する。
+func Detach(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ambientKey{}, (*Tx)(nil))
+}
+
+// Request は要求ごとのトランザクションを実行する。fn の中（fn が渡す ctx から派生した context）で呼んだ Update は
+// すべてこのトランザクションに加わり、fn が nil を返したときにまとめて確定する。fn がエラーを返すと何も書き込まない。
+// scope は実装が同じ要求を直列に実行するための鍵（利用者の ID）。
+func (r *Runner) Request(ctx context.Context, scope string, fn func(ctx context.Context, tx *Tx) error) error {
+	return r.run(ctx, RunOptions{Scope: scope}, func(ctx context.Context, tx *Tx) error {
+		return fn(context.WithValue(ctx, ambientKey{}, tx), tx)
+	})
+}
+
 // Update は読み書きするトランザクションを実行する。fn がエラーを返すと何も書き込まない。
+// 要求ごとのトランザクションの中では、それに加わる（fn の書き込みは要求の終わりに確定する）。
 func (r *Runner) Update(ctx context.Context, fn func(ctx context.Context, tx *Tx) error) error {
+	if amb := ambient(ctx); amb != nil {
+		sp := amb.save()
+		if err := fn(ctx, amb); err != nil {
+			amb.restore(sp)
+			return err //nolint:wrapcheck // fn のエラー（apperr）をそのまま返す。
+		}
+		return nil
+	}
+	return r.run(ctx, RunOptions{}, fn)
+}
+
+func (r *Runner) run(ctx context.Context, opts RunOptions, fn func(ctx context.Context, tx *Tx) error) error {
 	var committed *Tx
-	err := r.backend.Run(ctx, false, func(ctx context.Context, b BackendTx) error {
+	err := r.backend.Run(ctx, opts, func(ctx context.Context, b BackendTx) error {
 		tx := newTx(b, false)
 		if err := fn(ctx, tx); err != nil {
 			return err
@@ -350,9 +595,12 @@ func (r *Runner) Update(ctx context.Context, fn func(ctx context.Context, tx *Tx
 	return nil
 }
 
-// View は読み取り専用のトランザクションを実行する。
+// View は読み取り専用のトランザクションを実行する。要求ごとのトランザクションに溜めた書き込みがあれば、それを通して読む。
 func (r *Runner) View(ctx context.Context, fn func(ctx context.Context, tx *Tx) error) error {
-	return r.backend.Run(ctx, true, func(ctx context.Context, b BackendTx) error { //nolint:wrapcheck // fn のエラーをそのまま返す。
+	if amb := ambient(ctx); amb != nil && amb.HasWrites() {
+		return fn(ctx, amb.view()) //nolint:wrapcheck // fn のエラーをそのまま返す。
+	}
+	return r.backend.Run(ctx, RunOptions{ReadOnly: true}, func(ctx context.Context, b BackendTx) error { //nolint:wrapcheck // fn のエラーをそのまま返す。
 		return fn(ctx, newTx(b, true))
 	})
 }

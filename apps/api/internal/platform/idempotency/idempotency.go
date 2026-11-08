@@ -1,18 +1,25 @@
 // Package idempotency は Idempotency-Key による再送対策。
 //
-// 流れ:
+// 設計: 状態の変更と応答の記録を、1つのトランザクションで確定する。
+//
 //  1. Begin: キーの記録を「処理中」で作る（同じキーの同時実行は 409 idempotency.in_progress、内容が違えば 409 idempotency.key_reused、
 //     処理済みなら記録した応答をそのまま返す）。
-//  2. 状態を変えるトランザクションは、コミットの直前に Hook が同じトランザクションの中で記録へ「反映済み」と書く。
-//     これで、同じキーの変更が二度反映されることはない（報酬の付与などがちょうど1回になる）。
-//  3. Complete: 応答（ステータス・ヘッダー・本文）を記録する。何も反映せずに失敗した応答は記録せず、記録を消す（同じキーで再試行できる）。
+//  2. Run: 要求ごとのトランザクション（store.Runner.Request）の中でハンドラーを実行する。ハンドラーが呼ぶサービスの Update は
+//     すべてこのトランザクションに加わり、ハンドラーが作った応答（ステータス・ヘッダー・本文）を同じトランザクションで記録に書いて、
+//     まとめて確定する。これで「変更は確定したが応答を記録できなかった」状態は起きない。報酬の付与などの変更は、
+//     応答の記録と同時にちょうど1回だけ確定する。4xx・5xx の応答は何も確定せず記録も消す（同じキーで再試行できる）。
+//     確定の前に処理が止まれば何も反映されず、Lease が切れた後の再送が最初から処理する。
+//  3. Complete（従来の方式）: AI とのやり取りの間にトランザクションを開いたままにできない操作（相談）は、Run を使わずに
+//     処理する。状態を変えるトランザクションのコミット直前に Hook が同じトランザクションの中で記録へ「反映済み」と書き、
+//     処理が終わった後に Complete が応答を記録する。反映した直後に処理が止まって応答を記録できなかった場合、Lease が切れた後の
+//     再送は処理をやり直し、Hook が二重の反映を止める（相談は返答済みなら何も書かずに同じ結果を返すので、正しい応答になる）。
 //
-// 反映した直後に処理が止まり、応答を記録できなかった場合は、その後の同じキーの要求は 409 idempotency.in_progress になる
-// （変更を二重に反映しないことを優先する）。記録は expiresAt を過ぎると Firestore の TTL で消える。
+// 記録は expiresAt を過ぎると Firestore の TTL で消える。
 package idempotency
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
@@ -24,8 +31,9 @@ import (
 const (
 	// TTL は記録を残す期間。
 	TTL = 24 * time.Hour
-	// Lease は処理中とみなす期間。AI の呼び出し（最大40秒程度）より長くする。
-	Lease = 2 * time.Minute
+	// Lease は処理中とみなす期間。処理の途中で止まった要求を、この時間の後に再送で引き継ぐ。
+	// AI の呼び出し（最大40秒程度）より長くする。
+	Lease = 60 * time.Second
 )
 
 // State は記録の状態。
@@ -58,6 +66,13 @@ type Attempt struct {
 	Key   string
 	Hash  string
 	Token string
+}
+
+// Response は記録する応答。
+type Response struct {
+	Status  int
+	Headers map[string]string
+	Body    []byte
 }
 
 type attemptKey struct{}
@@ -119,6 +134,52 @@ func (s *Service) Begin(ctx context.Context, uid, key, hash string) (attempt Att
 	return attempt, replay, err
 }
 
+// errDiscard は、何も反映しない応答（4xx・5xx）で要求ごとのトランザクションを取り消すための印。
+var errDiscard = errors.New("idempotency: discard")
+
+// Run は要求を1つのトランザクションで処理する。fn が返した応答を、fn の中で加わった状態の変更と同じトランザクションで記録して
+// 確定する。4xx・5xx の応答は何も確定せず、記録を消して（同じキーで再試行できる）その応答を返す。
+// 確定に失敗したときは記録を消してエラーを返す（クライアントは同じキーで再送できる）。
+func (s *Service) Run(ctx context.Context, a Attempt, fn func(ctx context.Context) Response) (Response, error) {
+	var res Response
+	err := s.runner.Request(ctx, a.UID, func(ctx context.Context, tx *store.Tx) error {
+		res = fn(WithAttempt(ctx, a))
+		if res.Status >= 400 {
+			return errDiscard
+		}
+		rec, found, err := store.Get[Record](ctx, tx, ref(a.UID, a.Key))
+		if err != nil {
+			return err
+		}
+		if !found || rec.Token != a.Token {
+			// 期限が切れて別の処理に引き継がれた。こちらの変更は確定しない。
+			return apperr.Conflict("idempotency.in_progress")
+		}
+		rec.State, rec.Status, rec.Headers, rec.Body = StateDone, res.Status, res.Headers, res.Body
+		rec.Applied, rec.AppliedBy = tx.Touched(a.UID), a.Token
+		return tx.Set(ref(a.UID, a.Key), rec)
+	})
+	if err == nil {
+		return res, nil
+	}
+	s.release(context.WithoutCancel(ctx), a)
+	if errors.Is(err, errDiscard) {
+		return res, nil
+	}
+	return Response{}, err
+}
+
+// release は、何も反映していない記録を消す（同じキーで再試行できるようにする）。
+func (s *Service) release(ctx context.Context, a Attempt) {
+	_ = s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
+		rec, found, err := store.Get[Record](ctx, tx, ref(a.UID, a.Key))
+		if err != nil || !found || rec.Token != a.Token || rec.Applied {
+			return err
+		}
+		return tx.Delete(ref(a.UID, a.Key))
+	})
+}
+
 // markApplied は、要求に伴う状態の変更と同じトランザクションで「反映済み」と記録する。
 // 利用者のリソースの版を上げるトランザクションだけを対象にする（AI の利用量の記録などは対象外）。
 func (s *Service) markApplied(ctx context.Context, tx *store.Tx) error {
@@ -140,17 +201,21 @@ func (s *Service) markApplied(ctx context.Context, tx *store.Tx) error {
 	return tx.Set(ref(a.UID, a.Key), rec)
 }
 
-// Complete は応答を記録する。何も反映せずに失敗した応答（4xx・5xx）は記録せず、同じキーで再試行できるようにする。
-func (s *Service) Complete(ctx context.Context, a Attempt, status int, headers map[string]string, body []byte) error {
+// Complete は従来の方式で応答を記録する（Run を使わない操作）。何も反映せずに失敗した応答（4xx・5xx）は記録せず、
+// 同じキーで再試行できるようにする。反映した後に失敗した応答は記録せず、Lease が切れた後の再送に処理をやり直させる。
+func (s *Service) Complete(ctx context.Context, a Attempt, res Response) error {
 	return s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
 		rec, found, err := store.Get[Record](ctx, tx, ref(a.UID, a.Key))
 		if err != nil || !found || rec.Token != a.Token {
 			return err
 		}
-		if !rec.Applied && status >= 400 {
+		if res.Status >= 400 {
+			if rec.Applied {
+				return nil
+			}
 			return tx.Delete(ref(a.UID, a.Key))
 		}
-		rec.State, rec.Status, rec.Headers, rec.Body = StateDone, status, headers, body
+		rec.State, rec.Status, rec.Headers, rec.Body = StateDone, res.Status, res.Headers, res.Body
 		return tx.Set(ref(a.UID, a.Key), rec)
 	})
 }

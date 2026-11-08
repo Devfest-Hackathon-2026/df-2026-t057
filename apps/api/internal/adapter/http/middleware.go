@@ -152,6 +152,20 @@ func (c *capture) Write(b []byte) (int, error) {
 // replayHeaders は記録して再送時に返すヘッダー。
 var replayHeaders = []string{"Content-Type", "Etag", "Location", "Retry-After"}
 
+// response は記録する応答（ヘッダーは replayHeaders だけ）。
+func (c *capture) response() idempotency.Response {
+	headers := map[string]string{}
+	for _, k := range replayHeaders {
+		if v := c.header.Get(k); v != "" {
+			headers[k] = v
+		}
+	}
+	if c.status == 0 {
+		c.status = http.StatusOK
+	}
+	return idempotency.Response{Status: c.status, Headers: headers, Body: c.body.Bytes()}
+}
+
 func (c *capture) flushTo(w http.ResponseWriter) {
 	for k, v := range c.header {
 		w.Header()[k] = v
@@ -228,10 +242,15 @@ func (p apiPipeline) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.next.ServeHTTP(w, r)
 		return
 	}
-	p.serveIdempotent(w, r, body)
+	p.serveIdempotent(w, r, rt, body)
 }
 
-func (p apiPipeline) serveIdempotent(w http.ResponseWriter, r *http.Request, body []byte) {
+// legacyIdempotency は、要求ごとのトランザクションを使わない操作（platform/idempotency の Complete 方式）。
+// 相談は AI とのやり取りの合間に状態を保存するので、要求の間トランザクションを開いたままにしない。
+// 相談は Idempotency-Key を相談の ID にするので、やり直しても返答済みなら同じ結果を返す。
+var legacyIdempotency = map[string]bool{"sendAssistantMessage": true}
+
+func (p apiPipeline) serveIdempotent(w http.ResponseWriter, r *http.Request, rt *route, body []byte) {
 	key := r.Header.Get("Idempotency-Key")
 	if key == "" {
 		writeProblem(w, r, p.log, apperr.Invalid("idempotency.key_required"))
@@ -256,20 +275,30 @@ func (p apiPipeline) serveIdempotent(w http.ResponseWriter, r *http.Request, bod
 		_, _ = w.Write(replay.Body) //nolint:gosec // 自分が記録した応答の本文を、記録した Content-Type のまま返す。
 		return
 	}
-	c := newCapture()
-	p.next.ServeHTTP(c, r.WithContext(idempotency.WithAttempt(r.Context(), attempt)))
-	headers := map[string]string{}
-	for _, k := range replayHeaders {
-		if v := c.header.Get(k); v != "" {
-			headers[k] = v
+	handle := func(ctx context.Context) (*capture, idempotency.Response) {
+		c := newCapture()
+		// 要求ごとのトランザクションがやり直されても本文を読み直せるようにする。
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		p.next.ServeHTTP(c, r.WithContext(ctx))
+		return c, c.response()
+	}
+	if legacyIdempotency[rt.operationID] {
+		c, res := handle(idempotency.WithAttempt(r.Context(), attempt))
+		// 応答を記録できなくても、変更は確定している。ログに残して応答は返す。
+		if err := p.idempotency.Complete(context.WithoutCancel(r.Context()), attempt, res); err != nil {
+			p.log.ErrorContext(r.Context(), "idempotency record failed", "code", apperr.As(err).Code)
 		}
+		c.flushTo(w)
+		return
 	}
-	if c.status == 0 {
-		c.status = http.StatusOK
-	}
-	// 応答を記録できなくても、変更は確定している。ログに残して応答は返す。
-	if err := p.idempotency.Complete(context.WithoutCancel(r.Context()), attempt, c.status, headers, c.body.Bytes()); err != nil {
-		p.log.ErrorContext(r.Context(), "idempotency record failed", "code", apperr.As(err).Code)
+	var c *capture
+	if _, err := p.idempotency.Run(r.Context(), attempt, func(ctx context.Context) idempotency.Response {
+		var res idempotency.Response
+		c, res = handle(ctx)
+		return res
+	}); err != nil {
+		writeProblem(w, r, p.log, err)
+		return
 	}
 	c.flushTo(w)
 }

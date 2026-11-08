@@ -39,6 +39,7 @@ type Calendar interface {
 	Connect(ctx context.Context, uid, googleSubject, email string) (string, error)
 	Callback(ctx context.Context, state, code, errParam string) string
 	SyncNow(ctx context.Context, uid string) (oapi.CalendarStatus, error)
+	Disconnect(ctx context.Context, uid string) (oapi.CalendarStatus, error)
 	Webhook(ctx context.Context, channelID, token, resourceState string) error
 	Renew(ctx context.Context) error
 }
@@ -154,6 +155,9 @@ func (c calendarOff) Callback(context.Context, string, string, string) string {
 	return c.appURL + "/?calendar=error"
 }
 func (calendarOff) SyncNow(context.Context, string) (oapi.CalendarStatus, error) {
+	return oapi.CalendarStatus{}, apperr.Unavailable("calendar.unavailable")
+}
+func (calendarOff) Disconnect(context.Context, string) (oapi.CalendarStatus, error) {
 	return oapi.CalendarStatus{}, apperr.Unavailable("calendar.unavailable")
 }
 func (calendarOff) Webhook(context.Context, string, string, string) error {

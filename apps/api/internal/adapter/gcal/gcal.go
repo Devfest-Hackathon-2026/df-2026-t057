@@ -26,8 +26,11 @@ import (
 
 // TokenStore は利用者の OAuth トークン（JSON）の保存場所。本番は Secret Manager（SecretStore）。
 type TokenStore interface {
+	// Save はトークンを保存し、前のトークンを破棄する。
 	Save(ctx context.Context, uid string, token []byte) error
 	Load(ctx context.Context, uid string) ([]byte, error)
+	// Delete はトークンを破棄する。無ければ何もしない。
+	Delete(ctx context.Context, uid string) error
 }
 
 // IDTokenValidator は ID トークンを検証する（本番は idtoken.Validate）。
@@ -121,6 +124,11 @@ func oauthStatus(err error) string {
 // SaveToken は利用者のトークンを保存する。
 func (g *Google) SaveToken(ctx context.Context, uid string, token []byte) error {
 	return g.tokens.Save(ctx, uid, token)
+}
+
+// DeleteToken は利用者のトークンを破棄する。
+func (g *Google) DeleteToken(ctx context.Context, uid string) error {
+	return g.tokens.Delete(ctx, uid)
 }
 
 // Client は保存したトークンで Calendar API を使う。

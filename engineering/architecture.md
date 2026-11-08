@@ -42,6 +42,7 @@ flowchart LR
 | SSEで「変わった」ことだけを送る | データ本体はRESTで取り直すので、API仕様が1つのまま保てる。Firestoreの変更監視を使うので、Cloud Runのインスタンスが複数でも動く |
 | Problem Details＋`code` | サーバーは表示用の文言を返さない。文言は `packages/messages` に集約し、管理画面と拡張で共有する |
 | `Idempotency-Key` と `If-Match` を全体で統一 | 再送対策を処理ごとの独自方式から1つにまとめ、報酬の二重付与を防ぐ。版の不一致は 412、版の指定が無ければ 428 |
+| 1リクエスト＝1トランザクション | 状態の変更と、再送に返す応答を同じトランザクションで確定する。「確定した直後にサーバーが落ちて応答だけ残らない」状態が起きない。AIの呼び出しは最初の書き込みより前に行い、その間はロックを持たない |
 | M3トークン | 今の雰囲気（紙のような背景・墨色・青・ライム）を元に、M3の手順でパレットを生成した。役割どおりに使えばWCAG AAのコントラストを満たす |
 
 ## 旧実装から変えた振る舞い
@@ -88,11 +89,11 @@ flowchart LR
 
 デモモード（メモリーの保存先、AI・カレンダーなし）とe2eで確認した。次は実際のGCPでは未確認。
 
-- Firestore、Firebase Authentication、Vertex AI、Google Calendar、Cloud Tasks への実接続（アダプターはローカルのHTTP応答かエミュレーターで確認）
+- Firebase Authentication、Vertex AI、Google Calendar、Cloud Tasks、Secret Manager への実接続（アダプターはローカルのHTTP応答や偽のgRPCサーバーで確認）
+- Firestoreはエミュレーターで、実際のストアを通す結合テスト（課題の登録・作業の記録・視聴・朝の精算・再送）まで確認した。本番のFirestoreでは未確認。必要なインデックスとTTLは [deploy/firestore.md](../deploy/firestore.md)
 - `deploy/setup-cloud-tasks.sh` の実行（キュー、呼び出し用のサービスアカウント、Cloud Schedulerのジョブ、FirestoreのTTL）
 - Secret Managerの古いOAuthトークンのバージョンの削除（実行アカウントに `secretmanager.versions.list` / `destroy` が無い）
 
 ## 後回しにしたこと
 
 - インフラのコード化（Terraform）。作り直しの次の別PRで行う。
-- カレンダー連携を解除するエンドポイント。
