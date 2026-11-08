@@ -69,14 +69,4 @@ describe('LoginScreen', () => {
     await fixture.whenStable();
     expect(element.querySelector('[role=alert]')).toBeNull();
   });
-
-  it('サンプルの完了を試せる', async () => {
-    status.set('signedOut');
-    const fixture = TestBed.createComponent(LoginScreen);
-    await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
-    element.querySelector<HTMLButtonElement>('[aria-label="課題完了のサンプルを試す"]')?.click();
-    await fixture.whenStable();
-    expect(element.querySelector('.reward')?.textContent.trim()).toBe('＋5分');
-  });
 });

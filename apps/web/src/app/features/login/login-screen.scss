@@ -1,24 +1,34 @@
+@use '@angular/material' as mat;
+
 :host {
   display: block;
-  min-height: 100dvh;
   background: var(--mat-sys-surface);
+
+  --mat-sys-spacing-small: 1rem;
+  --mat-sys-spacing-medium: 1.5rem;
+  --mat-sys-spacing-large: 3rem;
+  --mat-sys-login-logo-width: 26.25rem;
+  --mat-sys-login-button-height: 3rem;
+  --mat-sys-login-button-padding: 1.8rem;
 }
 
 .landing {
   display: flex;
+  min-height: 100svh;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: 3rem 1rem 2rem;
+  justify-content: center;
+  padding: var(--mat-sys-spacing-large) var(--mat-sys-spacing-medium);
+  color: var(--mat-sys-on-surface);
   text-align: center;
 }
 
-// ロゴの画像は黒い背景に白い文字。ライトでは反転して白を背景に溶かし、ダークでは黒を溶かす。
+// 添付と同じ既存画像を使い、背景だけを各テーマになじませる。
 .logo {
-  width: 13rem;
+  width: var(--mat-sys-login-logo-width);
+  max-width: 100%;
   height: auto;
+  margin-bottom: var(--mat-sys-spacing-large);
   filter: invert(1);
   mix-blend-mode: multiply;
 
@@ -31,134 +41,37 @@
 h1 {
   margin: 0;
   font: var(--mat-sys-headline-medium);
+  text-wrap: balance;
 }
 
-.flow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 1.5rem;
-  width: 100%;
-  margin: 1.5rem 0;
-  padding: 0;
-  list-style: none;
-}
-
-.step {
-  display: grid;
-  justify-items: center;
-  gap: 0.75rem;
-}
-
-.object {
-  display: grid;
-  place-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  max-width: 13rem;
-  min-height: 10rem;
-  padding: 1rem;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface-container-low);
-}
-
-.caption {
-  margin: 0;
-  font: var(--mat-sys-title-small);
-}
-
-.paper {
-  justify-items: stretch;
-  text-align: start;
-}
-
-.paper-heading {
-  display: flex;
-  justify-content: space-between;
-  font: var(--mat-sys-title-small);
-}
-
-.ai-label {
-  padding: 0 0.5rem;
-  border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
-  font: var(--mat-sys-label-small);
-}
-
-.paper-task {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font: var(--mat-sys-body-medium);
-
-  mat-icon {
-    color: var(--mat-sys-primary);
-  }
-}
-
-.clock-face {
-  display: grid;
-
-  strong {
-    font: var(--mat-sys-headline-small);
-    font-variant-numeric: tabular-nums;
-  }
-
-  small {
-    color: var(--mat-sys-on-surface-variant);
-    font: var(--mat-sys-body-small);
-  }
-}
-
-.browser {
-  align-content: start;
-  padding: 0;
-  overflow: hidden;
-}
-
-.browser-bar {
-  width: 100%;
-  height: 1rem;
-  background: var(--mat-sys-surface-container-highest);
-}
-
-.video {
-  display: grid;
-  place-items: center;
-  gap: 0.25rem;
-  width: 100%;
-  padding: 1rem;
+.description {
+  margin: var(--mat-sys-spacing-small) 0 0;
   color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-large);
+  text-wrap: balance;
 }
 
-.shorts {
-  font: var(--mat-sys-label-large);
-}
+.login {
+  @include mat.button-overrides(
+    (
+      filled-container-height: var(--mat-sys-login-button-height),
+      filled-horizontal-padding: var(--mat-sys-login-button-padding),
+    )
+  );
 
-.reward {
-  margin-bottom: 0.75rem;
-  padding: 0.125rem 0.75rem;
-  border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-surface-container-highest);
-  font: var(--mat-sys-label-large);
-
-  &.earned {
-    background: var(--mat-sys-tertiary-container);
-    color: var(--mat-sys-on-tertiary-container);
-  }
+  max-width: 100%;
+  margin-top: var(--mat-sys-spacing-large);
 }
 
 .login-content {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: var(--mat-sys-spacing-small);
 }
 
-.platform,
-.status,
-.footer {
-  margin: 0;
+.status {
+  margin: var(--mat-sys-spacing-small) 0 0;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-medium);
 }
@@ -169,13 +82,13 @@ h1 {
 
 .error {
   display: flex;
+  max-width: 100%;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  max-width: 100%;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-error-container);
-  color: var(--mat-sys-on-error-container);
+  gap: var(--mat-sys-spacing-small);
+  margin-top: var(--mat-sys-spacing-small);
+  color: var(--mat-sys-error);
+  font: var(--mat-sys-body-medium);
+  overflow-wrap: anywhere;
 }
