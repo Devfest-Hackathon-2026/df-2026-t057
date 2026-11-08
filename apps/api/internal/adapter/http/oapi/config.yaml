@@ -1,0 +1,8 @@
+# oapi-codegen の設定。packages/contract/openapi.yaml から strict-server のインターフェースと型を生成する。
+package: oapi
+output: oapi.gen.go
+generate:
+  models: true
+  std-http-server: true
+  strict-server: true
+  embedded-spec: true

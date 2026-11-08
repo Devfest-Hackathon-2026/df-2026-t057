@@ -1,53 +1,33 @@
 {
   "name": "dopagaki",
-  "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
   "engines": {
-    "node": ">=24.15.0"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
-    "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "cd api && APP_MODE=demo DEV_API_ONLY=true PORT=8080 go run ./cmd/server",
-    "dev:web": "node scripts/build-auth.mjs && ng serve --host 127.0.0.1 --port 4200 --proxy-config web/proxy.json",
-    "build": "node scripts/build-auth.mjs && ng build && npm run build:extension",
-    "build:extension": "node scripts/build-extension.mjs",
-    "typecheck": "tsc --noEmit -p extension/tsconfig.json && tsc --noEmit -p web/auth/tsconfig.json",
-    "test": "npm run typecheck && npm run test:unit && cd api && go test -race ./...",
-    "test:e2e": "playwright test",
-    "format": "prettier --write 'web/src/**/*.{ts,html,scss}' 'extension/src/**/*.ts' 'shared/**/*.ts'",
-    "test:unit": "node --test tests/*.test.ts"
-  },
-  "dependencies": {
-    "@angular/cdk": "22.2.6",
-    "@angular/common": "22.2.4",
-    "@angular/compiler": "22.2.4",
-    "@angular/core": "22.2.4",
-    "@angular/forms": "22.2.4",
-    "@angular/material": "22.2.6",
-    "@angular/platform-browser": "22.2.4",
-    "@angular/router": "22.2.4",
-    "@fullcalendar/angular": "7.1.4",
-    "firebase": "13.2.0",
-    "fullcalendar": "7.1.4",
-    "material-symbols": "^0.40.2",
-    "rxjs": "~7.8.2",
-    "temporal-polyfill": "1.0.7",
-    "tslib": "^2.8.1"
+    "dev": "pnpm --parallel --filter @dopagaki/api --filter @dopagaki/web dev",
+    "generate": "pnpm --recursive --if-present generate",
+    "build": "pnpm --recursive --if-present build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck",
+    "lint": "pnpm lint:ts && pnpm lint:css && pnpm --recursive --if-present lint",
+    "lint:ts": "eslint --max-warnings=0 .",
+    "lint:css": "stylelint --max-warnings=0 \"apps/**/*.{css,scss}\" \"packages/**/*.{css,scss}\"",
+    "typecheck": "pnpm --recursive --if-present typecheck",
+    "test": "pnpm --recursive --if-present --filter '!@dopagaki/e2e' test",
+    "test:e2e": "pnpm --filter @dopagaki/e2e test",
+    "format": "prettier --write . && gofmt -w apps/api",
+    "format:check": "prettier --check . && test -z \"$(gofmt -l apps/api)\""
   },
   "devDependencies": {
-    "@angular/build": "22.2.6",
-    "@angular/cli": "22.2.6",
-    "@angular/compiler-cli": "22.2.4",
-    "@playwright/test": "^1.56.1",
-    "@types/chrome": "^0.1.27",
-    "@types/node": "^24.0.0",
-    "concurrently": "^9.2.1",
-    "esbuild": "^0.25.12",
-    "prettier": "^3.6.2",
-    "typescript": "~6.0.2"
-  },
-  "overrides": {
-    "@grpc/grpc-js": "^1.13.6"
-  },
-  "type": "module"
+    "@eslint/js": "^10.0.1",
+    "angular-eslint": "^22.6.0",
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
+    "stylelint": "^17.16.0",
+    "stylelint-config-standard-scss": "^17.0.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1"
+  }
 }

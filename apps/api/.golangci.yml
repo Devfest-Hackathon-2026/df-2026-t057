@@ -1,0 +1,91 @@
+version: '2'
+run:
+  timeout: 5m
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - contextcheck
+    - depguard
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - gocritic
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - revive
+    - unconvert
+    - unparam
+    - wrapcheck
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    forbidigo:
+      forbid:
+        - pattern: ^time\.Now$
+          msg: 現在時刻は platform/clock から注入する
+        - pattern: ^os\.Getenv$
+          msg: 環境変数は cmd/server と platform/config でだけ読む
+        - pattern: ^fmt\.Print
+          msg: ログは log/slog を使う
+      analyze-types: true
+    wrapcheck:
+      ignore-package-globs:
+        - github.com/a-sumikawa/devfest-2026/apps/api/*
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+    depguard:
+      rules:
+        domain:
+          list-mode: lax
+          files:
+            - '**/internal/*/domain*.go'
+          deny:
+            - pkg: github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter
+              desc: domain は adapter に依存しない
+            - pkg: cloud.google.com/go
+              desc: domain は SDK に依存しない
+            - pkg: google.golang.org
+              desc: domain は SDK に依存しない
+            - pkg: firebase.google.com
+              desc: domain は SDK に依存しない
+            - pkg: net/http
+              desc: domain は HTTP に依存しない
+            - pkg: context
+              desc: domain は純粋な関数だけにする
+        service:
+          list-mode: lax
+          files:
+            - '**/internal/*/service*.go'
+            - '**/internal/*/ports*.go'
+          deny:
+            - pkg: github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter
+              desc: service は ports を通して外部を使う
+            - pkg: cloud.google.com/go
+              desc: service は SDK に依存しない
+            - pkg: firebase.google.com
+              desc: service は SDK に依存しない
+            - pkg: net/http
+              desc: service は HTTP に依存しない
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec, wrapcheck, forbidigo, unparam]
+      - path: cmd/
+        linters: [forbidigo]
+      - path: internal/platform/config/
+        linters: [forbidigo]
+      - path: internal/platform/clock/
+        linters: [forbidigo]
+      - path: internal/adapter/http/oapi/
+        linters: [revive, gocritic, wrapcheck, errorlint, unparam]
+formatters:
+  enable:
+    - gofmt
+    - goimports

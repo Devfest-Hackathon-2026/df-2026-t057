@@ -1,0 +1,76 @@
+<ng-template #avatar>
+  @if (photo(); as url) {
+    <img [src]="url" alt="" referrerpolicy="no-referrer" (error)="photoError.set(url)" />
+  } @else if (initial()) {
+    {{ initial() }}
+  } @else {
+    <mat-icon>person</mat-icon>
+  }
+</ng-template>
+
+<button
+  mat-stroked-button
+  type="button"
+  class="chip"
+  [matMenuTriggerFor]="menu"
+  [attr.aria-label]="'アカウントメニュー: ' + email()"
+>
+  <span class="chip-content">
+    <span class="avatar" aria-hidden="true">
+      <ng-container [ngTemplateOutlet]="avatar" />
+    </span>
+    <span class="chip-label">
+      {{ auth.status() === 'signingIn' ? 'ログイン中' : name() }}
+    </span>
+    <mat-icon>expand_more</mat-icon>
+  </span>
+</button>
+
+<mat-menu #menu="matMenu" xPosition="before" class="account-panel">
+  <div class="identity">
+    <p class="email">{{ email() }}</p>
+    <span class="avatar large" aria-hidden="true">
+      <ng-container [ngTemplateOutlet]="avatar" />
+    </span>
+    <p class="greeting">こんにちは、{{ auth.account()?.name || 'ユーザー' }}さん</p>
+  </div>
+  <mat-divider />
+  <a mat-menu-item routerLink="/settings">
+    <mat-icon>calendar_month</mat-icon>
+    <span class="item-text">
+      Googleカレンダー
+      <small>{{ calendarLabel() }}</small>
+    </span>
+  </a>
+  <a mat-menu-item routerLink="/settings">
+    <mat-icon>settings</mat-icon>
+    <span>設定</span>
+  </a>
+  <button mat-menu-item type="button" (click)="tutorial.start()">
+    <mat-icon>help</mat-icon>
+    <span>使い方を見る</span>
+  </button>
+  <a mat-menu-item routerLink="/about">
+    <mat-icon>info</mat-icon>
+    <span>このアプリについて</span>
+  </a>
+  <mat-divider />
+  <button
+    mat-menu-item
+    type="button"
+    (click)="auth.login()"
+    [disabled]="auth.status() === 'signingIn'"
+  >
+    <mat-icon>person_add</mat-icon>
+    <span>別のアカウントを使用</span>
+  </button>
+  <button mat-menu-item type="button" (click)="auth.logout()">
+    <mat-icon>logout</mat-icon>
+    <span>ログアウト</span>
+  </button>
+  <mat-divider />
+  <a mat-menu-item href="/privacy.html" target="_blank" rel="noopener">
+    <mat-icon>open_in_new</mat-icon>
+    <span>データの取り扱い</span>
+  </a>
+</mat-menu>

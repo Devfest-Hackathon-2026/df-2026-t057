@@ -1,0 +1,12 @@
+extends:
+  - recommended-strict
+rules:
+  # 説明は description に書く。summary は短い補足があるときだけ。
+  operation-summary: off
+  # エラーは default の Problem Details でまとめて表す。
+  operation-4xx-response: off
+  tag-description: off
+  info-license: off
+  # OAuth のコールバックは 303 で管理画面へ戻すだけなので 2xx を持たない。
+  # 生成ツール（openapi-typescript）が無視リストを読まないため、ルールごと止める。
+  operation-2xx-response: off

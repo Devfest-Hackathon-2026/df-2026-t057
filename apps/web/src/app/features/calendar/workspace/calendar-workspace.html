@@ -1,0 +1,261 @@
+<div class="workspace-title">
+  <h1>カレンダー</h1>
+  <button mat-flat-button type="button" data-tour="add" (click)="actions.add()">
+    <mat-icon>add</mat-icon>
+    課題を登録
+  </button>
+</div>
+
+<section class="workspace-summary" aria-label="視聴できる時間と次の課題">
+  <div class="tile credit" data-tour="credit">
+    <p class="summary-label">{{ creditLabel() }}</p>
+    <strong class="credit-number" [class.unlimited]="wallet.unlimited()">
+      {{ creditValue() }}
+    </strong>
+    <button
+      mat-button
+      type="button"
+      class="credit-help"
+      aria-haspopup="dialog"
+      (click)="openCreditInfo()"
+    >
+      <mat-icon>info</mat-icon>
+      視聴時間について
+    </button>
+  </div>
+
+  <div class="tile next" data-tour="next">
+    @if (next(); as task) {
+      <p class="summary-label">次の課題 · {{ task.plan.start | monthDay }}</p>
+      <button mat-button type="button" class="next-task" (click)="select(task)">
+        <span class="next-task-title">{{ task.title }}</span>
+        <mat-icon iconPositionEnd>chevron_right</mat-icon>
+      </button>
+      <div class="next-footer">
+        <p class="next-time">
+          <mat-icon>schedule</mat-icon>
+          <time [attr.datetime]="task.plan.start">
+            {{ task.plan.start | time }}–
+            @if (!sameDay(task.plan.start, task.plan.end)) {
+              {{ task.plan.end | monthDay }}
+            }
+            {{ task.plan.end | time }}
+          </time>
+          <span>{{ task.plan | planMinutes }}分</span>
+        </p>
+        <div class="next-actions">
+          <button
+            mat-icon-button
+            type="button"
+            aria-label="通知を試す"
+            matTooltip="通知を試す"
+            (click)="actions.preview(task)"
+          >
+            <mat-icon>notifications</mat-icon>
+          </button>
+          <button
+            mat-flat-button
+            type="button"
+            aria-label="次の課題をはじめる"
+            (click)="start(task, 'next')"
+            [disabled]="tasks.start.pending() || work.session() !== null"
+          >
+            はじめる
+            <mat-icon iconPositionEnd>play_arrow</mat-icon>
+          </button>
+        </div>
+      </div>
+      @if (startOrigin() === 'next' && tasks.start.error(); as error) {
+        <p class="error" role="alert">はじめられませんでした。{{ error.message }}</p>
+      }
+    } @else {
+      <p class="summary-label">次の課題</p>
+      <h2 class="next-empty">次の課題はまだありません</h2>
+      <p class="summary-note">課題を登録すると、取りかかる予定がここに並びます。</p>
+    }
+  </div>
+</section>
+
+<mat-button-toggle-group
+  class="mobile-switch"
+  [value]="mobilePart()"
+  (change)="mobilePart.set($event.value)"
+  aria-label="表示する領域"
+>
+  <mat-button-toggle value="calendar">カレンダー</mat-button-toggle>
+  <mat-button-toggle value="panel">相談・詳細</mat-button-toggle>
+</mat-button-toggle-group>
+
+<div class="workspace-grid" [attr.data-mobile-part]="mobilePart()">
+  <section class="calendar-surface" aria-label="予定カレンダー" data-tour="calendar">
+    <div class="calendar-toolbar">
+      <div class="calendar-navigation">
+        <button mat-stroked-button type="button" (click)="move(0)">今日</button>
+        <button mat-icon-button type="button" aria-label="前の期間" (click)="move(-1)">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <button mat-icon-button type="button" aria-label="次の期間" (click)="move(1)">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
+      <h2 class="calendar-title" aria-live="polite">{{ title() }}</h2>
+      <mat-button-toggle-group
+        [value]="currentView()"
+        (change)="changeView($event.value)"
+        aria-label="カレンダーの表示期間"
+      >
+        <mat-button-toggle value="day">日</mat-button-toggle>
+        <mat-button-toggle value="week">週</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+
+    <div class="calendar-body">
+      @if (!rendered()) {
+        <p class="calendar-loading" role="status">カレンダーを準備しています…</p>
+      }
+      @if (stylesReady()) {
+        <!--
+          スクロールは FullCalendar の内側ではなく、この領域で行う。
+          内側のスクロール領域は表（grid）の途中にあり、キーボードで操作できるようにすると表の構造が崩れるため。
+        -->
+        <div
+          #scroller
+          class="calendar-scroll"
+          tabindex="0"
+          role="region"
+          [attr.aria-label]="title() + 'の予定'"
+        >
+          <full-calendar class="workspace-calendar" [options]="options" [events]="events()">
+            <ng-template #eventContent let-info>
+              <span class="event-name">{{ info.event.title }}</span>
+              <span class="event-clock">{{ info.event.start | time }}</span>
+            </ng-template>
+          </full-calendar>
+        </div>
+      }
+      @if (tasks.tasks().length === 0) {
+        <div class="calendar-empty">
+          <mat-icon>event_available</mat-icon>
+          <h3>予定はまだありません</h3>
+          @if (auth.mode() === 'demo') {
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="tasks.addSample()"
+              [disabled]="tasks.sample.pending()"
+            >
+              サンプル3件で試す
+            </button>
+          }
+          @if (tasks.sample.error(); as error) {
+            <p class="error" role="alert">{{ error.message }}</p>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="calendar-caption">
+      <details class="disclosure">
+        <summary>表示について</summary>
+        <p>確定した作業時間を表示しています。</p>
+        <p>時間帯：{{ timeZone }}</p>
+        <p>予定の変更は、連携した専用カレンダーにも反映します。</p>
+      </details>
+      <button mat-button type="button" (click)="sync()" [disabled]="syncing()">
+        {{ syncing() ? '更新中…' : calendar.connected() ? 'Googleと同期' : '予定を更新' }}
+      </button>
+    </div>
+    @if (calendar.connected() && calendar.sync.error(); as error) {
+      <p class="error" role="alert">同期を確認できませんでした。{{ error.message }}</p>
+    } @else if (!calendar.connected() && tasks.load.error(); as error) {
+      <p class="error" role="alert">{{ error.message }}</p>
+    }
+  </section>
+
+  <aside class="workspace-panel" aria-label="予定の相談と詳細" data-tour="assistant">
+    <mat-button-toggle-group
+      class="panel-switch"
+      [value]="panel()"
+      (change)="panel.set($event.value)"
+      aria-label="相談パネルの表示"
+    >
+      <mat-button-toggle value="assistant">相談</mat-button-toggle>
+      <mat-button-toggle value="detail" [disabled]="!selected()">課題の詳細</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <div [hidden]="panel() !== 'assistant'">
+      <app-assistant
+        [selectedTask]="selected()"
+        (clearSelection)="clearSelection()"
+        (openSettings)="openSettings()"
+      />
+    </div>
+
+    <section class="detail" [hidden]="panel() !== 'detail'" aria-label="選択した課題">
+      @if (selected(); as task) {
+        <h2 class="detail-title">{{ task.title }}</h2>
+        @if (task.why) {
+          <p class="detail-note">なぜ：{{ task.why }}</p>
+        }
+        @if (task.notes) {
+          <p class="detail-text">{{ task.notes }}</p>
+        }
+        <p class="detail-time">{{ task.plan.start | dateTime }} — {{ task.plan.end | time }}</p>
+        <p class="detail-note">
+          締切 {{ task.deadline | dateTime }} · 見積もり {{ task.minutes }}分 · 予定
+          {{ task.plan | planMinutes }}分
+        </p>
+        @if (task.url) {
+          <p class="detail-link">
+            <a [href]="task.url" target="_blank" rel="noopener">{{ task.url }}</a>
+          </p>
+        }
+        <ul class="steps" aria-label="作業の手順">
+          @for (step of task.plan.steps; track $index) {
+            <li>
+              <span class="step-time">{{ step.start | time }}–{{ step.end | time }}</span>
+              <span>{{ step.title }}</span>
+            </li>
+          }
+        </ul>
+        @if (calendar.needsRetry()) {
+          <p class="detail-note">
+            Googleカレンダーへの同期待ちです。カレンダーの「Googleと同期」から再試行できます。
+          </p>
+        }
+        <div class="selected-actions">
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="actions.edit(task)"
+            [disabled]="task.status !== 'pending'"
+          >
+            編集
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="actions.plan(task, 'adjust')"
+            [disabled]="task.status !== 'pending'"
+          >
+            予定・手順を調整
+          </button>
+          <button mat-stroked-button type="button" (click)="panel.set('assistant')">相談</button>
+          <button
+            mat-flat-button
+            type="button"
+            (click)="start(task, 'detail')"
+            [disabled]="tasks.start.pending() || task.status !== 'pending'"
+          >
+            {{ startLabel(task) }}
+          </button>
+        </div>
+        @if (startOrigin() === 'detail' && tasks.start.error(); as error) {
+          <p class="error" role="alert">はじめられませんでした。{{ error.message }}</p>
+        }
+      } @else {
+        <p>カレンダーから予定を選んでください。</p>
+      }
+    </section>
+  </aside>
+</div>

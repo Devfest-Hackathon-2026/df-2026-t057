@@ -1,0 +1,50 @@
+:host {
+  display: block;
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  margin-bottom: 0.375rem;
+  padding: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+}
+
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.pickers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 9rem);
+  gap: 0.5rem;
+}
+
+.date-input {
+  cursor: pointer;
+}
+
+.summary {
+  margin: -0.5rem 0 0.25rem;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+
+  &.past {
+    color: var(--mat-sys-error);
+  }
+}
+
+@media (width <= 24rem) {
+  .pickers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

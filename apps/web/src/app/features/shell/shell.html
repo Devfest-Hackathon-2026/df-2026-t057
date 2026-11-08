@@ -1,0 +1,98 @@
+<div class="grime" [style.opacity]="grime()" aria-hidden="true"></div>
+<a class="skip-link" href="#main">本文へ移動</a>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="DOPAGAKI ホーム">
+      <img src="/logo.png" alt="" width="40" height="40" />
+      <span class="brand-name">DOPAGAKI</span>
+    </a>
+    <nav aria-label="メインメニュー">
+      <ul>
+        @for (item of nav; track item.path) {
+          <li>
+            <a
+              [routerLink]="item.path"
+              routerLinkActive="selected"
+              ariaCurrentWhenActive="page"
+              class="nav-link"
+            >
+              <mat-icon>{{ item.icon }}</mat-icon>
+              <span>{{ item.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+  </aside>
+
+  <div class="main-column">
+    <header class="topbar">
+      <div class="topbar-right" data-tour="settings">
+        @if (auth.mode() === 'demo') {
+          <span class="demo-badge">デモ</span>
+        }
+        <span class="today">{{ today() }}</span>
+        <button mat-button type="button" (click)="tutorial.start()">使い方</button>
+        @if (auth.mode() === 'demo') {
+          <a mat-icon-button routerLink="/settings" matTooltip="設定" aria-label="設定を開く">
+            <mat-icon>settings</mat-icon>
+          </a>
+        } @else {
+          <app-account-menu />
+        }
+      </div>
+    </header>
+
+    @if (work.session()) {
+      <app-focus-bar class="focus" />
+    }
+
+    <main id="main" tabindex="-1">
+      @for (notice of notices.items(); track notice.id) {
+        <div class="banner error-banner" role="alert">
+          <mat-icon>error</mat-icon>
+          <span class="banner-text">{{ notice.text }}</span>
+          <button mat-button type="button" (click)="notices.dismiss(notice.id)">閉じる</button>
+        </div>
+      }
+      @if (calendar.needsRetry()) {
+        <div class="banner info-banner" role="status">
+          <mat-icon>calendar_month</mat-icon>
+          <span class="banner-text">管理画面の予定をGoogleカレンダーへ反映できていません。</span>
+          <button
+            mat-button
+            type="button"
+            (click)="calendar.syncNow()"
+            [disabled]="calendar.sync.pending()"
+          >
+            {{ calendar.sync.pending() ? '同期しています…' : '同期を再試行' }}
+          </button>
+        </div>
+        @if (calendar.sync.error(); as error) {
+          <p class="banner error-banner" role="alert">
+            <mat-icon>error</mat-icon>
+            <span class="banner-text">{{ error.message }}</span>
+          </p>
+        }
+      }
+
+      @if (ready()) {
+        <router-outlet />
+      } @else if (loadError(); as error) {
+        <div class="banner error-banner" role="alert">
+          <mat-icon>error</mat-icon>
+          <span class="banner-text">{{ error.message }}</span>
+          <button mat-button type="button" (click)="loadAll()">再読み込み</button>
+        </div>
+      } @else {
+        <div class="loading" role="status">
+          <mat-progress-bar mode="indeterminate" aria-label="課題と予定を読み込み中" />
+          <p>課題と予定を読み込んでいます…</p>
+        </div>
+      }
+    </main>
+  </div>
+</div>
+@if (ready()) {
+  <app-tutorial />
+}

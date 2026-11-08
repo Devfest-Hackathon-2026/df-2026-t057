@@ -1,0 +1,11 @@
+{
+  "name": "@dopagaki/api",
+  "private": true,
+  "scripts": {
+    "dev": "APP_MODE=demo APP_URL=http://127.0.0.1:4200 PORT=8080 DEV_API_ONLY=true go run ./cmd/server",
+    "generate": "go generate ./...",
+    "lint": "golangci-lint run ./...",
+    "test": "go test -race ./...",
+    "build": "go build -trimpath -o ../../dist/api/server ./cmd/server"
+  }
+}

@@ -1,0 +1,53 @@
+@if (tour.active()) {
+  <div class="tour-layer" [class.reduced]="settings.reducedMotion()">
+    @if (rect(); as box) {
+      <div
+        class="tour-spot"
+        [style.top.px]="box.top"
+        [style.left.px]="box.left"
+        [style.width.px]="box.width"
+        [style.height.px]="box.height"
+      ></div>
+    } @else {
+      <div class="tour-dim"></div>
+    }
+    <section
+      #card
+      class="tour-card"
+      role="dialog"
+      tabindex="-1"
+      (keydown)="onKey($event)"
+      aria-modal="true"
+      aria-labelledby="tour-title"
+      aria-describedby="tour-body"
+      cdkTrapFocus
+      [cdkTrapFocusAutoCapture]="true"
+      [style.top.px]="position().top"
+      [style.left.px]="position().left"
+    >
+      <mat-progress-bar mode="determinate" [value]="progress()" aria-label="案内の進み具合" />
+      <h2 id="tour-title">{{ current()?.title }}</h2>
+      <div id="tour-body">
+        @for (line of current()?.body; track $index) {
+          <p>{{ line }}</p>
+        }
+      </div>
+      <div class="tour-actions">
+        <span class="tour-count">{{ index() + 1 }} / {{ steps().length }}</span>
+        @if (isFirst()) {
+          <button mat-button type="button" (click)="finish()">スキップ</button>
+          <button mat-flat-button type="button" cdkFocusInitial (click)="go(1)">案内を見る</button>
+        } @else if (isLast()) {
+          <button mat-button type="button" (click)="finish()">閉じる</button>
+          <button mat-flat-button type="button" cdkFocusInitial (click)="addTask()">
+            課題を登録する
+          </button>
+        } @else {
+          <button mat-button type="button" (click)="finish()">終了</button>
+          <button mat-button type="button" (click)="go(-1)">戻る</button>
+          <button mat-flat-button type="button" cdkFocusInitial (click)="go(1)">次へ</button>
+        }
+      </div>
+    </section>
+  </div>
+}

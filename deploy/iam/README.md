@@ -9,7 +9,20 @@
 | `dopagaki-` 接頭辞のSecretを読み取り | Calendar用の名前空間とSchedulerのSecretへ限定 |
 | `dopagaki-` 接頭辞のSecretへバージョン追加 | Calendar用の名前空間から静的OAuth Secretを除外。Schedulerも対象外 |
 
-`secretmanager.secrets.create` のカスタムロールは保持する。作成前のSecret名への同じ条件付けができるとは扱わない。FirestoreのIAMはデータベース内のユーザー別分離を担わず、API側の検証済みUIDで分離する。
+`secretmanager.secrets.create` のカスタムロールは保持する。作成前のSecret名への同じ条件付けができるとは扱わない。
+
+## カレンダー連携の解除とトークンの入れ替え（2026-11-08 追加）
+
+APIは、利用者のOAuthトークンを保存するたびに古い版を破棄し（`secretmanager.versions.list`・`versions.destroy`）、連携の解除でSecretごと消す（`secretmanager.secrets.delete`）。
+この3権限を `runtime-secret-role.yaml` のカスタムロールにまとめ、`secretVersionAdder` と同じ条件（`secret-write-condition.json`：`dopagaki-calendar-` 名前空間から静的OAuth Secretを除外）で実行SAに付ける。`prepare-policy.py` はこのバインディングも作る。
+
+```bash
+gcloud iam roles create dopagakiCalendarTokenLifecycle \
+  --project=devfest-2026-513816 \
+  --file=deploy/iam/runtime-secret-role.yaml
+```
+
+適用済みのポリシーに後から加えるときは、`gcloud projects add-iam-policy-binding` に `--condition-from-file=deploy/iam/secret-write-condition.json` を付けて、このロールだけを足す。FirestoreのIAMはデータベース内のユーザー別分離を担わず、API側の検証済みUIDで分離する。
 
 権限の根拠：[Gemini generateContent](https://docs.cloud.google.com/gemini-enterprise-agent-platform/reference/rest/v1/projects.locations.endpoints/generateContent)、[Firestore IAM](https://cloud.google.com/firestore/native/docs/security/iam)、[Secret Manager IAM Conditions](https://cloud.google.com/secret-manager/docs/access-control#iam_conditions)。
 

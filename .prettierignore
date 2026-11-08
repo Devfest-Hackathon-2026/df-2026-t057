@@ -1,0 +1,11 @@
+# 生成物
+pnpm-lock.yaml
+**/dist/
+**/.angular/
+**/.output/
+**/.wxt/
+packages/contract/src/generated/
+apps/api/internal/adapter/http/oapi/
+engineering/
+concept/
+*.md

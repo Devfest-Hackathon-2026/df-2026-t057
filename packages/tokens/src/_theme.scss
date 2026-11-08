@@ -1,0 +1,202 @@
+// DOPAGAKI の Angular Material（M3）テーマ。
+// パレットは `ng generate @angular/material:theme-color`（@angular/material 22.2.6）と同じ手順で生成した。
+// 色を変えるときはパレットを生成し直し、src/tokens.css も同じ値にそろえてから `pnpm --filter @dopagaki/tokens check` を実行する。
+
+@use 'sass:map';
+@use '@angular/material' as mat;
+
+// Note: Color palettes are generated from primary: #2858eb, tertiary: #d4f777, neutral: #5e615d, neutral variant: #797e76
+$_palettes: (
+  primary: (
+    0: #000000,
+    10: #001452,
+    20: #002683,
+    25: #002f9c,
+    30: #0038b7,
+    35: #0042d2,
+    40: #194fe2,
+    50: #3f6afc,
+    60: #6a89ff,
+    70: #91a7ff,
+    80: #b7c4ff,
+    90: #dde1ff,
+    95: #efefff,
+    98: #fbf8ff,
+    99: #fefbff,
+    100: #ffffff,
+  ),
+  secondary: (
+    0: #000000,
+    10: #001452,
+    20: #1a2c68,
+    25: #273774,
+    30: #334380,
+    35: #3f4f8d,
+    40: #4b5b9a,
+    50: #6474b4,
+    60: #7e8dd0,
+    70: #98a8ec,
+    80: #b7c4ff,
+    90: #dde1ff,
+    95: #efefff,
+    98: #fbf8ff,
+    99: #fefbff,
+    100: #ffffff,
+  ),
+  tertiary: (
+    0: #000000,
+    10: #161f00,
+    20: #273500,
+    25: #314100,
+    30: #3b4d00,
+    35: #455a00,
+    40: #4f6600,
+    50: #648104,
+    60: #7d9c25,
+    70: #97b73f,
+    80: #b2d358,
+    90: #cdf071,
+    95: #dbfe7d,
+    98: #f3ffcc,
+    99: #f9ffe6,
+    100: #ffffff,
+  ),
+  neutral: (
+    0: #000000,
+    10: #191c19,
+    20: #2e312e,
+    25: #393c39,
+    30: #444844,
+    35: #50534f,
+    40: #5c5f5b,
+    50: #757874,
+    60: #8f918d,
+    70: #a9aca7,
+    80: #c5c7c2,
+    90: #e1e3de,
+    95: #f0f1ec,
+    98: #f8faf5,
+    99: #fbfdf7,
+    100: #ffffff,
+    4: #0c0f0c,
+    6: #111411,
+    12: #1d201d,
+    17: #282b27,
+    22: #323632,
+    24: #373a36,
+    87: #d9dbd5,
+    92: #e7e9e3,
+    94: #edefe9,
+    96: #f2f4ef,
+  ),
+  neutral-variant: (
+    0: #000000,
+    10: #181d17,
+    20: #2d322b,
+    25: #383d36,
+    30: #434841,
+    35: #4f544d,
+    40: #5b6058,
+    50: #747971,
+    60: #8d928a,
+    70: #a8ada4,
+    80: #c3c8bf,
+    90: #dfe4da,
+    95: #eef2e8,
+    98: #f6fbf1,
+    99: #f9fef4,
+    100: #ffffff,
+  ),
+  error: (
+    0: #000000,
+    10: #410002,
+    20: #690005,
+    25: #7e0007,
+    30: #93000a,
+    35: #a80710,
+    40: #ba1a1a,
+    50: #de3730,
+    60: #ff5449,
+    70: #ff897d,
+    80: #ffb4ab,
+    90: #ffdad6,
+    95: #ffedea,
+    98: #fff8f7,
+    99: #fffbff,
+    100: #ffffff,
+  ),
+);
+
+$_rest: (
+  secondary: map.get($_palettes, secondary),
+  neutral: map.get($_palettes, neutral),
+  neutral-variant: map.get($_palettes, neutral-variant),
+  error: map.get($_palettes, error),
+);
+
+$primary-palette: map.merge(map.get($_palettes, primary), $_rest);
+$tertiary-palette: map.merge(map.get($_palettes, tertiary), $_rest);
+
+$font-family: (
+  'Noto Sans JP',
+  'Hiragino Sans',
+  'Hiragino Kaku Gothic ProN',
+  'Yu Gothic UI',
+  Meiryo,
+  system-ui,
+  sans-serif
+);
+
+// M3 にない、アプリ固有の役割。パレットから M3 カスタムカラーと同じトーンで導いた。
+// notice = 通知（金色）、pachinko / mahjong = モードごとの色。*-scene は没入型オーバーレイの背景。
+$extension-roles: (
+  notice: light-dark(#745b00, #e7c35c),
+  on-notice: light-dark(#ffffff, #3d2f00),
+  notice-container: light-dark(#ffe08c, #584400),
+  on-notice-container: light-dark(#584400, #ffe08c),
+  pachinko: light-dark(#895120, #ffb77f),
+  on-pachinko: light-dark(#ffffff, #4e2600),
+  pachinko-container: light-dark(#ffdcc4, #6c3a09),
+  on-pachinko-container: light-dark(#6c3a09, #ffdcc4),
+  mahjong: light-dark(#006c4a, #81d8ae),
+  on-mahjong: light-dark(#ffffff, #003825),
+  mahjong-container: light-dark(#9cf4c9, #005137),
+  on-mahjong-container: light-dark(#005137, #9cf4c9),
+  pachinko-scene: light-dark(#4e2600, #2f1500),
+  on-pachinko-scene: light-dark(#ffefcd, #ffe08c),
+  mahjong-scene: light-dark(#003825, #002114),
+  on-mahjong-scene: light-dark(#ffefcd, #ffe08c),
+);
+
+@mixin dopagaki-theme() {
+  color-scheme: light dark;
+
+  @include mat.theme(
+    (
+      color: (
+        theme-type: color-scheme,
+        primary: $primary-palette,
+        tertiary: $tertiary-palette,
+      ),
+      typography: (
+        brand-family: $font-family,
+        plain-family: $font-family,
+        bold-weight: 700,
+        medium-weight: 500,
+        regular-weight: 400,
+      ),
+      density: 0,
+    )
+  );
+
+  // 日本語に負の字間を付けない（M3 の display-large は -0.016rem）。
+  @include mat.theme-overrides(
+    (
+      display-large-tracking: 0,
+    )
+  );
+
+  @each $name, $value in $extension-roles {
+    --dpg-sys-#{$name}: #{$value};
+  }
+}

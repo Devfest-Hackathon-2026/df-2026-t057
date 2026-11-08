@@ -1,0 +1,101 @@
+<main class="landing">
+  <img class="logo" src="/logo.png" alt="DOPAGAKI" width="210" height="47" />
+  <h1>やることを、次の楽しみに。</h1>
+
+  <ol class="flow" aria-label="DOPAGAKIの使い方（サンプル）">
+    <li class="step">
+      <div class="object paper" aria-hidden="true">
+        <div class="paper-heading">
+          <span>レポート</span>
+          <span class="ai-label">AI</span>
+        </div>
+        <div class="paper-task">
+          <mat-icon>check</mat-icon>
+          資料を読む
+        </div>
+        <div class="paper-task">
+          <mat-icon>check</mat-icon>
+          本文を書く
+        </div>
+      </div>
+      <p class="caption">AIで課題を小分け</p>
+    </li>
+    <li class="step">
+      <div class="object clock">
+        <div class="clock-face" aria-hidden="true">
+          <strong>{{ completed() ? '完了！' : '25:00' }}</strong>
+          <small>{{ completed() ? 'レポート' : '/ 25分' }}</small>
+        </div>
+        <button
+          mat-flat-button
+          type="button"
+          [attr.aria-label]="
+            completed() ? '課題完了のサンプルをもう一度見る' : '課題完了のサンプルを試す'
+          "
+          (click)="completed.set(!completed())"
+        >
+          <mat-icon>check</mat-icon>
+          {{ completed() ? 'もう一度' : '完了' }}
+        </button>
+      </div>
+      <p class="caption">タイマーで取り組む</p>
+    </li>
+    <li class="step">
+      <div class="object browser" aria-hidden="true">
+        <span class="browser-bar"></span>
+        <div class="video">
+          <mat-icon>play_arrow</mat-icon>
+          <span class="shorts">Shorts</span>
+        </div>
+        <span class="reward" [class.earned]="completed()">
+          {{ completed() ? '＋5分' : '作業で ＋5分' }}
+        </span>
+      </div>
+      <p class="caption">Shortsを楽しむ</p>
+    </li>
+  </ol>
+
+  <span class="visually-hidden" role="status">
+    {{ completed() ? '25分取り組むと視聴時間が5分増えます。この図はサンプルです。' : '' }}
+  </span>
+
+  <button
+    mat-stroked-button
+    type="button"
+    class="login"
+    (click)="auth.login()"
+    [disabled]="loginDisabled()"
+  >
+    <span class="login-content">
+      @if (initializing() || signingIn()) {
+        <mat-spinner diameter="18" aria-hidden="true" />
+      } @else {
+        <img src="/google-g.png" alt="" width="18" height="18" />
+      }
+      {{ loginLabel() }}
+    </span>
+  </button>
+  <p class="platform">Chrome拡張と使う、課題管理アプリ</p>
+  <p class="status" role="status">
+    @if (signingIn()) {
+      Googleの画面で操作を続けてください。
+    } @else if (initializing()) {
+      ログイン状態を確認しています…
+    }
+  </p>
+  @if (auth.status() === 'unavailable') {
+    <div class="error" role="alert">
+      <span>{{ config.load.error()?.message ?? '設定を読み込めませんでした。' }}</span>
+      <button mat-button type="button" (click)="auth.retry()">再読み込み</button>
+    </div>
+  }
+  @if (auth.error(); as error) {
+    <div class="error" role="alert">
+      <span>{{ error }}</span>
+      <button mat-button type="button" (click)="auth.clearError()">閉じる</button>
+    </div>
+  }
+  <footer class="footer">
+    <a href="/privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
+  </footer>
+</main>

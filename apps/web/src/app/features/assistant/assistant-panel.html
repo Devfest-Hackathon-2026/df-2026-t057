@@ -1,0 +1,186 @@
+<div class="assistant-layout">
+  <section class="conversation" aria-label="アシスタントとの相談">
+    <div class="thread" #thread role="log" aria-label="会話履歴" tabindex="0">
+      @if (firstLoad()) {
+        <div class="chat-loading" role="status">
+          <mat-progress-bar mode="indeterminate" aria-label="会話を読み込み中" />
+          <p>会話を読み込んでいます…</p>
+        </div>
+      } @else if (store.turns().length === 0) {
+        <div class="chat-welcome">
+          <mat-icon class="welcome-icon">forum</mat-icon>
+          <h2>何から始めましょう？</h2>
+          <div class="starters">
+            @for (prompt of starters; track prompt) {
+              <button mat-stroked-button type="button" (click)="setText(prompt)">
+                {{ prompt }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+      @if (store.serverCount() === 20) {
+        <p class="note">直近20件の相談を表示しています。</p>
+      }
+      @for (item of store.turns(); track item.turn.id) {
+        <article class="turn">
+          <div class="user-message">
+            @if (item.turn.taskId) {
+              <span class="turn-context">{{ taskTitle(item.turn.taskId) }}について</span>
+            }
+            <p>{{ item.turn.text }}</p>
+            <time [attr.datetime]="item.turn.createdAt">{{ item.turn.createdAt | time }}</time>
+          </div>
+          <div class="assistant-message">
+            <div class="speaker">
+              <mat-icon>auto_awesome</mat-icon>
+              <span>アシスタント</span>
+            </div>
+            @switch (item.turn.status) {
+              @case ('pending') {
+                <div class="thinking" role="status">
+                  <mat-progress-bar mode="indeterminate" aria-label="予定と作業の傾向を確認中" />
+                  <p>予定と作業の傾向を確認しています…</p>
+                </div>
+              }
+              @case ('error') {
+                <p class="error" role="alert">{{ item.failureMessage }}</p>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="retry(item.turn)"
+                  [disabled]="sending()"
+                >
+                  同じ相談を再試行
+                </button>
+              }
+              @default {
+                <p class="reply">{{ item.turn.reply }}</p>
+                @if (item.turn.cards.length > 0) {
+                  <div class="cards">
+                    @for (card of item.turn.cards; track card.id) {
+                      <app-assistant-card [card]="card" />
+                    }
+                  </div>
+                }
+              }
+            }
+          </div>
+        </article>
+      }
+      @if (store.load.error(); as error) {
+        <div class="error" role="alert">
+          <p>{{ error.message }}</p>
+          <button mat-button type="button" (click)="store.refresh()">会話を再読み込み</button>
+        </div>
+      }
+    </div>
+
+    @if (selectedTask(); as task) {
+      <div class="selected-context">
+        <span>
+          <strong>相談する予定</strong>
+          {{ task.title }}
+        </span>
+        @if (!fixedTask()) {
+          <button mat-button type="button" (click)="clearSelection.emit()">解除</button>
+        }
+      </div>
+    }
+
+    <form class="composer" (submit)="send($event)">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>相談する</mat-label>
+        <textarea
+          matInput
+          name="consultation"
+          [value]="text()"
+          (input)="onInput($event)"
+          cdkTextareaAutosize
+          cdkAutosizeMinRows="2"
+          cdkAutosizeMaxRows="5"
+          [attr.maxlength]="maxLength"
+          placeholder="課題や予定について相談"
+          (keydown.control.enter)="send($event)"
+          (keydown.meta.enter)="send($event)"
+        ></textarea>
+        <mat-hint>Ctrl＋Enter（⌘＋Enter）で送信</mat-hint>
+      </mat-form-field>
+      <div class="composer-actions">
+        <button
+          mat-flat-button
+          type="submit"
+          [attr.aria-label]="sending() ? '相談中…' : '送信'"
+          [matTooltip]="sending() ? '相談中…' : '送信'"
+          [disabled]="!canSend()"
+        >
+          <mat-icon>send</mat-icon>
+        </button>
+      </div>
+      @if (!aiEnabled()) {
+        <p class="note">相談は準備中です。課題は手入力できます。</p>
+      }
+    </form>
+  </section>
+
+  <details class="memory-disclosure">
+    <summary>設定・使い方</summary>
+    <p class="note">提案された予定や記憶は、確認してから保存します。</p>
+    <section class="memory-panel" aria-labelledby="memory-title">
+      <div class="memory-heading">
+        <mat-icon>psychology</mat-icon>
+        <h2 id="memory-title">覚えていること</h2>
+      </div>
+      @if (editingMemory()) {
+        <p class="note">編集すると、それより前の会話は次の相談に使いません。</p>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>作業の傾向</mat-label>
+          <textarea matInput [formControl]="memory" rows="6" maxlength="2000"></textarea>
+        </mat-form-field>
+        @if (memoryError(); as message) {
+          <p class="error" role="alert">{{ message }}</p>
+        }
+        <div class="memory-actions">
+          <button
+            mat-button
+            type="button"
+            (click)="editingMemory.set(false)"
+            [disabled]="profile.save.pending()"
+          >
+            キャンセル
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="saveMemory()"
+            [disabled]="profile.save.pending()"
+          >
+            {{ profile.save.pending() ? '保存しています…' : '保存' }}
+          </button>
+        </div>
+      } @else {
+        <p class="known-context">
+          {{
+            profile.value()?.context ||
+              'まだ登録されていません。好きな時間帯や進め方を教えてください。'
+          }}
+        </p>
+        <button mat-button type="button" (click)="editMemory()">編集・忘れる内容を選ぶ</button>
+      }
+      <div class="calendar-status">
+        <mat-icon>calendar_month</mat-icon>
+        <div>
+          <strong>Googleカレンダー</strong>
+          <p>
+            {{
+              calendar.connected()
+                ? 'DOPAGAKIカレンダーと連携済み'
+                : '連携するとカードから登録できます'
+            }}
+          </p>
+        </div>
+      </div>
+      <button mat-stroked-button type="button" (click)="openSettings.emit()">連携の設定</button>
+    </section>
+  </details>
+</div>

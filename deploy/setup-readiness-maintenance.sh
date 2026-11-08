@@ -1,20 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 : "${PROJECT_ID:?Set PROJECT_ID}"
-: "${APP_URL:?Set APP_URL to the public HTTPS origin}"
-: "${MAINTENANCE_EMAIL:?Set the dedicated Scheduler service account email}"
-case "$APP_URL" in https://*) ;; *) echo 'APP_URL must use HTTPS' >&2; exit 1;; esac
-region="${REGION:-asia-northeast1}"
-for action in calendar/retry account/cleanup; do
-  job="dopagaki-${action//\//-}"
-  gcloud scheduler jobs create http "$job" \
-    --project="$PROJECT_ID" --location="$region" \
-    --schedule='* * * * *' --time-zone=Asia/Tokyo \
-    --uri="$APP_URL/api/$action" --http-method=POST \
-    --oidc-service-account-email="$MAINTENANCE_EMAIL" \
-    --oidc-token-audience="$APP_URL" --attempt-deadline=60s
-done
-
-# Only terminal jobs receive expiresAt; pending deletion jobs must not expire.
-gcloud firestore fields ttls update expiresAt --collection-group=accountJobs \
-  --enable-ttl --project="$PROJECT_ID"
+: "${REGION:?Set REGION}"
+: "${APP_URL:?Set APP_URL}"
+: "${SCHEDULER_INVOKER:?Set SCHEDULER_INVOKER}"
+job=dopagaki-account-cleanup
+flags=(--project="$PROJECT_ID" --location="$REGION" --schedule='* * * * *' --time-zone='Etc/UTC' --uri="${APP_URL%/}/api/internal/account/cleanup" --http-method=POST --oidc-service-account-email="$SCHEDULER_INVOKER" --oidc-token-audience="${OIDC_AUDIENCE:-${APP_URL%/}}" --attempt-deadline=60s)
+if gcloud scheduler jobs describe "$job" --project="$PROJECT_ID" --location="$REGION" >/dev/null 2>&1;then
+ gcloud scheduler jobs update http "$job" "${flags[@]}"
+else
+ gcloud scheduler jobs create http "$job" "${flags[@]}"
+fi
+gcloud firestore fields ttls update expiresAt --project="$PROJECT_ID" --collection-group=accountJobs --enable-ttl --async

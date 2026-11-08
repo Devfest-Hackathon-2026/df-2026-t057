@@ -1,0 +1,58 @@
+<section class="task-change" aria-labelledby="task-change-title">
+  @if (pending()) {
+    <mat-progress-bar mode="indeterminate" aria-label="課題の変更を処理中" />
+  }
+  @if (done()) {
+    <p class="saved" role="status">課題の変更を保存しました。</p>
+  } @else {
+    <h3 id="task-change-title">課題の変更案</h3>
+    <p class="muted">確認するまで保存しません。編集による視聴時間の追加はありません。</p>
+    <div class="compare">
+      @if (current(); as task) {
+        <div class="side">
+          <p class="label">変更前</p>
+          <p>
+            変更前：{{ task.title }} · 締切 {{ task.deadline | dateTime }} · {{ task.minutes }}分
+          </p>
+          <p class="notes">メモ：{{ task.notes || 'なし' }}</p>
+          <p>なぜ：{{ task.why || '未設定' }}</p>
+          <p class="notes">作業リンク：{{ task.url || '未設定' }}</p>
+        </div>
+      }
+      <div class="side after">
+        <p class="label">変更後</p>
+        <p class="title">{{ input().title }}</p>
+        <p>締切 {{ input().deadline | dateTime }} · {{ input().minutes }}分</p>
+        <p class="notes">メモ：{{ input().notes || 'なし' }}</p>
+        <p>なぜ：{{ input().why || '未設定' }}</p>
+        <p class="notes">作業リンク：{{ input().url || '未設定' }}</p>
+      </div>
+    </div>
+    <details>
+      <summary>変更後の時間割（{{ candidate().changes.length }}件）</summary>
+      <ul class="changes">
+        @for (item of candidate().changes; track item.taskId) {
+          <li>
+            <strong>{{ item.title }}</strong>
+            <span>変更前 {{ item.before.start | dateTime }}–{{ item.before.end | time }}</span>
+            <span>変更後 {{ item.after.start | dateTime }}–{{ item.after.end | time }}</span>
+          </li>
+        }
+      </ul>
+    </details>
+    <p class="muted">保存時に、変更した内容に合わせて作業手順を具体化します。</p>
+    @if (stale()) {
+      <p class="muted" role="status">予定が更新されています。最新の時間割で確認してください。</p>
+      <button mat-stroked-button type="button" (click)="recheck()" [disabled]="pending()">
+        最新の予定で再確認
+      </button>
+    } @else {
+      <button mat-flat-button type="button" (click)="save()" [disabled]="pending()">
+        この内容に変更する
+      </button>
+    }
+  }
+  @if (error(); as error) {
+    <p class="error" role="alert">{{ error }}</p>
+  }
+</section>
