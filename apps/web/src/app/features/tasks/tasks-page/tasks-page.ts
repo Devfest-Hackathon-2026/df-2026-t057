@@ -2,7 +2,14 @@ import { Archives } from '../archives';
 import { API_CLIENT, requireOk, idempotent } from '../../../core/http/api-client';
 import { Operation } from '../../../core/http/operation';
 import { AccountScope } from '../../../core/auth/account-scope';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
@@ -51,11 +58,21 @@ export class TasksPage {
         }),
       ),
     );
-    if (result.ok) await this.store.refresh();
+    if (!result.ok) return;
+    await this.store.refresh();
+    // アーカイブの一覧は自分で持っているので、開いていれば読み直す。
+    const archives = this.archives();
+    if (archives?.loaded()) await archives.load(false);
   }
+  private readonly archives = viewChild(Archives);
   protected readonly store = inject(TasksStore);
   protected readonly actions = inject(TaskActions);
   private readonly dialog = inject(MatDialog);
+
+  constructor() {
+    // 「はじめる」の失敗は、押した画面で出す。カレンダーや通知で失敗したものをここに出さない。
+    this.store.start.clearError();
+  }
 
   protected readonly filter = signal<Filter>('pending');
   protected readonly tasks = computed(() => filterTasks(this.store.tasks(), this.filter()));

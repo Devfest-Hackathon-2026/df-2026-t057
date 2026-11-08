@@ -56,4 +56,12 @@ describe('FocusBar', () => {
       '進行中の課題がありません。',
     );
   });
+
+  it('前の作業で失敗した操作のエラーを、新しい作業のタイマーに持ち越さない', async () => {
+    const tasks = TestBed.inject(TasksStore);
+    await tasks.complete.run(() => Promise.reject(new Error('完了に失敗')));
+    TestBed.inject(WorkSessionStore).accept(workSession());
+    const root = render();
+    expect(root.querySelector('[role="alert"]')).toBeNull();
+  });
 });
