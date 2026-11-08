@@ -9,6 +9,7 @@ import (
 
 	gfirestore "cloud.google.com/go/firestore"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/account"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/cloudtasks"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/firebaseauth"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/firestore"
@@ -54,6 +55,7 @@ func (a *app) close() {
 type storage interface {
 	store.Backend
 	realtime.Watcher
+	account.Data
 }
 
 // calendarHooks は課題・睡眠・本人の情報の変更をカレンダーへ反映する先。
@@ -84,6 +86,7 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (*app, erro
 
 	var backend storage
 	var verifier apihttp.TokenVerifier
+	var identity account.Identity
 	if cfg.Mode == config.ModeLive {
 		client, err := gfirestore.NewClient(ctx, cfg.Project)
 		if err != nil {
@@ -91,9 +94,11 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (*app, erro
 		}
 		a.closers = append(a.closers, func() { _ = client.Close() })
 		backend = firestore.New(client)
-		if verifier, err = firebaseauth.New(ctx, cfg.Project); err != nil {
+		v, err := firebaseauth.New(ctx, cfg.Project)
+		if err != nil {
 			return nil, err
 		}
+		verifier, identity = v, v
 	} else {
 		backend = memory.NewStore()
 	}
@@ -119,8 +124,9 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (*app, erro
 	// AI は live だけ。デモは外部に接続せず、決まった計画とクライアントの決まった文を使う。
 	var generator companion.Generator
 	var model assistant.Model
+	var quota *aiquota.Quota
 	if cfg.AIEnabled() {
-		quota := aiquota.New(runner, clk, aiquota.Limits{UserPerMinute: cfg.AI.UserPerMinute, UserPerDay: cfg.AI.UserPerDay, GlobalPerMinute: cfg.AI.GlobalPerMinute, GlobalPerDay: cfg.AI.GlobalPerDay})
+		quota = aiquota.New(runner, clk, aiquota.Limits{UserPerMinute: cfg.AI.UserPerMinute, UserPerDay: cfg.AI.UserPerDay, GlobalPerMinute: cfg.AI.GlobalPerMinute, GlobalPerDay: cfg.AI.GlobalPerDay})
 		client, err := gemini.New(ctx, gemini.Config{Project: cfg.Project, Location: cfg.Location, Model: cfg.GeminiModel}, quota)
 		if err != nil {
 			return nil, err
@@ -144,7 +150,11 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (*app, erro
 	lines.AppOpens = shortcuts
 	consult := assistant.New(runner, clk, ids, assistant.Deps{Tasks: tasks, Profiles: profiles, Wallet: wallets, Sleep: sleeps, Sessions: sessions, AppOpens: shortcuts, Calendar: calendarInfo{hooks}, Model: model})
 
-	deps := apihttp.Deps{}
+	accounts := &account.Service{Runner: runner, Clock: clk, IDs: ids, Data: backend, Identity: identity, Enabled: cfg.AccountCleanup || cfg.Mode == config.ModeDemo}
+	if quota != nil {
+		accounts.Usage = quota
+	}
+	deps := apihttp.Deps{Accounts: accounts}
 	if cfg.CalendarEnabled() {
 		tokens, err := gcal.NewSecretStore(ctx, cfg.Project)
 		if err != nil {
@@ -154,6 +164,7 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (*app, erro
 		google := gcal.New(gcal.Config{ClientID: cfg.Calendar.ClientID, ClientSecret: cfg.Calendar.ClientSecret, AppURL: cfg.AppURL}, tokens, nil)
 		svc := calendar.NewService(runner, clk, ids, jobs, calendar.Config{Enabled: true, AppURL: cfg.AppURL}, calendar.Deps{Tasks: tasks, Sleeps: sleeps, Profiles: profiles, Planner: planner, Google: google, Log: log})
 		svc.Register(jobs)
+		accounts.Calendar = svc
 		deps.Calendar, deps.Outbox, deps.Internal = apihttp.CalendarLink{Service: svc}, jobs, googleoidc.New(cfg.OIDCAudience)
 	}
 	a.hub = realtime.NewHub(backend, log)
@@ -170,7 +181,7 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (*app, erro
 		a.handler = apihttp.APIOnly(api)
 		return a, nil
 	}
-	var webOpts []apihttp.WebOption
+	webOpts := []apihttp.WebOption{apihttp.WithExtensionIDs(cfg.ExtensionIDs)}
 	if cfg.Mode == config.ModeDemo {
 		webOpts = append(webOpts, apihttp.WithDemoSession())
 	}

@@ -6,7 +6,7 @@ export interface FirebaseUser {
   readonly email: string | null;
   readonly displayName: string | null;
   readonly photoURL: string | null;
-  getIdToken(): Promise<string>;
+  getIdToken(forceRefresh?: boolean): Promise<string>;
 }
 
 export interface FirebaseAuthPort {
@@ -14,6 +14,7 @@ export interface FirebaseAuthPort {
   currentUser(): FirebaseUser | null;
   signInWithGoogle(): Promise<void>;
   signOut(): Promise<void>;
+  reauthenticateWithGoogle?(): Promise<void>;
 }
 
 export type FirebaseAuthLoader = (config: Record<string, string>) => Promise<FirebaseAuthPort>;
@@ -35,6 +36,14 @@ export const loadFirebaseAuth: FirebaseAuthLoader = async (config) => {
       const provider = new auth.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       await auth.signInWithPopup(instance, provider);
+    },
+    reauthenticateWithGoogle: async () => {
+      const user = instance.currentUser;
+      if (!user) throw new Error('auth.required');
+      const provider = new auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      await auth.reauthenticateWithPopup(user, provider);
+      await user.getIdToken(true);
     },
     signOut: () => auth.signOut(instance),
   };

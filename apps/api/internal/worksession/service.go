@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/activity"
+
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/id"
@@ -116,6 +118,9 @@ func (s *Service) Start(ctx context.Context, uid, taskID string) (Snapshot, erro
 			if err := save(ctx, tx, uid, started); err != nil {
 				return err
 			}
+			if err := (activity.Journal{}).Record(ctx, tx, uid, activity.Event{ID: "start-" + started.ID, TaskID: taskID, Kind: activity.Start, At: now, ScheduledAt: &t.Plan.Start}); err != nil {
+				return err
+			}
 			current = &started
 		}
 		out = Snapshot{Session: *current, AsOf: now}
@@ -173,6 +178,9 @@ func (s *Service) record(ctx context.Context, tx *store.Tx, uid string, x Sessio
 	}
 	r, err := s.wallet.RecordWork(ctx, tx, uid, x.ID, x.TaskID, t.Title, intervals(x), now)
 	if err != nil {
+		return wallet.WorkResult{}, err
+	}
+	if err := (activity.Journal{}).Record(ctx, tx, uid, activity.Event{ID: "work-" + x.ID, TaskID: x.TaskID, Kind: activity.Work, At: now, Seconds: r.WorkSeconds}); err != nil {
 		return wallet.WorkResult{}, err
 	}
 	return r, clear(ctx, tx, uid)

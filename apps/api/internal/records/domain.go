@@ -4,6 +4,8 @@ package records
 import (
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/activity"
+
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/viewing"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/wallet"
@@ -50,13 +52,16 @@ type Records struct {
 	TotalCompleted int
 	TotalEarned    int
 	Practice       Practice
+	Weeks          []activity.Week
 }
 
 // Input は集計の元。
 type Input struct {
-	Now      time.Time
-	Location *time.Location
-	Tasks    []task.Task
+	Completions []activity.Completion
+	Events      []activity.Event
+	Now         time.Time
+	Location    *time.Location
+	Tasks       []task.Task
 	// Work は作業の報酬の台帳の項目（すべての期間）。
 	Work     []wallet.Entry
 	Sessions []viewing.Session
@@ -75,7 +80,18 @@ func Compute(in Input) Records {
 		r.Days[i] = Day{Date: date}
 		index[date] = i
 	}
+	seen := map[string]bool{}
+	for _, c := range in.Completions {
+		seen[c.TaskID] = true
+		r.TotalCompleted++
+		if i, ok := index[c.At.In(loc).Format(time.DateOnly)]; ok {
+			r.Days[i].Completed++
+		}
+	}
 	for _, t := range in.Tasks {
+		if seen[t.ID] {
+			continue
+		}
 		if t.CompletedAt == nil {
 			continue
 		}
@@ -124,5 +140,6 @@ func Compute(in Input) Records {
 		p.History = append(p.History, History{Date: h.Day, ViewedSeconds: h.Viewed, WorkSeconds: h.Work})
 	}
 	r.Practice = p
+	r.Weeks = activity.Summarize(in.Events, in.Now, in.Location)
 	return r
 }

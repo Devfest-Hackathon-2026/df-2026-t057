@@ -4,10 +4,13 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/activity"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
@@ -228,6 +231,11 @@ func (s *Service) Create(ctx context.Context, uid string, req CreateRequest) (Cr
 		if len(tasks) >= MaxTasks {
 			return apperr.Conflict("task.limit_reached")
 		}
+		if _, found, err := store.Get[Task](ctx, tx, store.UserItem(uid, "archivedTasks", taskID)); err != nil {
+			return err
+		} else if found {
+			return apperr.Conflict("task.duplicate")
+		}
 		tasks = append(tasks, t)
 		changed := Replan(tasks)
 		if err := s.save(tx, uid, tasks, append(changed, taskID)...); err != nil {
@@ -445,8 +453,14 @@ func (s *Service) Delete(ctx context.Context, uid, taskID string) error {
 		if err != nil {
 			return err
 		}
-		if _, ok := Find(tasks, taskID); !ok {
+		t, ok := Find(tasks, taskID)
+		if !ok {
 			return apperr.NotFound("task.not_found")
+		}
+		if t.CompletedAt != nil {
+			if err := (activity.Journal{}).Complete(ctx, tx, uid, activity.Completion{TaskID: t.ID, Title: t.Title, At: *t.CompletedAt}); err != nil {
+				return err
+			}
 		}
 		if err := tx.Delete(taskRef(uid, taskID)); err != nil {
 			return err
@@ -600,7 +614,10 @@ func (s *Service) Adjust(ctx context.Context, uid string, draft Draft, instructi
 }
 
 // Commit は変更案を確定する。本人が選んだ順番と時刻をそのまま保存し、組み直しはしない。ifMatch は案の元にした計画の版。
-func (s *Service) Commit(ctx context.Context, uid string, changes []ChangeInput, ifMatch int64) (l List, err error) {
+func (s *Service) Commit(ctx context.Context, uid string, changes []ChangeInput, ifMatch int64) (List, error) {
+	return s.CommitKind(ctx, uid, changes, ifMatch, "")
+}
+func (s *Service) CommitKind(ctx context.Context, uid string, changes []ChangeInput, ifMatch int64, kind string) (l List, err error) {
 	now := s.clock.Now()
 	err = s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
 		if err := tx.Expect(ctx, uid, store.ResourceTasks, ifMatch); err != nil {
@@ -612,6 +629,11 @@ func (s *Service) Commit(ctx context.Context, uid string, changes []ChangeInput,
 		}
 		if err := ValidateChanges(changes, tasks, now); err != nil {
 			return err
+		}
+		if kind == "snooze" && len(changes) > 0 {
+			if err := (activity.Journal{}).Record(ctx, tx, uid, activity.Event{ID: fmt.Sprintf("snooze-%d", ifMatch), TaskID: changes[0].TaskID, Kind: activity.Snooze, At: now}); err != nil {
+				return err
+			}
 		}
 		ids := Commit(tasks, changes)
 		if err := s.save(tx, uid, tasks, ids...); err != nil {
@@ -711,6 +733,9 @@ func (s *Service) MarkCompleted(ctx context.Context, tx *store.Tx, uid, taskID s
 		return t, false, nil
 	}
 	completed := store.Truncate(now)
+	if err := (activity.Journal{}).Complete(ctx, tx, uid, activity.Completion{TaskID: t.ID, Title: t.Title, At: completed}); err != nil {
+		return Task{}, false, err
+	}
 	t.Status, t.CompletedAt = StatusCompleted, &completed
 	if err := tx.Set(taskRef(uid, taskID), t); err != nil {
 		return Task{}, false, err
@@ -755,11 +780,21 @@ func (s *Service) ApplyImport(ctx context.Context, tx *store.Tx, uid string, ite
 	removed := false
 	created := store.Truncate(now)
 	for _, item := range items {
+		if _, found, err := store.Get[Task](ctx, tx, store.UserItem(uid, "archivedTasks", item.TaskID)); err != nil {
+			return false, err
+		} else if found {
+			continue
+		}
 		t, exists := Find(tasks, item.TaskID)
 		switch {
 		case item.Removed:
 			if !exists {
 				continue
+			}
+			if t.CompletedAt != nil {
+				if err := (activity.Journal{}).Complete(ctx, tx, uid, activity.Completion{TaskID: t.ID, Title: t.Title, At: *t.CompletedAt}); err != nil {
+					return false, err
+				}
 			}
 			if err := tx.Delete(taskRef(uid, item.TaskID)); err != nil {
 				return false, err

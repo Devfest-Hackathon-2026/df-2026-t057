@@ -80,7 +80,7 @@ func New(cfg Config, tokens TokenStore, validate IDTokenValidator) *Google {
 
 func (g *Google) withBase(ctx context.Context) context.Context {
 	if g.base == nil {
-		return ctx
+		return context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Timeout: 25 * time.Second})
 	}
 	return context.WithValue(ctx, oauth2.HTTPClient, g.base)
 }
@@ -146,7 +146,9 @@ func (g *Google) ClientFor(ctx context.Context, raw []byte) (calendar.Client, er
 	if err := json.Unmarshal(raw, &token); err != nil {
 		return nil, apperr.Forbidden("calendar.reauth_required")
 	}
-	opts := []option.ClientOption{option.WithHTTPClient(g.oauth.Client(g.withBase(context.WithoutCancel(ctx)), &token))}
+	httpClient := g.oauth.Client(g.withBase(context.WithoutCancel(ctx)), &token)
+	httpClient.Timeout = 25 * time.Second
+	opts := []option.ClientOption{option.WithHTTPClient(httpClient)}
 	if g.endpoint != "" {
 		opts = append(opts, option.WithEndpoint(g.endpoint))
 	}
@@ -163,6 +165,10 @@ type client struct {
 
 // mapError は Google の失敗を、calendar が処理を分けるエラーか external.failed にする。本文は含めない。
 func mapError(op string, err error) error {
+	var refresh *oauth2.RetrieveError
+	if errors.As(err, &refresh) && refresh.ErrorCode == "invalid_grant" {
+		return apperr.Forbidden("calendar.reauth_required")
+	}
 	var ge *googleapi.Error
 	if !errors.As(err, &ge) {
 		return apperr.External("external.failed", fmt.Errorf("google calendar %s: %T", op, err))

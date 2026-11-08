@@ -1,3 +1,6 @@
+import { SetupStatus } from '../../onboarding/setup-status';
+import { CalendarConflicts } from '../../calendar/calendar-conflicts';
+import { AccountTools } from '../account-tools';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -89,12 +92,17 @@ const syncStatusLabels = {
   synced: '同期済み',
   pending: '反映待ち',
   failed: '反映に失敗',
+  reauth_required: '再連携が必要',
+  conflict: '競合の解消待ち',
 } as const;
 
 /** 設定。各まとまりは自分の操作の通信状態とエラーを持つ。 */
 @Component({
   selector: 'app-settings-page',
   imports: [
+    SetupStatus,
+    CalendarConflicts,
+    AccountTools,
     DateTimePipe,
     MatButtonModule,
     MatButtonToggleModule,

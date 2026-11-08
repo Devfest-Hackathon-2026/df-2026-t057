@@ -4,6 +4,7 @@
 // - アカウントが変わった・接続を解除したときは、版（version）を上げて、前のアカウントのデータをすべて消す。
 //   版を上げると、通信中の結果は捨てられる（前のアカウントの結果を新しいアカウントの表示に混ぜない）。
 import { z } from 'zod';
+import { extensionConnection } from './auth';
 
 const connectionSchema = z.object({
   authorization: z.string().min(1).max(4096),
@@ -34,7 +35,11 @@ export async function getConnection(): Promise<Connection | undefined> {
     cached = parsed.success ? parsed.data : undefined;
     loaded = true;
   }
-  return cached;
+  if (cached?.authorization.startsWith('Demo ')) return cached;
+  const own = await extensionConnection();
+  if (!own) return undefined;
+  const account: unknown = (await chrome.storage.local.get(ACCOUNT_KEY))[ACCOUNT_KEY];
+  return account === own.accountId ? own : undefined;
 }
 
 export type ConnectResult = 'unchanged' | 'refreshed' | 'switched';

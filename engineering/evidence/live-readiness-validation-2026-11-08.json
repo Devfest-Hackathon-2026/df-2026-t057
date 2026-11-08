@@ -1,0 +1,81 @@
+{
+  "date": "2026-11-08",
+  "timezone": "Asia/Tokyo",
+  "branch": "codex/live-readiness",
+  "base_commit": "269efda0a519e8157523fdfa5b639abc3cd999d8",
+  "historical_implementation_commit": "d4624b9f6b6f59d2b105b1bc7efd1ab8ed5dccb3",
+  "source_state": "main integration worktree before merge commit",
+  "layout": "apps and packages; old application directories not restored",
+  "scope": [
+    "1_extension_auth",
+    "3_calendar_recovery",
+    "4_onboarding",
+    "5_archive_records",
+    "6_account_data",
+    "7_activity_records"
+  ],
+  "excluded": [
+    "2_scheduling_changes",
+    "whole_repository_rewrite",
+    "production_reset",
+    "deployment"
+  ],
+  "toolchain": {
+    "node": "24.22.1",
+    "pnpm": "12.15.0",
+    "go": "1.27.3",
+    "golangci_lint": "2.14.0"
+  },
+  "validation": {
+    "generate": "passed; generated Go/TS/tokens hashes unchanged on regeneration",
+    "check": "passed; format, lint, OpenAPI, contrast, typecheck",
+    "unit": {
+      "web": 127,
+      "extension": 132,
+      "bridge": 2,
+      "messages": 11,
+      "deployment_mocks": 6
+    },
+    "go_race": "all packages passed with local Firestore Emulator",
+    "firestore_emulator": "passed; synthetic demo-test project, separate-transaction fence, archive history, nested collections and more than 100 documents",
+    "build": "web, extension and Go API passed",
+    "e2e": {
+      "total": 58,
+      "passed": 58,
+      "duration_display": "2.2m",
+      "accessibility_included": true
+    },
+    "shell_syntax": "passed",
+    "diff_whitespace": "passed"
+  },
+  "commands": [
+    "pnpm generate",
+    "pnpm check",
+    "FIRESTORE_EMULATOR_HOST=127.0.0.1:8686 pnpm test",
+    "pnpm build",
+    "pnpm test:e2e",
+    "bash -n deploy/setup-readiness-maintenance.sh",
+    "git diff --check"
+  ],
+  "regressions": [
+    "operationId normalization and deletion response replay",
+    "late port state after authentication restoration",
+    "initial GET_STATE reply must not override newer state",
+    "Google re-edit after conflict preview",
+    "already applied Calendar patch and restoring deleted event without reusing its id",
+    "archive and task deletion retain completion and wallet",
+    "Monday week boundary and DST",
+    "account fence and recursive cleanup"
+  ],
+  "not_verified": [
+    "live Google OAuth",
+    "one-hour live token renewal",
+    "live Chrome restart and sleep",
+    "live Google conflicts and reconnect",
+    "live Secret and Firebase deletion",
+    "Scheduler OIDC in cloud",
+    "Chrome Web Store distribution"
+  ],
+  "production_modified": false,
+  "maintenance_setup_executed": false
+}

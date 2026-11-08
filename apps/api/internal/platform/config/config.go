@@ -47,11 +47,12 @@ func (c Calendar) Enabled() bool { return c.ClientID != "" }
 
 // Config は検証済みの設定。
 type Config struct {
-	Mode     Mode
-	Port     int
-	AppURL   string
-	Project  string
-	Location string
+	AccountCleanup bool
+	Mode           Mode
+	Port           int
+	AppURL         string
+	Project        string
+	Location       string
 	// Firebase は管理画面に返す Firebase の Web 設定。
 	Firebase map[string]string
 	// AuthDomain は Firebase の authDomain（CSP に加える）。
@@ -98,6 +99,11 @@ func Load(getenv func(string) string) (Config, error) {
 			SchedulerInvoker: env("SCHEDULER_INVOKER", ""),
 		},
 	}
+	cleanup, cleanupErr := strconv.ParseBool(env("ACCOUNT_CLEANUP_ENABLED", "false"))
+	if cleanupErr != nil {
+		errs = append(errs, errors.New("ACCOUNT_CLEANUP_ENABLED は true か false にしてください"))
+	}
+	c.AccountCleanup = cleanup
 	if c.Mode != ModeDemo && c.Mode != ModeLive {
 		errs = append(errs, fmt.Errorf("APP_MODE は demo か live にしてください（%q）", c.Mode))
 	}
@@ -164,6 +170,9 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 
 	if c.Mode == ModeLive {
+		if c.AccountCleanup && !c.Calendar.Enabled() {
+			errs = append(errs, errors.New("ACCOUNT_CLEANUP_ENABLED にはカレンダーと保守OIDCの設定が必要です"))
+		}
 		if c.Project == "" {
 			errs = append(errs, errors.New("live では GOOGLE_CLOUD_PROJECT が必要です"))
 		}

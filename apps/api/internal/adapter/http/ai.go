@@ -114,3 +114,8 @@ func cardOut(c assistant.Card) (oapi.AssistantCard, bool, error) {
 	}
 	return card, err == nil, err //nolint:wrapcheck // 生成した型の変換の失敗はそのまま返す。
 }
+
+func (a AssistantTurns) DeleteHistory(ctx context.Context, uid string) error {
+	return a.Service.DeleteHistory(ctx, uid)
+}
+func (assistantOff) DeleteHistory(context.Context, string) error { return nil }

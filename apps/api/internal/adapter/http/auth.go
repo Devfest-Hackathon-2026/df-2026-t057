@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
@@ -14,7 +15,8 @@ import (
 
 // Principal は認証した利用者。
 type Principal struct {
-	UID string
+	UID      string
+	AuthTime time.Time
 	// Email と GoogleSubject は live のときだけ入る（カレンダーの連携で使う）。
 	Email         string
 	GoogleSubject string

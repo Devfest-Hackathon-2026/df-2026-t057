@@ -200,3 +200,13 @@ void send({ type: 'GET_STATE', refresh: false }).then((reply) => {
   status.textContent = extensionCopy.popupConnected;
   render(reply.state);
 });
+
+const connectButton = button('Googleアカウントで拡張に接続', () => {
+  void runAction(workActions, { type: 'SIGN_IN' }).then((reply) => {
+    if (reply?.ok && reply.state) render(reply.state);
+  });
+});
+const testButton = button('通知をテスト', () => {
+  void runAction(workActions, { type: 'TEST_NOTICE' });
+});
+document.body.append(connectButton, testButton);
