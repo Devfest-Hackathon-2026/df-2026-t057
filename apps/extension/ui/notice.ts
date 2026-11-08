@@ -1,5 +1,5 @@
 // 課題の開始時刻を知らせる画面（Shorts の上に出す）。モードはパチンコ・麻雀・シンプルの3つ。
-import { copy, rewardDescription } from '../lib/copy';
+import { extensionCopy, rewardDescription } from '@dopagaki/messages';
 import type { ExtensionState, ExtensionTask } from '../lib/schemas';
 import { defaultSettings } from '../lib/schemas';
 import { safeHttpUrl } from '../lib/urls';
@@ -22,27 +22,30 @@ export function showNotice(
 ): void {
   const settings = state.settings ?? defaultSettings;
   const dialog = host.open('notice', {
-    label: copy.noticeLabel,
+    label: extensionCopy.noticeLabel,
     className: `${overlayClass(state.settings)} notice`,
   });
   const goldUrl = chrome.runtime.getURL('gold-light.png');
   dialog.element.style.setProperty('--dpg-scene-image', `url("${goldUrl}")`);
   const { panel } = dialog;
   panel.append(
-    el('p', { className: 'eyebrow', text: copy.noticeEyebrow }),
+    el('p', { className: 'eyebrow', text: extensionCopy.noticeEyebrow }),
     el('h1', {
-      text: settings.mode === 'mahjong' ? copy.noticeHeadingMahjong : copy.noticeHeading,
+      text:
+        settings.mode === 'mahjong'
+          ? extensionCopy.noticeHeadingMahjong
+          : extensionCopy.noticeHeading,
     }),
   );
   if (line) panel.append(el('p', { className: 'companion', text: line }));
   const card = el('div', { className: 'task-card' }, el('h2', { text: task.title }));
-  if (task.why) card.append(el('p', { className: 'why', text: copy.why(task.why) }));
+  if (task.why) card.append(el('p', { className: 'why', text: extensionCopy.why(task.why) }));
   const first = task.plan.steps[0]?.title;
   if (first && first !== task.title) {
-    card.append(el('p', { className: 'first-step', text: copy.firstStep(first) }));
+    card.append(el('p', { className: 'first-step', text: extensionCopy.firstStep(first) }));
   }
   card.append(
-    el('p', { className: 'meta', text: copy.workMinutes(plannedMinutes(task)) }),
+    el('p', { className: 'meta', text: extensionCopy.workMinutes(plannedMinutes(task)) }),
     el('strong', { className: 'reward', text: rewardDescription(state.wallet) }),
   );
   panel.append(card);
@@ -53,7 +56,7 @@ export function showNotice(
   const actions = el('div', { className: 'actions' });
   actions.append(
     button(
-      copy.startWork,
+      extensionCopy.startWork,
       () => {
         void runAction(panel, { type: 'START_TASK', taskId: task.id }).then((reply) => {
           if (!reply?.ok) return;
@@ -65,15 +68,15 @@ export function showNotice(
       },
       'filled',
     ),
-    button(copy.snooze(settings.snoozeMinutes), () => {
+    button(extensionCopy.snooze(settings.snoozeMinutes), () => {
       const candidate = state.nextSnooze?.taskId === task.id ? state.nextSnooze : undefined;
       void showDraft(host, task, 'snooze', candidate, back);
     }),
-    button(copy.adjust, () => {
+    button(extensionCopy.adjust, () => {
       void showDraft(host, task, 'adjust', undefined, back);
     }),
     button(
-      copy.later,
+      extensionCopy.later,
       () => {
         host.close();
       },

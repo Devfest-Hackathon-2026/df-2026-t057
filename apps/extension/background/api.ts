@@ -9,7 +9,7 @@ import {
   type Draft,
 } from '@dopagaki/contract';
 import type { z } from 'zod';
-import { copy } from '../lib/copy';
+import { extensionCopy } from '@dopagaki/messages';
 import { MANAGEMENT_ORIGIN } from '../lib/config';
 import {
   companionLineSchema,
@@ -38,9 +38,9 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
 /** 接続していることを確かめてから呼び、終わったときに接続が変わっていないことを確かめる。 */
 async function call<T>(request: (api: ApiClient) => Promise<T>): Promise<T> {
   const version = connectionVersion();
-  if (!(await getConnection())) throw new ExtensionError(copy.connectFromApp);
+  if (!(await getConnection())) throw new ExtensionError(extensionCopy.connectFromApp);
   const result = await request(client);
-  if (version !== connectionVersion()) throw new ExtensionError(copy.accountChanged);
+  if (version !== connectionVersion()) throw new ExtensionError(extensionCopy.accountChanged);
   return result;
 }
 
@@ -170,7 +170,7 @@ export const api = {
 /** 変更通知（SSE）の購読を始める。fetch で Authorization を付ける。 */
 export async function openEventStream(signal: AbortSignal): Promise<Response> {
   const connection = await getConnection();
-  if (!connection) throw new ExtensionError(copy.connectFromApp);
+  if (!connection) throw new ExtensionError(extensionCopy.connectFromApp);
   return fetch(`${MANAGEMENT_ORIGIN}/api/events`, {
     headers: { Accept: 'text/event-stream', Authorization: connection.authorization },
     cache: 'no-store',

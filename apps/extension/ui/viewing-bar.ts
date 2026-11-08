@@ -1,6 +1,5 @@
 // 視聴中の区切りの残り時間と「ここで終える」。区切りの持ち主のタブで、Shorts を開いているときだけ出す。
-import { clockLabel } from '@dopagaki/messages';
-import { copy } from '../lib/copy';
+import { clockLabel, extensionCopy } from '@dopagaki/messages';
 import { button, el } from './dom';
 
 export interface ViewingBarModel {
@@ -28,10 +27,10 @@ export class ViewingBar {
     if (!this.#section) {
       const section = el('section', {
         className: 'viewing-bar',
-        attrs: { 'aria-label': copy.viewingBarLabel },
+        attrs: { 'aria-label': extensionCopy.viewingBarLabel },
       });
       this.#remaining = el('span', { className: 'remaining' });
-      this.#button = button(copy.endHere, () => {
+      this.#button = button(extensionCopy.endHere, () => {
         this.onStop(section);
       });
       section.append(this.#remaining, this.#button);
@@ -39,7 +38,7 @@ export class ViewingBar {
       this.#section = section;
     }
     if (this.#remaining)
-      this.#remaining.textContent = copy.viewingLeft(clockLabel(model.remainingSeconds));
+      this.#remaining.textContent = extensionCopy.viewingLeft(clockLabel(model.remainingSeconds));
     if (this.#button && !this.#section.hasAttribute('aria-busy'))
       this.#button.disabled = model.disabled;
   }

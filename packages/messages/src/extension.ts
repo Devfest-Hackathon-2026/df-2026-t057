@@ -1,8 +1,9 @@
-// 拡張だけで使う表示の文言。エラーの文言と相棒の一言の決まった文は @dopagaki/messages から引く。
-import type { ExtensionWallet } from './schemas';
-import { durationLabel } from '@dopagaki/messages';
+// Chrome拡張だけで使う表示の文言。エラーの文言と相棒の一言は shared.ts の対応表から引く。
+// 文言の値は API が返したものをそのまま使い、ここでは計算しない。
+import type { TimePolicyMode } from '@dopagaki/contract';
+import { durationLabel, problemMessages } from './shared.ts';
 
-export const copy = {
+export const extensionCopy = {
   // 共通
   pending: '処理しています…',
   transportFailed: '接続できませんでした。入力は残っています。再試行してください。',
@@ -30,7 +31,7 @@ export const copy = {
   choose: (minutes: number, limit: string | undefined) =>
     `${minutes}分にする${limit ? `（残り${limit}まで）` : ''}`,
   extend: '残り枠からもう5分',
-  exhausted: '今日の視聴枠を使い切りました。休憩や次の作業へ移りましょう。',
+  exhausted: problemMessages['viewing.exhausted'],
   endHere: 'ここで終える',
   notNow: '今は見ない',
   nextWork: '次の作業へ',
@@ -123,8 +124,14 @@ export function workRewardMessage(rewardSeconds: number, deferred: boolean): str
     : '作業を記録しました';
 }
 
-/** 通知に添える、報酬のルールの説明。ルールの値は API から受け取る。 */
-export function rewardDescription(wallet: ExtensionWallet | null): string {
+/** 報酬のルールの説明に必要な、Wallet の項目。値は API から受け取る。 */
+export interface RewardRuleSource {
+  policy: { mode: TimePolicyMode };
+  rules: { workSecondsPerReward: number; rewardSecondsPerUnit: number };
+}
+
+/** 通知に添える、報酬のルールの説明。 */
+export function rewardDescription(wallet: RewardRuleSource | null): string {
   if (!wallet) return '取り組んだ時間を記録しましょう';
   if (wallet.policy.mode !== 'rewards') return '区切りまで、ひとつずつ取り組みましょう';
   const work = durationLabel(wallet.rules.workSecondsPerReward);

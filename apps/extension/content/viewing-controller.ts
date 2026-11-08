@@ -4,7 +4,7 @@
 // - 約30秒ごとに background へ報告する。届かなければ同じ受付の ID で送り直す。
 // - 区切りの残りか今日の残りを使い切ったら止めて、区切りを `limit` で終える。
 import { chargedSeconds, ViewingMeter } from '../lib/meter';
-import { copy } from '../lib/copy';
+import { extensionCopy } from '@dopagaki/messages';
 import type { ExtensionState } from '../lib/schemas';
 import { actionPending, runAction, showError } from '../ui/action';
 import type { OverlayHost } from '../ui/overlay';
@@ -208,7 +208,7 @@ export class ViewingController {
     this.#meter.retryNow();
     try {
       if (!(await this.#flush())) {
-        showError(container, copy.transportFailed);
+        showError(container, extensionCopy.transportFailed);
         return;
       }
       const reply = await runAction(container, {
@@ -220,7 +220,7 @@ export class ViewingController {
       this.context.apply(reply);
       this.#meter.reset();
       this.host.close();
-      this.context.toast(copy.stopped);
+      this.context.toast(extensionCopy.stopped);
     } finally {
       this.#stopping = undefined;
     }

@@ -1,7 +1,6 @@
 // 予定の変更案を確認する画面。OK を押すまで予定は変わらない。
 import type { Draft } from '@dopagaki/contract';
-import { planReasonLabels } from '@dopagaki/messages';
-import { copy, timeLabel } from '../lib/copy';
+import { planReasonLabels, extensionCopy, timeLabel } from '@dopagaki/messages';
 import { fromLocalInput, moveUp, retime, toLocalInput } from '../lib/draft-edit';
 import type { ExtensionTask } from '../lib/schemas';
 import { runAction, showError } from './action';
@@ -18,15 +17,15 @@ export async function showDraft(
   back: () => void,
 ): Promise<void> {
   const dialog = host.open('draft', {
-    label: copy.draftLabel,
+    label: extensionCopy.draftLabel,
     className: `${overlayClass(host.context.state?.settings ?? null, 'simple')} draft`,
     panelClassName: 'panel plan-panel',
   });
   const { panel } = dialog;
   const heading = el('h2', {
-    text: mode === 'adjust' ? copy.draftAdjustHeading : copy.draftSnoozeHeading,
+    text: mode === 'adjust' ? extensionCopy.draftAdjustHeading : extensionCopy.draftSnoozeHeading,
   });
-  panel.append(heading, el('p', { className: 'muted', text: copy.draftNotice }));
+  panel.append(heading, el('p', { className: 'muted', text: extensionCopy.draftNotice }));
   heading.tabIndex = -1;
   dialog.focusFirst(heading);
 
@@ -37,7 +36,7 @@ export async function showDraft(
   }
   if (host.current !== 'draft' || !dialog.element.isConnected) return;
   if (!draft) {
-    const backButton = button(copy.back, back);
+    const backButton = button(extensionCopy.back, back);
     panel.append(el('div', { className: 'actions' }, backButton));
     backButton.focus();
     return;
@@ -49,7 +48,7 @@ export async function showDraft(
     const reason = current.changes[0]?.after.reason;
     if (reason) content.append(el('p', { className: 'info', text: planReasonLabels[reason] }));
     if (current.shortened)
-      content.append(el('p', { className: 'info', text: copy.draftShortened }));
+      content.append(el('p', { className: 'info', text: extensionCopy.draftShortened }));
 
     current.changes.forEach((change, index) => {
       const section = el('section', { className: 'change' });
@@ -57,12 +56,12 @@ export async function showDraft(
       if (index > 0) {
         title.append(
           button(
-            copy.moveUp,
+            extensionCopy.moveUp,
             () => {
               render({ ...current, changes: moveUp(current.changes, index) });
             },
             'text',
-            copy.moveUpLabel(change.title),
+            extensionCopy.moveUpLabel(change.title),
           ),
         );
       }
@@ -70,7 +69,7 @@ export async function showDraft(
         title,
         el('p', {
           className: 'muted',
-          text: copy.before(
+          text: extensionCopy.before(
             timeLabel(change.before.start),
             timeLabel(change.before.end),
             change.originalMinutes,
@@ -86,7 +85,7 @@ export async function showDraft(
           const value = fromLocalInput(input.value);
           const next = value ? retime(change.after, field, value) : undefined;
           if (!next) {
-            showError(section, copy.invalidTime);
+            showError(section, extensionCopy.invalidTime);
             input.value = toLocalInput(change.after[field]);
             return;
           }
@@ -97,7 +96,10 @@ export async function showDraft(
           el(
             'div',
             { className: 'field' },
-            el('label', { text: field === 'start' ? copy.start : copy.end, attrs: { for: id } }),
+            el('label', {
+              text: field === 'start' ? extensionCopy.start : extensionCopy.end,
+              attrs: { for: id },
+            }),
             input,
           ),
         );
@@ -111,17 +113,21 @@ export async function showDraft(
 
     const instructionId = `dpg-field-${String(++fieldId)}`;
     const instruction = el('textarea', {
-      attrs: { id: instructionId, placeholder: copy.instructionPlaceholder, maxlength: '2000' },
+      attrs: {
+        id: instructionId,
+        placeholder: extensionCopy.instructionPlaceholder,
+        maxlength: '2000',
+      },
     });
     content.append(
       el('label', {
         className: 'field-label',
-        text: copy.instructionLabel,
+        text: extensionCopy.instructionLabel,
         attrs: { for: instructionId },
       }),
       instruction,
       button(
-        copy.regenerate,
+        extensionCopy.regenerate,
         () => {
           const text = instruction.value.trim();
           if (!text) {
@@ -144,7 +150,7 @@ export async function showDraft(
     const actions = el('div', { className: 'actions' });
     actions.append(
       button(
-        copy.commit,
+        extensionCopy.commit,
         () => {
           void runAction(panel, { type: 'COMMIT_DRAFT', draft: current }).then(async (reply) => {
             if (!reply?.ok) return;
@@ -155,7 +161,7 @@ export async function showDraft(
         },
         'filled',
       ),
-      button(copy.cancel, back, 'text'),
+      button(extensionCopy.cancel, back, 'text'),
     );
     content.append(actions);
     panel.append(content);

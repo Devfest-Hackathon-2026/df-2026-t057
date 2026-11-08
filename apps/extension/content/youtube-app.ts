@@ -1,6 +1,6 @@
 // YouTube の content script。Shorts の検出・視聴時間の計測・画面表示を組み合わせる。
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { copy } from '../lib/copy';
+import { extensionCopy } from '@dopagaki/messages';
 import { tabCommandSchema, type TabCommand } from '../lib/protocol';
 import { showNight } from '../ui/night';
 import { showNotice } from '../ui/notice';
@@ -14,7 +14,7 @@ import { ViewingController } from './viewing-controller';
 export function startYouTube(ctx: ContentScriptContext, root: HTMLElement): void {
   const context = new ContentContext(root);
   const host = createOverlayHost(context, currentVideo, () => {
-    context.toast(copy.autoplayBlocked);
+    context.toast(extensionCopy.autoplayBlocked);
   });
   const timer = new TimerBar(context);
   const viewing = new ViewingController(context, host);

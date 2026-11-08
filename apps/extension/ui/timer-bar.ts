@@ -1,8 +1,7 @@
 // 作業タイマーのバー（YouTube と、許可した作業サイトで表示する）。
 // 経過時間は1秒ごとに書き換えるだけにし、作業や課題が変わったときだけ組み立て直す（フォーカスを失わせない）。
-import { clockLabel } from '@dopagaki/messages';
+import { clockLabel, extensionCopy, workRewardMessage } from '@dopagaki/messages';
 import type { ContentContext } from '../content/context';
-import { copy, workRewardMessage } from '../lib/copy';
 import { workElapsedSeconds } from '../lib/work-timer';
 import { runAction } from './action';
 import { button, el } from './dom';
@@ -32,16 +31,20 @@ export class TimerBar {
       this.#build(task.title, session.id, task.id, !!state.wallet);
     }
     // 一時停止と再開は同じボタンの表示を変えるだけにする（押したボタンからフォーカスが消えないように）。
-    if (this.#pause) this.#pause.textContent = session.running ? copy.pause : copy.resume;
+    if (this.#pause)
+      this.#pause.textContent = session.running ? extensionCopy.pause : extensionCopy.resume;
     this.tick();
   }
 
   #build(title: string, sessionId: string, taskId: string, canConfirm: boolean): void {
-    const section = el('section', { className: 'timer', attrs: { 'aria-label': copy.timerLabel } });
+    const section = el('section', {
+      className: 'timer',
+      attrs: { 'aria-label': extensionCopy.timerLabel },
+    });
     const elapsed = el('span', { className: 'elapsed', attrs: { 'aria-live': 'off' } });
-    const progress = el('progress', { attrs: { 'aria-label': copy.progressLabel } });
+    const progress = el('progress', { attrs: { 'aria-label': extensionCopy.progressLabel } });
     const actions = el('div', { className: 'timer-actions' });
-    const pause = button(copy.pause, () => {
+    const pause = button(extensionCopy.pause, () => {
       const running = this.context.state?.workSession?.running ?? true;
       void runAction(section, { type: running ? 'PAUSE_WORK' : 'RESUME_WORK' }).then((reply) => {
         if (reply?.ok) this.context.apply(reply);
@@ -51,7 +54,7 @@ export class TimerBar {
     actions.append(pause);
     if (canConfirm) {
       actions.append(
-        button(copy.confirmWork, () => {
+        button(extensionCopy.confirmWork, () => {
           void runAction(section, { type: 'CONFIRM_WORK', sessionId }).then((reply) => {
             if (!reply?.ok) return;
             this.context.apply(reply);
@@ -63,7 +66,7 @@ export class TimerBar {
     }
     actions.append(
       button(
-        copy.complete,
+        extensionCopy.complete,
         () => {
           void runAction(section, { type: 'COMPLETE_TASK', taskId }).then(async (reply) => {
             if (!reply?.ok) return;

@@ -15,7 +15,7 @@ import { handleRequest, syncAll } from '../background/router';
 import { getState, onStateChange } from '../background/store';
 import { forgetTab, onOwnerChange } from '../background/viewing';
 import { getConnection } from '../background/connection';
-import { copy } from '../lib/copy';
+import { extensionCopy } from '@dopagaki/messages';
 import { requestSchema } from '../lib/protocol';
 import { workSiteScriptId } from '../lib/urls';
 
@@ -43,7 +43,7 @@ export default defineBackground(() => {
     if (sender.id !== chrome.runtime.id) return false;
     const parsed = requestSchema.safeParse(message);
     if (!parsed.success) {
-      sendResponse(errorReply(new ExtensionError(copy.operationUnknown)));
+      sendResponse(errorReply(new ExtensionError(extensionCopy.operationUnknown)));
       return false;
     }
     handleRequest(parsed.data, sender).then(sendResponse, (error: unknown) => {

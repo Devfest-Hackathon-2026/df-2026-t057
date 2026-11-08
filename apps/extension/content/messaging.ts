@@ -1,5 +1,5 @@
 // content script から background への送受信。受け取った値は必ず zod で検証する。
-import { copy } from '../lib/copy';
+import { extensionCopy } from '@dopagaki/messages';
 import {
   PORT_NAME,
   portPushSchema,
@@ -19,7 +19,11 @@ export function extensionAlive(): boolean {
   }
 }
 
-const transportFailure: Reply = { ok: false, error: copy.transportFailed, retryable: true };
+const transportFailure: Reply = {
+  ok: false,
+  error: extensionCopy.transportFailed,
+  retryable: true,
+};
 
 export async function send(request: Request): Promise<Reply> {
   if (!extensionAlive()) return transportFailure;

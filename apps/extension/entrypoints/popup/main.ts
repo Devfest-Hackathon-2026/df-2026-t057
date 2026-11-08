@@ -1,9 +1,14 @@
 // ポップアップ。接続の状態、視聴できる時間、作業中の課題か次の課題、作業サイトでのタイマーの許可。
 import '@dopagaki/tokens/tokens.css';
 import './style.css';
-import { clockLabel, durationLabel } from '@dopagaki/messages';
+import {
+  clockLabel,
+  durationLabel,
+  extensionCopy,
+  timeLabel,
+  workRewardMessage,
+} from '@dopagaki/messages';
 import { send } from '../../content/messaging';
-import { copy, timeLabel, workRewardMessage } from '../../lib/copy';
 import { MANAGEMENT_ORIGIN } from '../../lib/config';
 import type { OkReply, Request } from '../../lib/protocol';
 import type { ExtensionState } from '../../lib/schemas';
@@ -25,10 +30,10 @@ const workActions = byId('work-actions', HTMLElement);
 const status = byId('status', HTMLElement);
 const openButton = byId('open', HTMLButtonElement);
 const permissionButton = byId('permission', HTMLButtonElement);
-byId('balance-label', HTMLElement).textContent = copy.popupAvailable;
-focus.textContent = copy.popupChecking;
-openButton.textContent = copy.popupOpenApp;
-permissionButton.textContent = copy.popupWorkSite;
+byId('balance-label', HTMLElement).textContent = extensionCopy.popupAvailable;
+focus.textContent = extensionCopy.popupChecking;
+openButton.textContent = extensionCopy.popupOpenApp;
+permissionButton.textContent = extensionCopy.popupWorkSite;
 
 let state: ExtensionState | undefined;
 
@@ -37,7 +42,7 @@ function renderBalance(current: ExtensionState): void {
   const available = current.viewing?.availableSeconds ?? current.wallet?.availableSeconds;
   balance.textContent =
     mode === 'self' || mode === 'reminder'
-      ? copy.popupUnlimited
+      ? extensionCopy.popupUnlimited
       : available === undefined
         ? '—'
         : durationLabel(Math.max(0, available));
@@ -56,22 +61,22 @@ function renderWork(current: ExtensionState): void {
   const session = current.workSession;
   if (session) {
     const task = current.tasks.find((item) => item.id === session.taskId);
-    focus.textContent = copy.popupWorking(
+    focus.textContent = extensionCopy.popupWorking(
       task?.title ?? '',
       clockLabel(workElapsedSeconds(session, current.workSyncedAt, Date.now())),
     );
     workActions.append(
-      button(session.running ? copy.pause : copy.resume, () => {
+      button(session.running ? extensionCopy.pause : extensionCopy.resume, () => {
         act({ type: session.running ? 'PAUSE_WORK' : 'RESUME_WORK' });
       }),
-      button(copy.confirmWork, () => {
+      button(extensionCopy.confirmWork, () => {
         act({ type: 'CONFIRM_WORK', sessionId: session.id }, (reply) => {
           if (reply.work)
             status.textContent = workRewardMessage(reply.work.rewardSeconds, reply.work.deferred);
         });
       }),
       button(
-        copy.complete,
+        extensionCopy.complete,
         () => {
           act({ type: 'COMPLETE_TASK', taskId: session.taskId }, (reply) => {
             status.textContent = workRewardMessage(
@@ -89,13 +94,13 @@ function renderWork(current: ExtensionState): void {
     .filter((task) => task.status === 'pending')
     .sort((a, b) => Date.parse(a.plan.start) - Date.parse(b.plan.start))[0];
   if (!next) {
-    focus.textContent = copy.popupIdle;
+    focus.textContent = extensionCopy.popupIdle;
     return;
   }
-  focus.textContent = copy.popupNext(next.title, timeLabel(next.plan.start));
+  focus.textContent = extensionCopy.popupNext(next.title, timeLabel(next.plan.start));
   workActions.append(
     button(
-      copy.popupStartNext,
+      extensionCopy.popupStartNext,
       () => {
         act({ type: 'START_TASK', taskId: next.id });
       },
@@ -114,7 +119,7 @@ setInterval(() => {
   const session = state?.workSession;
   if (!state || !session) return;
   const task = state.tasks.find((item) => item.id === session.taskId);
-  focus.textContent = copy.popupWorking(
+  focus.textContent = extensionCopy.popupWorking(
     task?.title ?? '',
     clockLabel(workElapsedSeconds(session, state.workSyncedAt, Date.now())),
   );
@@ -142,18 +147,18 @@ permissionButton.addEventListener('click', () => {
   const tab = tabNow;
   const pattern = workSitePattern(tab?.url);
   if (!tab || !pattern) {
-    status.textContent = copy.popupOpenWorkPage;
+    status.textContent = extensionCopy.popupOpenWorkPage;
     return;
   }
   if (alreadyCovered(pattern)) {
-    status.textContent = copy.popupWorkSiteEnabled;
+    status.textContent = extensionCopy.popupWorkSiteEnabled;
     return;
   }
   void chrome.permissions
     .request({ origins: [pattern] })
     .then(async (granted) => {
       if (!granted) {
-        status.textContent = copy.popupPermissionUnchanged;
+        status.textContent = extensionCopy.popupPermissionUnchanged;
         return;
       }
       const id = workSiteScriptId(pattern);
@@ -172,24 +177,26 @@ permissionButton.addEventListener('click', () => {
       }
       if (tab.id !== undefined)
         await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [file] });
-      status.textContent = copy.popupWorkSiteEnabled;
+      status.textContent = extensionCopy.popupWorkSiteEnabled;
     })
     .catch(() => {
-      status.textContent = copy.popupWorkSiteFailed;
+      status.textContent = extensionCopy.popupWorkSiteFailed;
     });
 });
 
 void send({ type: 'GET_STATE', refresh: false }).then((reply) => {
   if (!reply.ok) {
-    status.textContent = reply.retryable ? copy.popupConnectFrom(MANAGEMENT_ORIGIN) : reply.error;
-    focus.textContent = copy.popupIdle;
+    status.textContent = reply.retryable
+      ? extensionCopy.popupConnectFrom(MANAGEMENT_ORIGIN)
+      : reply.error;
+    focus.textContent = extensionCopy.popupIdle;
     return;
   }
   if (!reply.connected || !reply.state) {
-    status.textContent = copy.popupOpenToConnect;
-    focus.textContent = copy.popupIdle;
+    status.textContent = extensionCopy.popupOpenToConnect;
+    focus.textContent = extensionCopy.popupIdle;
     return;
   }
-  status.textContent = copy.popupConnected;
+  status.textContent = extensionCopy.popupConnected;
   render(reply.state);
 });

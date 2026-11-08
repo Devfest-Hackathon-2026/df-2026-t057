@@ -1,10 +1,9 @@
 // 課題の開始時刻の通知、就寝前の声かけ、朝のあいさつ。
 // 通知は chrome.alarms で各課題の `plan.start` に鳴らす。Shorts を見ていれば画面の上に、そうでなければデスクトップ通知で出す。
 import type { CompanionMoment } from '@dopagaki/contract';
-import { companionFallbacks } from '@dopagaki/messages';
+import { companionFallbacks, extensionCopy, rewardDescription } from '@dopagaki/messages';
 import { z } from 'zod';
 import { MANAGEMENT_ORIGIN } from '../lib/config';
-import { copy, rewardDescription } from '../lib/copy';
 import { shownReplySchema, type TabCommand } from '../lib/protocol';
 import {
   alarmTime,
@@ -107,9 +106,12 @@ export async function notifyDueTask(): Promise<void> {
     await chrome.notifications.create(`task:${task.id}`, {
       type: 'basic',
       iconUrl: chrome.runtime.getURL('icon-128.png'),
-      title: copy.notificationTitle,
+      title: extensionCopy.notificationTitle,
       message: `${task.title}\n${line || rewardDescription(state.wallet)}`,
-      buttons: [{ title: copy.notificationStart }, { title: copy.notificationSnooze }],
+      buttons: [
+        { title: extensionCopy.notificationStart },
+        { title: extensionCopy.notificationSnooze },
+      ],
       priority: 2,
       requireInteraction: true,
     });
@@ -147,14 +149,14 @@ export async function greetMorning(state: ExtensionState | undefined): Promise<v
   await refetch(['wallet', 'viewing', 'sleep']).catch(() => undefined);
   if (version !== connectionVersion()) return;
   const gains = [
-    morning.kept ? copy.morningBonus(morning.bonusSeconds) : '',
-    morning.releasedSeconds ? copy.morningReleased(morning.releasedSeconds) : '',
+    morning.kept ? extensionCopy.morningBonus(morning.bonusSeconds) : '',
+    morning.releasedSeconds ? extensionCopy.morningReleased(morning.releasedSeconds) : '',
   ].filter(Boolean);
   const line = await companionLine('morning');
   await chrome.notifications.create('morning', {
     type: 'basic',
     iconUrl: chrome.runtime.getURL('icon-128.png'),
-    title: copy.morningTitle,
+    title: extensionCopy.morningTitle,
     message: [line, ...gains].join('\n'),
   });
 }
