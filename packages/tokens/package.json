@@ -1,0 +1,30 @@
+{
+  "name": "@dopagaki/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DOPAGAKI の M3 デザイントークン。web（Angular Material）と Chrome 拡張で共有する",
+  "exports": {
+    "./theme": {
+      "sass": "./src/_theme.scss",
+      "default": "./src/_theme.scss"
+    },
+    "./tokens.css": "./src/tokens.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "generate": "node scripts/generate.cjs && prettier --write src",
+    "lint": "node scripts/check-contrast.mjs"
+  },
+  "devDependencies": {
+    "@angular/cdk": "22.2.6",
+    "@angular/common": "22.2.4",
+    "@angular/core": "22.2.4",
+    "@angular/material": "22.2.6",
+    "rxjs": "~7.8.2",
+    "sass": "^1.107.1"
+  }
+}

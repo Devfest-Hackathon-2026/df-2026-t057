@@ -1,0 +1,17 @@
+packages:
+  - apps/*
+  - packages/*
+  - e2e
+
+# 依存の更新は、公開から一定期間たったものだけを受け入れる（供給網攻撃への備え）。
+minimumReleaseAge: 4320
+
+# 依存のインストール時スクリプトは、明示的に許可したものだけ実行する。
+# 以下はプラットフォーム別のバイナリを optionalDependencies で受け取るため、スクリプトは不要。
+allowBuilds:
+  '@parcel/watcher': false
+  esbuild: false
+  lmdb: false
+  msgpackr-extract: false
+  '@firebase/util': false
+  protobufjs: false
