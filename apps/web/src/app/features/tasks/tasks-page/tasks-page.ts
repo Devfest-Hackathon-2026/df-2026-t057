@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import type { Task } from '@dopagaki/contract';
@@ -34,6 +35,7 @@ export function filterTasks(tasks: readonly Task[], filter: Filter): Task[] {
     MatButtonModule,
     MatButtonToggleModule,
     MatIconModule,
+    MatMenuModule,
     MatTooltipModule,
     RouterLink,
   ],

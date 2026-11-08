@@ -73,7 +73,8 @@ test('calendar adapts to mobile while preserving an explicit view choice', async
 
   await page.getByRole('link', { name: '課題', exact: true }).click();
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
-  const edit = page.getByRole('button', { name: '課題を編集', exact: true });
+  // 編集などは「そのほかの操作」メニューにまとめている。そのボタンの大きさを確かめる。
+  const edit = page.getByRole('button', { name: /のそのほかの操作$/ }).first();
   const icon = await edit.locator('mat-icon').boundingBox();
   expect(icon?.width ?? 0).toBeLessThanOrEqual(24);
   // 押せる大きさは 24×24 以上（WCAG 2.5.8）。

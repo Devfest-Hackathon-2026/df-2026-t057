@@ -73,6 +73,15 @@
     font: var(--mat-sys-label-medium);
   }
 
+  .event-name.wrap {
+    display: -webkit-box;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
   .event-clock {
     display: block;
     font: var(--mat-sys-label-small);
