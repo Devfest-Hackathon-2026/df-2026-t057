@@ -16,6 +16,9 @@
     "@angular/material": "22.2.6",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
+    "@dopagaki/bridge": "workspace:*",
+    "@dopagaki/contract": "workspace:*",
+    "@dopagaki/messages": "workspace:*",
     "@dopagaki/tokens": "workspace:*",
     "@fullcalendar/angular": "7.1.4",
     "firebase": "13.2.0",
@@ -24,7 +27,8 @@
     "openapi-fetch": "^0.17.0",
     "rxjs": "~7.8.0",
     "temporal-polyfill": "1.0.7",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@angular/build": "^22.2.6",

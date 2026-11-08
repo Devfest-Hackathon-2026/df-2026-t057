@@ -27,6 +27,7 @@ apps/
   extension/    Chrome拡張（MV3、WXT）
 packages/
   contract/     openapi.yaml と、そこから生成したTSクライアント
+  bridge/       管理画面と拡張の間の postMessage の型（zodで検証）
   tokens/       M3デザイントークン（CSS変数）。webと拡張で共有
   messages/     エラーコード・表示文言の対応表。webと拡張で共有
 engineering/    開発記録
