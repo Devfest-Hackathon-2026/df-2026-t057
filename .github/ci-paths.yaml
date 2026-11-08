@@ -1,4 +1,6 @@
-# 共通のツール・設定を変えたら、PRでも全体を検証する。
+all:
+  - '**'
+# 影響するアプリの範囲。実行頻度・テストのみの除外は deploy/ci-policy.mjs が決める。
 full: &full
   - 'package.json'
   - 'pnpm-lock.yaml'
@@ -45,10 +47,13 @@ e2e:
   - 'apps/**'
   - 'packages/**'
   - 'e2e/**'
+terraform:
+  - *full
+  - 'deploy/terraform/**'
+  - 'deploy/firestore.rules'
 e2e_sources:
   - 'e2e/**'
 deploy:
-  - *full
   - 'apps/api/**'
   - 'apps/web/**'
   # bridgeも管理画面の依存。共通パッケージはすべて配信対象に含める。
@@ -56,3 +61,11 @@ deploy:
   - 'Dockerfile'
   - '.dockerignore'
   - 'deploy/cloud-run.sh'
+  - '.github/workflows/cd.yml'
+  - '.npmrc'
+  - '.nvmrc'
+  - 'tsconfig.base.json'
+  - 'apps/*/package.json'
+  - 'packages/*/package.json'
+  - 'e2e/package.json'
+  - 'deploy/package.json'

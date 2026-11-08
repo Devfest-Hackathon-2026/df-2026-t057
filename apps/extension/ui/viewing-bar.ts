@@ -1,5 +1,6 @@
 // 視聴中の区切りの残り時間と「ここで終える」。区切りの持ち主のタブで、Shorts を開いているときだけ出す。
-import { clockLabel, extensionCopy } from '@dopagaki/messages';
+import { clockLabel, type Locale } from '@dopagaki/messages';
+import { currentLocale, currentMessages } from '../lib/locale';
 import { button, el } from './dom';
 
 export interface ViewingBarModel {
@@ -12,6 +13,7 @@ export class ViewingBar {
   #section: HTMLElement | undefined;
   #remaining: HTMLElement | undefined;
   #button: HTMLButtonElement | undefined;
+  #locale: Locale | undefined;
 
   constructor(
     private readonly root: HTMLElement,
@@ -19,18 +21,21 @@ export class ViewingBar {
   ) {}
 
   update(model: ViewingBarModel): void {
-    if (!model.visible) {
-      this.#section?.remove();
+    // 言語が変わったときも、ラベルとボタンを作り直す。
+    if (this.#section && (!model.visible || this.#locale !== currentLocale())) {
+      this.#section.remove();
       this.#section = undefined;
-      return;
     }
+    if (!model.visible) return;
+    const copy = currentMessages().extension;
     if (!this.#section) {
+      this.#locale = currentLocale();
       const section = el('section', {
         className: 'viewing-bar',
-        attrs: { 'aria-label': extensionCopy.viewingBarLabel },
+        attrs: { 'aria-label': copy.viewingBarLabel },
       });
       this.#remaining = el('span', { className: 'remaining' });
-      this.#button = button(extensionCopy.endHere, () => {
+      this.#button = button(copy.endHere, () => {
         this.onStop(section);
       });
       section.append(this.#remaining, this.#button);
@@ -38,7 +43,7 @@ export class ViewingBar {
       this.#section = section;
     }
     if (this.#remaining)
-      this.#remaining.textContent = extensionCopy.viewingLeft(clockLabel(model.remainingSeconds));
+      this.#remaining.textContent = copy.viewingLeft(clockLabel(model.remainingSeconds));
     if (this.#button && !this.#section.hasAttribute('aria-busy'))
       this.#button.disabled = model.disabled;
   }

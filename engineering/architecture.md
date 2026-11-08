@@ -91,9 +91,9 @@ flowchart LR
 
 - Firebase Authentication、Vertex AI、Google Calendar、Cloud Tasks、Secret Manager への実接続（アダプターはローカルのHTTP応答や偽のgRPCサーバーで確認）
 - Firestoreはエミュレーターで、実際のストアを通す結合テスト（課題の登録・作業の記録・視聴・朝の精算・再送）まで確認した。本番のFirestoreでは未確認。必要なインデックスとTTLは [deploy/firestore.md](../deploy/firestore.md)
-- `deploy/setup-cloud-tasks.sh` の実行（キュー、呼び出し用のサービスアカウント、Cloud Schedulerのジョブ、FirestoreのTTL）
+- キュー、呼び出し用のサービスアカウント、Cloud Schedulerのジョブ、FirestoreのTTLの作成（今は [deploy/terraform](../deploy/terraform/README.md) で管理する）
 - Secret Managerの古いOAuthトークンのバージョンの削除（実行アカウントに `secretmanager.versions.list` / `destroy` が無い）
 
 ## 後回しにしたこと
 
-- インフラのコード化（Terraform）。作り直しの次の別PRで行う。
+- インフラのコード化（Terraform）。2026-11-08に別PRで追加した（[記録](terraform-2026-11-08.md)）。

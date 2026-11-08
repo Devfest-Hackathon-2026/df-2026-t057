@@ -23,10 +23,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import type { AssistantCard, Plan, Task, TaskCreateInput, TaskInput } from '@dopagaki/contract';
-import { durationLabel } from '@dopagaki/messages';
 import { AuthService } from '../../core/auth/auth.service';
 import { ConfigStore } from '../../core/config/config.store';
 import type { Outcome } from '../../core/http/operation';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { DateTimePipe, TimePipe } from '../../shared/ui/format';
 import { CalendarStore } from '../calendar/calendar.store';
 import { ProfileStore } from '../settings/profile.store';
@@ -99,6 +99,8 @@ export class AssistantCardView {
   private readonly actions = inject(TaskActions);
   private readonly auth = inject(AuthService);
   private readonly config = inject(ConfigStore);
+  private readonly shared = inject(LocaleStore).shared;
+  protected readonly text = inject(LocaleStore).web;
 
   protected readonly pending = signal(false);
   protected readonly error = signal<string | undefined>(undefined);
@@ -172,10 +174,11 @@ export class AssistantCardView {
       !this.calendar.connected(),
   );
   protected readonly registerLabel = computed(() => {
-    const reward = durationLabel(this.wallet.value()?.rules.registrationRewardSeconds ?? 300);
-    return this.sleep.night()
-      ? `カレンダーに登録（＋${reward}は朝に）`
-      : `カレンダーに登録 ＋${reward}`;
+    const reward = this.shared().durationLabel(
+      this.wallet.value()?.rules.registrationRewardSeconds ?? 300,
+    );
+    const card = this.text().assistant.card;
+    return this.sleep.night() ? card.registerAtNight(reward) : card.register(reward);
   });
 
   // ── reschedule ──
@@ -205,10 +208,10 @@ export class AssistantCardView {
     );
   });
   protected readonly sleepBonus = computed(() =>
-    durationLabel(this.wallet.value()?.rules.sleepBonusSeconds ?? 900),
+    this.shared().durationLabel(this.wallet.value()?.rules.sleepBonusSeconds ?? 900),
   );
   protected readonly balanceCap = computed(() =>
-    durationLabel(this.wallet.value()?.rules.balanceCapSeconds ?? 1800),
+    this.shared().durationLabel(this.wallet.value()?.rules.balanceCapSeconds ?? 1800),
   );
 
   constructor() {

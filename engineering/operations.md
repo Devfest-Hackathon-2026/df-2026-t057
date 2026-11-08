@@ -16,8 +16,8 @@
 | Chrome拡張の配布 | タグからReleaseを作成するワークフローを追加 | [release-extension.yml](../.github/workflows/release-extension.yml)。`vX.Y.Z` のpushで型チェック・単体テスト・公開先向けビルド・ZIPとチェックサムの公開を実行。導入は[INSTALL.txt](../extension/INSTALL.txt)参照。初回のGitHub上の実行結果はPR・Actionsで確認 |
 | Cloud Runへの配信 | 自動配信の初回成功を確認済み | GitHub Actionsでイメージ作成・push・候補確認・切替 |
 | CD | 稼働済み | [継続的デプロイ](continuous-deployment.md)。mainの検証成功後に配信し、公開確認失敗時は元の配分へ戻す |
-| Terraform / IaC | 未導入 | Terraformコード・state管理・importは用意していない |
-| 配信設定の共有 | 一部あり | Dockerfile、公開環境変数の例、Firestoreルール、README |
+| Terraform / IaC | 本番へ適用済み | [deploy/terraform](../deploy/terraform/README.md)。2026-11-08に既存のリソースを取り込み、apply 後の plan は差分なし。[記録](terraform-2026-11-08.md) |
+| 配信設定の共有 | 一部あり | Dockerfile、Terraform（Cloud Runの環境変数を含む）、Firestoreルール、README |
 | 再現可能な一連の運用 | 未完成 | Firebase・OAuth・Chat・IAM等を含む初期設定全体はCLI・画面操作に依存 |
 
 2026-11-07にGitHub ActionsからのCDをmainへ反映し、対象リソースに限定した鍵なし認証で初回配信が成功した。以下の図は以前の手動配信の経路として残す。
@@ -35,22 +35,24 @@ flowchart LR
 
 ## CIの実行範囲
 
-PRと `main` へのpushで `check` を実行する。作業ブランチへのpushでは起動せず、同じPRへの更新では古い実行をキャンセルする。mainの配信は途中で取り消さない。PRはPR全体、mainはpush前からの差分を `.github/ci-paths.yaml` で判定する。
+変更範囲は `.github/ci-paths.yaml`、実行頻度と配信対象は `deploy/ci-policy.mjs` で判定する。`api` と `frontend` を並列実行し、成功後に `e2e` へ進む。`check` は依存ジョブの失敗・取消を失敗として集約し、資料だけの変更にも成功結果を残す。
 
-| PRの変更箇所 | 実行する主なチェック |
-|---|---|
-| `apps/api/` | 生成物確認、Go Lint・raceテスト、ビルド、全E2E |
-| `apps/web/` | 管理画面の型・単体テスト、ビルド、全E2E |
-| `apps/extension/` のみ | 拡張の型・単体テスト、ビルド、拡張の連携E2E |
-| `packages/` | 共通パッケージと両クライアントの型・Lint・単体テスト、全E2E。契約の変更ではGo、契約・トークンの変更では生成物も確認 |
-| `e2e/` | E2Eの型確認、ビルド、全E2E |
-| 共通の依存・ツール・Lint設定、`.github/` | 全体検証 |
-| `deploy/`、`Dockerfile`、`.dockerignore` | 配信・CIの回帰テスト。本番イメージや配信に関わる変更ではコンテナービルド |
-| 資料だけ | 変更範囲の判定のみ。checkの成功結果は残す |
+| 変更 | PR | main |
+|---|---|---|
+| 通常のアプリ変更 | 関連する型・Lint・単体＋スモークE2E | 関連する型・Lint・単体＋全E2E |
+| 認証・報酬・保存・API契約など | PRでも全E2E | 全E2E |
+| Go/TS単体テストだけ | 関連する単体。ブラウザー・配信は省略 | 同左 |
+| E2E本体・支援コード | 全E2E | 全E2E。アプリの配信は省略 |
+| Dockerfile・依存・ビルド設定 | コンテナーを作り、そのイメージで全E2E | 配信用イメージで全E2E後に同じイメージを配信 |
+| CIの実行条件・イメージ受け渡し | 全E2E。受け渡しを変えた場合はコンテナーも確認 | CI専用変更は重い検証・配信を省略 |
+| CDワークフロー・配信処理 | 回帰テスト。イメージ受け渡し変更はコンテナーでも確認 | 配信対象として実経路を確認 |
+| 資料だけ | 判定とcheckだけ | 同左 |
 
-コード変更では全体のフォーマット・TS/CSS Lint、CIの判定と配信の回帰テストを常に実行する。複数範囲を変えた場合はその和を検証する。拡張とE2Eを同時に変えた場合は全E2Eに戻す。mainへのコード変更では生成・Go・全パッケージ・全E2Eをすべて検証する。
+生成物は入力・生成ツール・生成物を変えたときだけ確認する。拡張のみの通常PRは拡張のスモーク1件、通常のアプリPRは登録・未認証・拡張の作業・アクセシビリティのスモーク4件を選ぶ。全件テストを削除せず、重要な変更とmainで維持する。実際の選択件数はテスト追加で変わり得る。
 
-Goの依存・コンパイル・Lint、pnpmストア、Dockerのビルドレイヤーをキャッシュする。E2E失敗時のartifactは3日保存する。設定の理由、以前の単発実測、検証の範囲は[CIの節約](ci-savings-2026-11-08.md)を参照。
+CIはapi/frontend/e2eごとのconcurrencyグループで古い実行を取り消す。CDは別グループで直列化し、開始済みの配信を中断しない。集約checkとCD開始時に最新mainを確認し、古い合格コミットからの配信を抑止する。
+
+Go・pnpm・Dockerのキャッシュは維持する。PRのDockerは復元のみ、mainで保存する。失敗時のE2E証拠と配信用イメージの受け渡しartifactは3日保存する。定期実行は追加せず、手動の全件検証は配信を伴わない。[構成と検証](ci-jobs-2026-11-08.md)を参照。
 
 ## 初期配信時の環境
 
@@ -145,7 +147,7 @@ options:
 timeout: 1200s
 ```
 
-設定をローカルの `cloudbuild.yaml` に置き、実行用の環境変数ファイルを [設定例](../deploy/cloudrun.env.example.yaml) から用意する。公開設定のみをファイルに入れ、秘密値はSecret Manager参照にする。以下は説明用のコマンドで、この記録の作成時には実行していない。
+設定をローカルの `cloudbuild.yaml` に置く。環境変数・Secret参照・リソース上限は [Terraform](../deploy/terraform/run.tf) で設定済みなので、手動配信ではイメージだけを変える。以下は説明用のコマンドで、この記録の作成時には実行していない。
 
 ```bash
 DOPAGAKI_PROJECT=devfest-2026-513816
@@ -162,7 +164,7 @@ gcloud builds submit . \
   --billing-project="$DOPAGAKI_PROJECT"
 ```
 
-本番更新では、完成したイメージのdigestを確認して固定する。`gcloud run deploy` へ、実行用SA、環境変数ファイル、Secret参照、リソース上限を明示する。OAuthとSchedulerのSecretバージョンは、使用するものを確認して指定する。手動配信後は [検証記録](verification-2026-11-06.md) の範囲で確認する。
+本番更新では、完成したイメージのdigestを確認して固定し、`deploy/cloud-run.sh` に渡す（候補確認と切替はCDと同じ）。手動配信後は [検証記録](verification-2026-11-06.md) の範囲で確認する。
 
 次は2026-11-06の初期確認時の配信値で、旧イメージを再配信するコマンド例。新しいビルドを配信する場合は、その結果のdigestへ置き換える。Secretの `:1` も配信時点の値である。
 
@@ -183,7 +185,7 @@ gcloud run deploy dopagaki \
 
 ## TerraformとCDを整備するときに決めること
 
-以下は未実施の作業一覧で、導入済みの仕組みではない。
+以下は2026-11-06時点の作業一覧。Terraformの管理範囲・既存環境の取り込み・state管理は、2026-11-08に [Terraformへの移行](terraform-2026-11-08.md) で決めた。
 
 | 項目 | 必要な判断・確認 |
 |---|---|

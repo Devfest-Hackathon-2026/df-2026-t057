@@ -44,5 +44,14 @@ test-results/
 .local/
 coverage/
 
+# Terraform（state は GCS に置く。手元に残るのはキャッシュだけ）
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+
 # 宣伝動画の作成スクリプトと書き出し（コミットしない）
 video/
+
+# 手元の素材の原画像（アプリには apps/web/public に加工したものを置く）
+picture/

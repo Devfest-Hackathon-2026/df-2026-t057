@@ -1,0 +1,72 @@
+name: Deploy
+'on':
+  workflow_call:
+    inputs:
+      image-artifact-id:
+        type: string
+        required: true
+      image-id:
+        type: string
+        required: true
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://dopagaki-1032251723022.asia-northeast1.run.app
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: devfest-2026-513816
+      REGION: asia-northeast1
+      SERVICE: dopagaki
+      SERVICE_URL: https://dopagaki-1032251723022.asia-northeast1.run.app
+      IMAGE: asia-northeast1-docker.pkg.dev/devfest-2026-513816/dopagaki/app
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check current main revision
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash deploy/current-main.sh
+      - name: Download tested production image
+        uses: actions/download-artifact@v5
+        with:
+          artifact-ids: ${{ inputs.image-artifact-id }}
+          path: dist
+        if: steps.current.outputs.current == 'true'
+      - name: Load and verify tested image
+        env:
+          EXPECTED_IMAGE_ID: ${{ inputs.image-id }}
+        run: bash deploy/load-image.sh
+        if: steps.current.outputs.current == 'true'
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: devfest-2026-513816
+          workload_identity_provider: projects/1032251723022/locations/global/workloadIdentityPools/dopagaki-github/providers/github
+          service_account: dopagaki-deploy@devfest-2026-513816.iam.gserviceaccount.com
+        if: steps.current.outputs.current == 'true'
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+        if: steps.current.outputs.current == 'true'
+      - name: Push image
+        run: |
+          gcloud auth configure-docker asia-northeast1-docker.pkg.dev --quiet
+          docker push "$IMAGE:$GITHUB_SHA"
+        if: steps.current.outputs.current == 'true'
+      - name: Deploy and verify
+        run: |
+          digest=$(gcloud artifacts docker images describe "$IMAGE:$GITHUB_SHA" \
+            --project="$PROJECT_ID" --format='value(image_summary.digest)')
+          bash deploy/cloud-run.sh "$IMAGE@$digest"
+        if: steps.current.outputs.current == 'true'
+    concurrency:
+      group: dopagaki-production
+      cancel-in-progress: false

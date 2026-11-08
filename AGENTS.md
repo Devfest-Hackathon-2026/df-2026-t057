@@ -29,9 +29,9 @@ packages/
   contract/     openapi.yaml と、そこから生成したTSクライアント
   bridge/       管理画面と拡張の間の postMessage の型（zodで検証）
   tokens/       M3デザイントークン（CSS変数）。webと拡張で共有
-  messages/     エラーコード・表示文言の対応表。webと拡張で共有
+  messages/     表示文言（日本語・英語）とエラーコードの対応表。webと拡張で共有
 engineering/    開発記録
-deploy/         配信スクリプトとIAM定義（のちにTerraformへ移す）
+deploy/         配信スクリプト、Terraform（Google Cloudの設定）、Firestoreのルール
 ```
 
 - ビジネスルールのTS実装は持たない。ルールはGoだけに書き、表示に必要な値はAPIで返す。
@@ -42,7 +42,7 @@ deploy/         配信スクリプトとIAM定義（のちにTerraformへ移す�
 バージョンは [mise.toml](mise.toml) を正とする。Nodeは [.nvmrc](.nvmrc) にも同じ値を書き、CIとDockerfileもこれに合わせる。
 
 ```bash
-mise install          # Node・Go・golangci-lint を揃える
+mise install          # Node・Go・golangci-lint・Terraform を揃える
 corepack enable       # pnpm を有効にする
 pnpm install
 ```
@@ -56,7 +56,13 @@ pnpm install
 | 仕様からコードを生成 | `pnpm generate` |
 | フォーマット | `pnpm format` |
 
-CIでは、mainへのコード変更で上の「確認」系をすべて実行する。PRでは変更したアプリと共通パッケージの依存先を検証し、API・管理画面・共通部分の変更では全E2E、拡張だけの変更では拡張の連携E2Eを実行する。生成元・生成物・生成設定に影響する変更とmainでは、`pnpm generate` の結果に差分がないことも確認する。実行範囲は `.github/ci-paths.yaml` を正とし、判定の回帰テストを維持する。Lintやフォーマットの違反があるPRはマージしない。
+CIは `api`・`frontend`・`e2e` の3ジョブで検証し、必須ステータス `check` へ結果を集約する。`deploy/terraform` を変えたときは、`terraform` ジョブでフォーマットと `validate` も確かめる。PRは関連する型・Lint・単体テストと主要操作のスモークE2Eを実行する。認証・報酬・保存・API契約・CIの実行条件などの重要な変更はPRでも全E2Eを実行する。mainではアプリ変更・配信対象変更の全E2Eを配信前に必須とし、資料・テストだけ・CI専用設定だけの変更では重い検証と配信を省く。生成物確認は生成元・生成ツール・生成物を変更したときに行う。
+
+影響範囲は `.github/ci-paths.yaml`、実行頻度・配信対象・テストのみの変更の扱いは `deploy/ci-policy.mjs` を正とし、両方を使った回帰テストを維持する。必要な検証の失敗・取消を成功として扱わない。APIとフロントの成功後にE2Eへ進み、省略されたAPIジョブはE2Eを妨げない。Lintやフォーマットの違反があるPRはマージしない。
+
+mainの配信対象では、本番用イメージを一度作り、そのイメージで全E2Eを通してからCDへ渡す。CDはイメージIDを照合して同じ成果物を配信し、再ビルドしない。古いCIはジョブ単位で取り消す。本番配信は別のconcurrencyグループで直列化し、開始済みの配信は中断しない。配信開始前には最新mainかを確認する。定期実行は追加せず、手動の全件検証だけを用意する。
+
+CI障害の復旧などで配信をやり直す場合は、承認済みPRのmainへのマージコミットに `[deploy]` を明示する。その場合だけ変更範囲にかかわらず生成物・Lint・型・単体・全E2Eを確認してから配信する。PRや `workflow_dispatch` から配信せず、mainへのpushという本番認証の条件を維持する。
 
 ## アーキテクチャ
 
@@ -79,6 +85,7 @@ flowchart LR
 
 - Cloud Run 1サービスで、APIと管理画面を同じオリジンから配信する。
 - クライアントは、FirestoreやGoogleのAPIに直接アクセスしない。必ず認証したAPIを通す。Firestoreのクライアント向けルールは全拒否にする。
+- Google Cloudの設定（API、サービスアカウントと権限、Cloud Run、Cloud Tasks、Cloud Scheduler、Firestore）は `deploy/terraform` で管理する。画面やgcloudで直接変えず、Terraformを変えてapplyする。Cloud Runのイメージとトラフィックだけは CD が変える。Secretの値はTerraformに入れない。
 
 ### バックエンド：機能ごとのパッケージ ＋ ポート＆アダプター
 
@@ -140,6 +147,7 @@ assistant/...              相談の会話と記憶
 - 台帳の項目は書き換えず、消さない。訂正するときは、打ち消す項目を追記する。
 - 状態を変えるトランザクションでは、同時に `meta` の該当リソースの版番号を上げる。
 - 日時はUTCで保存する。利用者のタイムゾーンは `profile` に持ち、計算するときに使う。
+- 言語（`ja`・`en`）も `profile` に持つ。管理画面・拡張の表示と、サーバーが作る文（カレンダーの予定、AIの返答、ショートカットの通知）は、すべてこの言語にする。
 - 状態の種類（モード、課題の状態、台帳の種類など）は、Goでは専用の型と定数、TSでは仕様から生成したunion型で表す。裸の文字列で比べない。
 
 ### 外部サービスとの整合：Outbox ＋ Cloud Tasks
@@ -188,7 +196,7 @@ apps/web/src/app/
 - 状態は機能ごとのstoreに持つ。アプリ全体の状態を1つのサービスに集めない。
 - 通信中の状態とエラーは、操作ごとに持つ。アプリ全体で1つの `busy` フラグを共有しない。操作を黙って捨てない。
 - コンポーネントは表示と操作の受け付けに専念する。ルールの計算はstoreかサーバーで行う。
-- エラーの文言は、`packages/messages` で `code` から引く。
+- 表示する文言は、`packages/messages` から現在の言語の分を引く（`core/i18n` の `LocaleStore`）。テンプレートやTSに直接書かない。エラーの文言は `code` から引く。
 
 ### Chrome拡張（WXT）
 
@@ -218,6 +226,7 @@ Material Design 3に従う。色・文字・角丸・余白・影は、すべて
 - 画面のSCSSと拡張のCSSは、**sysトークンだけを参照する**。16進数などの色の値、`px` の文字サイズ、独自の色変数を直接書かない。stylelintで禁止する。
 - パレットは、今の雰囲気（紙のような明るい背景、濃い文字、青、ライム）を元に、`ng generate @angular/material:theme-color` で生成する。M3の役割どおりに使う（例：補足の文字は `on-surface-variant`、区切り線は `outline-variant`、入力欄の枠は `outline`）。
 - ライトとダークの両方に対応する。`color-scheme: light dark` を指定し、トークンの切り替えで対応する。
+- サイドバーはライトでも暗く保つ。`color-scheme: dark` をサイドバーにだけ指定し、中はダークのsysトークンで塗る。選択中の項目は `tertiary-container`（ライム）で示す。
 - Angular Materialのコンポーネントを、内部のクラス名を指定して上書きしない。
 
 ### 文字
@@ -225,6 +234,7 @@ Material Design 3に従う。色・文字・角丸・余白・影は、すべて
 - M3のタイプスケールのトークン（`--mat-sys-body-large` など）を使う。文字サイズの単位は `rem`。
 - 日本語の本文は `body-large`（16px / 24px）を基準にする。`label-small`（11px）は、バッジなど補助的な表示だけに使う。
 - 日本語に負の `letter-spacing` を付けない。
+- 見出し（`headline-*`、`title-large`）は太さを700にする。M3の既定の400は日本語では細すぎる。値は `packages/tokens/scripts/generate.cjs` で上書きする。
 
 ## アクセシビリティ
 
@@ -262,10 +272,6 @@ Linterの警告を無効にするときは、その行に理由を書く。フ�
 - テスト、Issue、PR、記録に、実在の予定、カレンダーID、メールアドレス、閲覧履歴を載せない。架空のデータを使う。
 - AIに渡すのは、本人が入力した課題と作業傾向だけ。ほかのカレンダー、YouTubeの動画内容、閲覧履歴は送らない。
 - 状態を変えるリクエストでは `Origin` を確認する。拡張から受け付けるのは、許可した拡張IDからのリクエストだけにする。
-
-## 後回しにしていること
-
-- **インフラのコード化：** Terraformで管理する予定。作り直しの次の別PRで行う。それまでは、新しく作るGCPのリソース（Cloud Tasksのキューなど）を `deploy/` のスクリプトに書いておく。
 
 ## このファイルの更新
 

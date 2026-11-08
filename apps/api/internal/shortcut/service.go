@@ -11,6 +11,7 @@ import (
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/wallet"
@@ -47,20 +48,20 @@ func (l *limiter) allow(key string, limit int, now time.Time) bool {
 
 // Service はショートカットのユースケース。
 type Service struct {
-	runner  *store.Runner
-	clock   clock.Clock
-	tasks   *task.Service
-	wallet  Wallet
-	zones   ZoneSource
-	lines   Lines
-	appURL  string
-	log     *slog.Logger
-	limiter limiter
+	runner   *store.Runner
+	clock    clock.Clock
+	tasks    *task.Service
+	wallet   Wallet
+	profiles Profiles
+	lines    Lines
+	appURL   string
+	log      *slog.Logger
+	limiter  limiter
 }
 
 // New は Service を作る。appURL は通知から開く管理画面のオリジン。
-func New(runner *store.Runner, c clock.Clock, tasks *task.Service, wallets Wallet, zones ZoneSource, lines Lines, appURL string, log *slog.Logger) *Service {
-	return &Service{runner: runner, clock: c, tasks: tasks, wallet: wallets, zones: zones, lines: lines, appURL: appURL, log: log}
+func New(runner *store.Runner, c clock.Clock, tasks *task.Service, wallets Wallet, profiles Profiles, lines Lines, appURL string, log *slog.Logger) *Service {
+	return &Service{runner: runner, clock: c, tasks: tasks, wallet: wallets, profiles: profiles, lines: lines, appURL: appURL, log: log}
 }
 
 // Status は接続キーを発行済みか。
@@ -212,6 +213,7 @@ func (s *Service) Check(ctx context.Context, key, openID string) (Checked, error
 	}
 	now := s.clock.Now()
 	var next *task.Task
+	var lang locale.Locale
 	watching := false
 	uid, err := s.authorize(ctx, bucketCheck, key, now, func(ctx context.Context, tx *store.Tx, uid string) error {
 		opens, _, err := store.Get[AppOpens](ctx, tx, opensRef(uid))
@@ -219,7 +221,10 @@ func (s *Service) Check(ctx context.Context, key, openID string) (Checked, error
 			return err
 		}
 		watching = true
-		next, err = s.tasks.NextPending(ctx, tx, uid)
+		if next, err = s.tasks.NextPending(ctx, tx, uid); err != nil {
+			return err
+		}
+		lang, err = s.profiles.Locale(ctx, tx, uid)
 		return err
 	})
 	if err != nil || !watching {
@@ -245,12 +250,12 @@ func (s *Service) Check(ctx context.Context, key, openID string) (Checked, error
 	if err != nil || !watching {
 		return Checked{Action: ActionNone}, err
 	}
-	return Checked{Action: ActionNotify, Notification: s.notification(ctx, uid, due.Reason, next)}, nil
+	return Checked{Action: ActionNotify, Notification: s.notification(ctx, uid, lang, due.Reason, next)}, nil
 }
 
 // notification は通知の内容。持ち時間を使い切ったときは DOPAGAKI も開く。
-func (s *Service) notification(ctx context.Context, uid string, reason DueReason, next *task.Task) Notification {
-	n := Notification{Title: notificationTitle, URL: s.appURL + "/"}
+func (s *Service) notification(ctx context.Context, uid string, lang locale.Locale, reason DueReason, next *task.Task) Notification {
+	n := Notification{Title: notificationTitles[lang], URL: s.appURL + "/"}
 	taskID := ""
 	if next != nil {
 		taskID = next.ID
@@ -263,12 +268,12 @@ func (s *Service) notification(ctx context.Context, uid string, reason DueReason
 		n.OpenApp = true
 		line, err = s.lines.BalanceZeroLine(ctx, uid, taskID)
 		if line == "" {
-			line = fallbackBalanceZeroLine()
+			line = fallbackBalanceZeroLine(lang)
 		}
 	case DueTask:
 		line, err = s.lines.NoticeLine(ctx, uid, taskID)
 		if line == "" {
-			line = fallbackTaskLine(next.Title, next.Why)
+			line = fallbackTaskLine(lang, next.Title, next.Why)
 		}
 	}
 	if err != nil {
@@ -306,7 +311,7 @@ func (s *Service) AppOpenCounts(ctx context.Context, tx *store.Tx, uid string, n
 	if err != nil {
 		return 0, 0, true, err
 	}
-	loc, err := s.zones.Location(ctx, tx, uid)
+	loc, err := s.profiles.Location(ctx, tx, uid)
 	if err != nil {
 		return 0, 0, true, err
 	}
@@ -324,7 +329,7 @@ func (s *Service) AppUseMinutes(ctx context.Context, tx *store.Tx, uid string, n
 	if err != nil {
 		return 0, 0, err
 	}
-	loc, err := s.zones.Location(ctx, tx, uid)
+	loc, err := s.profiles.Location(ctx, tx, uid)
 	if err != nil {
 		return 0, 0, err
 	}

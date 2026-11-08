@@ -1,19 +1,20 @@
-<app-page-heading eyebrow="MAKE IT YOURS" heading="設定" lead="必要なところだけ、さっと調整。" />
+@let t = text().settings;
+<app-page-heading eyebrow="MAKE IT YOURS" [heading]="t.page.heading" [lead]="t.page.lead" />
 <p class="start-note" role="note">
-  最初はこのままで使えます。設定するなら、まずは
-  <strong>夜の区切り（就寝時刻）</strong>
-  と
-  <strong>Google連携</strong>
-  の2つだけで十分です。
+  {{ t.page.startNote.before }}
+  <strong>{{ t.page.startNote.sleep }}</strong>
+  {{ t.page.startNote.and }}
+  <strong>{{ t.page.startNote.google }}</strong>
+  {{ t.page.startNote.after }}
 </p>
 
-<h2 class="group-title">視聴と生活リズム</h2>
+<h2 class="group-title">{{ t.page.viewingGroup }}</h2>
 <mat-accordion multi displayMode="flat">
   <mat-expansion-panel class="panel">
     <mat-expansion-panel-header>
       <mat-panel-title>
         <mat-icon class="setting-icon">schedule</mat-icon>
-        視聴ルール
+        {{ t.policy.title }}
       </mat-panel-title>
       <mat-panel-description>
         {{ policyTitle() }}
@@ -22,26 +23,26 @@
     <form [formGroup]="policyForm" (ngSubmit)="savePolicy()" class="panel-body">
       <div class="field-row">
         <mat-form-field appearance="outline">
-          <mat-label>支援の段階</mat-label>
+          <mat-label>{{ t.policy.mode }}</mat-label>
           <mat-select formControlName="mode">
-            @for (mode of policyModes; track mode.id) {
-              <mat-option [value]="mode.id">{{ mode.label }}</mat-option>
+            @for (mode of policyModes; track mode) {
+              <mat-option [value]="mode">{{ shared().timePolicyModes[mode] }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>1日の視聴上限</mat-label>
+          <mat-label>{{ t.policy.dailyLimit }}</mat-label>
           <mat-select formControlName="dailyLimitSeconds">
-            @for (limit of limits; track limit.value) {
-              <mat-option [value]="limit.value">{{ limit.label }}</mat-option>
+            @for (limit of limits; track limit) {
+              <mat-option [value]="limit">{{ limit | duration }}</mat-option>
             }
           </mat-select>
         </mat-form-field>
       </div>
       <p>{{ policyHelp() }}</p>
-      <p class="hint">変更は翌日の補充から反映します。</p>
+      <p class="hint">{{ t.policy.fromTomorrow }}</p>
       @if (wallet.savePolicy.error(); as error) {
-        <p class="error" role="alert">保存できませんでした。{{ error.message }}</p>
+        <p class="error" role="alert">{{ t.policy.saveFailed(error.message) }}</p>
       }
       <div class="actions">
         <button
@@ -49,11 +50,11 @@
           type="submit"
           [disabled]="!!work.session() || wallet.savePolicy.pending() || !wallet.loaded()"
         >
-          {{ wallet.savePolicy.pending() ? '保存しています…' : '視聴ルールを保存' }}
+          {{ wallet.savePolicy.pending() ? t.common.saving : t.policy.save }}
         </button>
       </div>
       @if (work.session()) {
-        <p class="hint">作業を記録してから設定を変更できます。</p>
+        <p class="hint">{{ t.policy.lockedWhileWorking }}</p>
       }
     </form>
   </mat-expansion-panel>
@@ -62,36 +63,35 @@
     <mat-expansion-panel-header>
       <mat-panel-title>
         <mat-icon class="setting-icon">bedtime</mat-icon>
-        夜の区切り
+        {{ t.sleep.title }}
       </mat-panel-title>
       <mat-panel-description>
         @if (sleep.sleep(); as current) {
           {{ current.bedtime }}–{{ current.wake }}
         } @else {
-          未設定
+          {{ t.common.notSet }}
         }
       </mat-panel-description>
     </mat-expansion-panel-header>
     <form [formGroup]="sleepForm" (ngSubmit)="saveSleep()" class="panel-body">
-      <p class="hint">ショートを見ずに寝られた朝は、最大{{ sleepBonus() }}のボーナス。</p>
+      <p class="hint">{{ t.sleep.bonus(sleepBonus()) }}</p>
       <div class="field-row">
         <mat-form-field appearance="outline">
-          <mat-label>就寝</mat-label>
+          <mat-label>{{ t.sleep.bedtime }}</mat-label>
           <input matInput type="time" formControlName="bedtime" />
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>起床</mat-label>
+          <mat-label>{{ t.sleep.wake }}</mat-label>
           <input matInput type="time" formControlName="wake" />
         </mat-form-field>
       </div>
       @if (sleep.sleep(); as current) {
         <p class="hint">
-          現在：{{ current.bedtime }} 就寝・{{ current.wake }} 起床 ・ ショートなしの夜
-          {{ current.keptNights }}日連続
+          {{ t.sleep.current(current.bedtime, current.wake, current.keptNights) }}
         </p>
         @if (current.calendarPending) {
           <p class="hint" role="status">
-            カレンダーに未登録です。もう一度「就寝の予定を保存」を押してください。
+            {{ t.sleep.calendarPending }}
           </p>
         }
       }
@@ -104,7 +104,7 @@
           type="submit"
           [disabled]="sleep.save.pending() || sleep.clear.pending() || !sleep.loaded()"
         >
-          {{ sleep.save.pending() ? '保存しています…' : '就寝の予定を保存' }}
+          {{ sleep.save.pending() ? t.common.saving : t.sleep.save }}
         </button>
         @if (sleep.sleep()) {
           <button
@@ -113,7 +113,7 @@
             (click)="removeSleep()"
             [disabled]="sleep.save.pending() || sleep.clear.pending()"
           >
-            外す
+            {{ t.sleep.remove }}
           </button>
         }
       </div>
@@ -122,23 +122,24 @@
 </mat-accordion>
 
 <form [formGroup]="mainForm" (ngSubmit)="save()" class="main-form">
-  <h2 class="group-title">通知と演出</h2>
+  <h2 class="group-title">{{ t.page.noticeGroup }}</h2>
   <mat-accordion multi displayMode="flat">
     <mat-expansion-panel class="panel">
       <mat-expansion-panel-header>
         <mat-panel-title>
           <mat-icon class="setting-icon">palette</mat-icon>
-          通知の演出
+          {{ t.effects.title }}
         </mat-panel-title>
-        <mat-panel-description>{{ selectedMode().title }}</mat-panel-description>
+        <mat-panel-description>{{ t.effects.modes[main().mode].title }}</mat-panel-description>
       </mat-expansion-panel-header>
       <mat-button-toggle-group
         formControlName="mode"
         class="mode-grid"
-        aria-label="通知の演出"
+        [attr.aria-label]="t.effects.title"
         hideSingleSelectionIndicator
       >
         @for (mode of modes; track mode.id) {
+          @let modeText = t.effects.modes[mode.id];
           <mat-button-toggle
             [value]="mode.id"
             [class]="'mode-card ' + mode.id"
@@ -151,8 +152,8 @@
                   <mat-icon>check</mat-icon>
                 }
               </span>
-              <strong>{{ mode.title }}</strong>
-              <small>{{ mode.sub }}</small>
+              <strong>{{ modeText.title }}</strong>
+              <small>{{ modeText.sub }}</small>
             </span>
           </mat-button-toggle>
         }
@@ -164,12 +165,12 @@
     <div class="setting-label">
       <mat-icon class="setting-icon">snooze</mat-icon>
       <div>
-        <strong id="snooze-label">スヌーズ時間</strong>
-        <p>確定前に予定を確認</p>
+        <strong id="snooze-label">{{ t.effects.snooze }}</strong>
+        <p>{{ t.effects.snoozeHint }}</p>
       </div>
     </div>
     <mat-form-field appearance="outline" class="minutes-field" subscriptSizing="dynamic">
-      <mat-label>分</mat-label>
+      <mat-label>{{ t.effects.minutes }}</mat-label>
       <input
         matInput
         type="number"
@@ -179,68 +180,88 @@
         formControlName="snoozeMinutes"
         aria-describedby="snooze-label"
       />
-      <mat-error>1〜120分で入力してください</mat-error>
+      <mat-error>{{ t.effects.snoozeRange }}</mat-error>
     </mat-form-field>
   </div>
   <div class="setting-row">
     <div class="setting-label">
       <mat-icon class="setting-icon">volume_up</mat-icon>
       <div>
-        <strong>通知音</strong>
-        <p>通知時に短い音を鳴らす</p>
+        <strong>{{ t.effects.sound }}</strong>
+        <p>{{ t.effects.soundHint }}</p>
       </div>
     </div>
-    <mat-slide-toggle formControlName="sound" aria-label="通知音" />
+    <mat-slide-toggle formControlName="sound" [attr.aria-label]="t.effects.sound" />
   </div>
   <div class="setting-row">
     <div class="setting-label">
       <mat-icon class="setting-icon">motion_photos_off</mat-icon>
       <div>
-        <strong>動きを控える</strong>
-        <p>光や拡大のアニメーションを減らす</p>
+        <strong>{{ t.effects.reducedMotion }}</strong>
+        <p>{{ t.effects.reducedMotionHint }}</p>
       </div>
     </div>
-    <mat-slide-toggle formControlName="reducedMotion" aria-label="動きを控える" />
+    <mat-slide-toggle formControlName="reducedMotion" [attr.aria-label]="t.effects.reducedMotion" />
   </div>
   <div class="setting-row">
     <div class="setting-label">
       <mat-icon class="setting-icon">texture</mat-icon>
       <div>
-        <strong>継続が途切れたときの演出</strong>
-        <p>ホーム画面の角を少しずつ暗くする</p>
+        <strong>{{ t.effects.grime }}</strong>
+        <p>{{ t.effects.grimeHint }}</p>
       </div>
     </div>
-    <mat-slide-toggle formControlName="grime" aria-label="継続が途切れたときの演出" />
+    <mat-slide-toggle formControlName="grime" [attr.aria-label]="t.effects.grime" />
   </div>
 
-  <h2 class="group-title">あなたについて</h2>
+  <h2 class="group-title">{{ t.page.aboutYouGroup }}</h2>
+  <div class="setting-row">
+    <div class="setting-label">
+      <mat-icon class="setting-icon">language</mat-icon>
+      <div>
+        <strong>{{ t.language.title }}</strong>
+        <p id="locale-hint">{{ t.language.hint }}</p>
+      </div>
+    </div>
+    <mat-form-field appearance="outline" class="locale-field" subscriptSizing="dynamic">
+      <mat-label>{{ t.language.title }}</mat-label>
+      <mat-select formControlName="locale" aria-describedby="locale-hint">
+        @for (locale of locales; track locale) {
+          <!-- 言語の名前は、その言語で読み上げる。 -->
+          <mat-option [value]="locale" [attr.lang]="locale">{{ localeNames[locale] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
   <mat-accordion multi displayMode="flat">
     <mat-expansion-panel class="panel">
       <mat-expansion-panel-header>
         <mat-panel-title>
           <mat-icon class="setting-icon">person</mat-icon>
-          作業の傾向
+          {{ t.profile.title }}
         </mat-panel-title>
-        <mat-panel-description>{{ profile.value()?.name || '未設定' }}</mat-panel-description>
+        <mat-panel-description>
+          {{ profile.value()?.name || t.common.notSet }}
+        </mat-panel-description>
       </mat-expansion-panel-header>
       <div class="panel-body">
-        <p class="hint">Geminiが予定を具体的にするときの参考にします。</p>
+        <p class="hint">{{ t.profile.hint }}</p>
         <mat-form-field appearance="outline">
-          <mat-label>表示名</mat-label>
+          <mat-label>{{ t.profile.name }}</mat-label>
           <input matInput formControlName="name" maxlength="100" />
         </mat-form-field>
         <mat-form-field appearance="outline">
-          <mat-label>得意・苦手、作業の進め方</mat-label>
+          <mat-label>{{ t.profile.context }}</mat-label>
           <textarea
             matInput
             formControlName="context"
             rows="3"
             maxlength="2000"
-            placeholder="文章の書き出しが苦手。最初に構成を10分考えたい。"
+            [placeholder]="t.profile.contextPlaceholder"
           ></textarea>
         </mat-form-field>
         @if (profile.value(); as current) {
-          <p class="hint">タイムゾーン：{{ current.timeZone }}</p>
+          <p class="hint">{{ t.profile.timeZone(current.timeZone) }}</p>
           @if (zoneMismatch()) {
             <div class="actions">
               <button
@@ -249,7 +270,7 @@
                 (click)="useBrowserTimeZone()"
                 [disabled]="profile.save.pending()"
               >
-                このブラウザーのタイムゾーン（{{ browserTimeZone }}）に合わせる
+                {{ t.profile.useBrowserTimeZone(browserTimeZone) }}
               </button>
             </div>
           }
@@ -261,29 +282,29 @@
       <mat-expansion-panel-header>
         <mat-panel-title>
           <mat-icon class="setting-icon">link</mat-icon>
-          Google連携
+          {{ t.google.title }}
         </mat-panel-title>
         <mat-panel-description>
-          {{ calendar.connected() ? '連携済み' : '未連携' }}
+          {{ calendar.connected() ? t.google.connected : t.google.notConnected }}
         </mat-panel-description>
       </mat-expansion-panel-header>
       <div class="panel-body">
         @if (auth.mode() === 'live' && auth.account()?.email) {
-          <p class="account-email">ログイン中：{{ auth.account()?.email }}</p>
+          <p class="account-email">{{ t.google.signedInAs(auth.account()?.email ?? '') }}</p>
         }
-        <p>連携すると、専用の「DOPAGAKI」カレンダーに作業と就寝の予定を入れます。</p>
+        <p>{{ t.google.explanation }}</p>
         @if (calendar.value(); as status) {
           @if (status.connected) {
             <p class="hint" role="status">
-              同期の状態：{{ syncStatusLabels[status.sync] }}
+              {{ t.google.syncStatus(t.google.syncStatuses[status.sync]) }}
               @if (status.lastSync) {
-                （最終同期 {{ status.lastSync | dateTime }}）
+                {{ t.google.lastSync(status.lastSync | dateTime) }}
               }
             </p>
           }
           @if (status.failedJobs > 0) {
             <p class="warning" role="status">
-              Googleカレンダーへ反映できなかった変更が{{ status.failedJobs }}件あります。
+              {{ t.google.failedJobs(status.failedJobs) }}
             </p>
           }
           @if (status.connected) {
@@ -294,7 +315,7 @@
                 (click)="calendar.syncNow()"
                 [disabled]="calendar.sync.pending() || calendar.disconnect.pending()"
               >
-                {{ calendar.sync.pending() ? '同期しています…' : '同期を再試行' }}
+                {{ calendar.sync.pending() ? t.google.syncing : t.google.retrySync }}
               </button>
               <button
                 mat-button
@@ -303,7 +324,7 @@
                 (click)="disconnectCalendar()"
                 [disabled]="calendar.sync.pending() || calendar.disconnect.pending()"
               >
-                連携を解除
+                {{ t.google.disconnect }}
               </button>
             </div>
           }
@@ -318,16 +339,16 @@
             (click)="calendar.startConnect()"
             [disabled]="!calendarEnabled() || calendar.connect.pending()"
           >
-            {{ calendar.connected() ? 'Googleカレンダーを連携し直す' : 'Googleカレンダーを連携' }}
+            {{ calendar.connected() ? t.google.reconnect : t.google.connect }}
           </button>
         </div>
         @if (!calendarEnabled()) {
-          <p class="hint">現在の環境ではGoogle連携は未設定です。</p>
+          <p class="hint">{{ t.google.unavailable }}</p>
         }
         <div class="account-links">
-          <a href="/privacy.html" target="_blank" rel="noopener">データの取り扱い・削除の依頼</a>
+          <a href="/privacy.html" target="_blank" rel="noopener">{{ t.google.privacy }}</a>
           @if (auth.mode() === 'live') {
-            <button mat-button type="button" (click)="auth.logout()">ログアウト</button>
+            <button mat-button type="button" (click)="auth.logout()">{{ t.google.logout }}</button>
           }
         </div>
       </div>
@@ -337,46 +358,40 @@
       <mat-expansion-panel-header>
         <mat-panel-title>
           <mat-icon class="setting-icon">mobile</mat-icon>
-          iPhoneのショートカット
+          {{ t.shortcut.title }}
         </mat-panel-title>
         <mat-panel-description>
-          {{ shortcut.value()?.configured ? '接続キー発行済み' : '未設定' }}
+          {{ shortcut.value()?.configured ? t.shortcut.issued : t.common.notSet }}
         </mat-panel-description>
       </mat-expansion-panel-header>
       <div class="panel-body">
-        <p>
-          iPhoneでYouTubeアプリを開いたままにしていると、持ち時間を使い切ったときや課題を始める時刻に、相棒が通知します。YouTubeは止めません。
-        </p>
+        <p>{{ t.shortcut.description }}</p>
         @if (shortcut.issuedKey(); as key) {
           <p class="hint" role="status">
-            この接続キーは今だけ表示します。ショートカットに貼り付けてください。
+            {{ t.shortcut.showOnce }}
           </p>
           <mat-form-field appearance="outline">
-            <mat-label>接続キー</mat-label>
+            <mat-label>{{ t.shortcut.key }}</mat-label>
             <input matInput [value]="key" readonly />
           </mat-form-field>
           <div class="actions">
-            <button mat-stroked-button type="button" (click)="copyShortcutKey(key)">コピー</button>
+            <button mat-stroked-button type="button" (click)="copyShortcutKey(key)">
+              {{ t.shortcut.copy }}
+            </button>
           </div>
           <details class="disclosure">
-            <summary>ショートカットの作り方</summary>
+            <summary>{{ t.shortcut.howTo }}</summary>
             <ol>
-              <li>配布された「DOPAGAKI」と「DOPAGAKI-close」を追加し、それぞれにこのキーを貼る</li>
-              <li>
-                「オートメーション」→「新規オートメーション」→「アプリ」→
-                YouTube・「開いている」・「すぐに実行」→ DOPAGAKI
-              </li>
-              <li>同じように「閉じている」で DOPAGAKI-close を選ぶ</li>
-              <li>
-                候補に出ないときは「新規の空のオートメーション」→「ショートカットを実行」で選ぶ
-              </li>
+              <li>{{ t.shortcut.stepAdd }}</li>
+              <li>{{ t.shortcut.stepOpened }}</li>
+              <li>{{ t.shortcut.stepClosed }}</li>
+              <li>{{ t.shortcut.stepBlank }}</li>
             </ol>
           </details>
         } @else if (shortcut.value(); as status) {
           @if (status.configured && status.createdAt) {
             <p class="hint">
-              {{ status.createdAt | dateTime }}
-              に発行しました。キーをなくしたときは再発行してください（古いキーは使えなくなります）。
+              {{ t.shortcut.issuedAt(status.createdAt | dateTime) }}
             </p>
           }
         }
@@ -390,7 +405,7 @@
             (click)="issueShortcut()"
             [disabled]="shortcut.issue.pending() || shortcut.revoke.pending()"
           >
-            {{ shortcut.value()?.configured ? '接続キーを再発行' : '接続キーを発行' }}
+            {{ shortcut.value()?.configured ? t.shortcut.reissue : t.shortcut.issue }}
           </button>
           @if (shortcut.value()?.configured) {
             <button
@@ -399,7 +414,7 @@
               (click)="revokeShortcut()"
               [disabled]="shortcut.issue.pending() || shortcut.revoke.pending()"
             >
-              無効にする
+              {{ t.shortcut.revoke }}
             </button>
           }
         </div>
@@ -408,19 +423,19 @@
   </mat-accordion>
 
   @if (settings.save.error(); as error) {
-    <p class="error" role="alert">設定を保存できませんでした。{{ error.message }}</p>
+    <p class="error" role="alert">{{ t.page.settingsSaveFailed(error.message) }}</p>
   }
   @if (profileFailed() && profile.save.error(); as error) {
-    <p class="error" role="alert">作業の傾向を保存できませんでした。{{ error.message }}</p>
+    <p class="error" role="alert">{{ t.profile.saveFailed(error.message) }}</p>
   } @else if (profile.save.error(); as error) {
     <p class="error" role="alert">{{ error.message }}</p>
   }
   <div class="save-bar">
     <p class="hint" aria-live="polite">
-      {{ saving() ? '変更を保存しています…' : changed() ? '変更内容はまだ保存されていません' : '' }}
+      {{ saving() ? t.page.savingChanges : changed() ? t.page.unsaved : '' }}
     </p>
     <button mat-flat-button type="submit" [disabled]="saving() || !mainValid() || !changed()">
-      {{ saving() ? '保存中…' : '変更を保存' }}
+      {{ saving() ? t.page.saveInProgress : t.page.save }}
     </button>
   </div>
 </form>
@@ -428,19 +443,19 @@
 <mat-accordion>
   <mat-expansion-panel>
     <mat-expansion-panel-header>
-      <mat-panel-title>導入と接続</mat-panel-title>
+      <mat-panel-title>{{ t.page.setupPanel }}</mat-panel-title>
     </mat-expansion-panel-header>
     <app-setup-status />
   </mat-expansion-panel>
   <mat-expansion-panel>
     <mat-expansion-panel-header>
-      <mat-panel-title>同期の復旧</mat-panel-title>
+      <mat-panel-title>{{ t.page.syncPanel }}</mat-panel-title>
     </mat-expansion-panel-header>
     <app-calendar-conflicts />
   </mat-expansion-panel>
   <mat-expansion-panel>
     <mat-expansion-panel-header>
-      <mat-panel-title>データと退会</mat-panel-title>
+      <mat-panel-title>{{ t.page.dataPanel }}</mat-panel-title>
     </mat-expansion-panel-header>
     <app-account-tools />
   </mat-expansion-panel>

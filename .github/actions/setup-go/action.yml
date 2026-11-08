@@ -1,0 +1,29 @@
+name: Set up Go
+description: Install pinned Go and restore compilation and module caches
+inputs:
+  cache-suffix:
+    description: Separate API test cache from the complete E2E build cache
+    default: ''
+runs:
+  using: composite
+  steps:
+    - uses: jdx/mise-action@v3
+      with:
+        # GitHub Releasesの504でキャッシュ未作成のmainが止まるため、公式ミラーを使う。
+        fetch_from_github: false
+        install_args: go
+        cache: true
+    - name: Prepare Go cache directories
+      shell: bash
+      run: mkdir -p "$HOME/go/pkg/mod" "$HOME/.cache/go-build" "$HOME/.cache/golangci-lint"
+    - name: Cache Go dependencies and compilation
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+          ~/.cache/golangci-lint
+        key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-${{ hashFiles('apps/api/**/*.go', 'apps/api/.golangci.yml') }}${{ inputs.cache-suffix }}
+        restore-keys: |
+          go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-${{ hashFiles('apps/api/**/*.go', 'apps/api/.golangci.yml') }}
+          go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-

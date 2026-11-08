@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { problemMessages } from '@dopagaki/messages';
+import { messages } from '@dopagaki/messages';
 import { FakeBackend, flush, provideFakeBackend } from '../../../../testing/fake-backend';
 import { task, taskList, wallet, workSession } from '../../../../testing/fixtures';
 import { TasksStore } from '../../tasks/tasks.store';
@@ -88,7 +88,7 @@ describe('CalendarWorkspace', () => {
     await flush();
     TestBed.tick();
     const alert = element.querySelector('[data-tour="next"] [role=alert]');
-    expect(alert?.textContent).toContain(problemMessages['work.active']);
+    expect(alert?.textContent).toContain(messages.ja.shared.problems['work.active']);
     expect(element.querySelector('.detail [role=alert]')).toBeNull();
     expect(backend.count('POST', '/tasks/first/start')).toBe(1);
   });

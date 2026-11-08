@@ -11,12 +11,10 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import type { Draft, TaskInput } from '@dopagaki/contract';
+import { LocaleStore } from '../../../core/i18n/locale.store';
 import { DateTimePipe, TimePipe } from '../../../shared/ui/format';
 import { CalendarStore } from '../../calendar/calendar.store';
 import { TasksStore } from '../tasks.store';
-
-export const calendarPendingMessage =
-  '管理画面の変更は保存済みですが、Googleへの反映を確認できていません。カレンダーの「Googleと同期」で再試行してください。';
 
 /**
  * 課題の内容の変更案（変更前後と時間割）を見せ、確認したら PUT /tasks/{id}（If-Match = draft.baseRevision）で保存する。
@@ -33,6 +31,7 @@ export const calendarPendingMessage =
 export class TaskChange {
   private readonly tasks = inject(TasksStore);
   private readonly calendar = inject(CalendarStore);
+  protected readonly text = inject(LocaleStore).web;
 
   readonly taskId = input.required<string>();
   readonly input = input.required<TaskInput>();
@@ -76,7 +75,7 @@ export class TaskChange {
     await this.calendar.refresh();
     this.error.set(
       this.calendar.needsRetry()
-        ? `${calendarPendingMessage}（${outcome.error.message}）`
+        ? this.text().tasks.taskChange.calendarPending(outcome.error.message)
         : outcome.error.message,
     );
   }

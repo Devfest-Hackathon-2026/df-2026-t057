@@ -1,5 +1,8 @@
 :host {
   display: block;
+
+  // 画面の幅ではなく、置かれた場所（ダイアログ）の幅で並べ方を決める
+  container-type: inline-size;
 }
 
 fieldset {
@@ -25,7 +28,8 @@ legend {
 
 .pickers {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 10rem;
+  grid-template-columns: minmax(0, 1fr) 11rem;
+  align-items: start;
   gap: 0.5rem;
 }
 
@@ -48,8 +52,10 @@ legend {
   color: var(--mat-sys-on-secondary-container);
 }
 
-@media (width <= 24rem) {
+// 横に並べると締切日が「2026/11/」で切れるので、狭いときは縦に積む
+@container (width <= 26rem) {
   .pickers {
     grid-template-columns: minmax(0, 1fr);
+    gap: 0;
   }
 }

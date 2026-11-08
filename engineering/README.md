@@ -10,6 +10,8 @@
 
 | 文書 | 内容 |
 |---|---|
+| [Terraformへの移行](terraform-2026-11-08.md) | 本番のGoogle Cloudの設定の棚卸し、管理する範囲、既存リソースの取り込みとapplyの結果、残りの作業 |
+| [CIの3ジョブ分離とCD切り出し](ci-jobs-2026-11-08.md) | 並列検証・失敗時の再実行・必須check・キャッシュ・配信条件 |
 | [CIの節約](ci-savings-2026-11-08.md) | 変更範囲による検証の選択、Go・pnpm・Dockerのキャッシュ、判定の回帰テストと実測の区別 |
 | [新ルールの実YouTube確認](shorts-time-policy-verification-2026-11-07.md) | main b3fc7b0の拡張更新、5分の選択、前面再生と一時停止、途中終了、再読み込み後の記録保持の実測 |
 | [iPhoneのショートカット連携](iphone-shortcut.md) | YouTubeを開いた瞬間の相棒の一言、接続キーとAPI、作り方と未確認の範囲 |
@@ -25,6 +27,7 @@
 | [カレンダー中心の管理画面](calendar-workspace.md) | 採用した③の実装、日・週表示と相談パネル、URL、選択対象の分離、実画面 |
 | [課題の登録と内容調整](task-registration-and-editing.md) | 登録・編集のAI／手入力、変更前後の確認、報酬・権限・Google同期の検証 |
 | [管理画面のAI相談](assistant.md) | 編集できる予定カード、会話の保存、確認して覚える作業傾向、Google Chatの廃止 |
+| [日本語と英語への対応](localization.md) | 言語をプロフィールに持つ理由、文言の置き場所、サーバーが作る文の言語、見送った案 |
 | [設定と記録の画面](settings-and-records.md) | コンパクトな設定一覧、直近12週間の積み上げ、保存失敗の再試行と日付・報酬の集計 |
 | [図で伝えるログイン前画面](login-screen.md) | 初めての利用者向けの3つの図、Googleログイン、サンプルと本人データの分離 |
 | [Chrome風プロフィールメニュー](chrome-account-menu.md) | 採用デザイン、実装、認証中とキャンセル、表示確認と本番配信 |

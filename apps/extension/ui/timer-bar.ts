@@ -1,7 +1,8 @@
 // 作業タイマーのバー（YouTube と、許可した作業サイトで表示する）。
-// 経過時間は1秒ごとに書き換えるだけにし、作業や課題が変わったときだけ組み立て直す（フォーカスを失わせない）。
-import { clockLabel, extensionCopy, workRewardMessage } from '@dopagaki/messages';
+// 経過時間は1秒ごとに書き換えるだけにし、作業や課題や言語が変わったときだけ組み立て直す（フォーカスを失わせない）。
+import { clockLabel } from '@dopagaki/messages';
 import type { ContentContext } from '../content/context';
+import { currentLocale, currentMessages } from '../lib/locale';
 import { workElapsedSeconds } from '../lib/work-timer';
 import { runAction } from './action';
 import { button, el } from './dom';
@@ -24,27 +25,34 @@ export class TimerBar {
       this.#remove();
       return;
     }
-    const key = [session.id, session.limitSeconds, task.title, !!state.wallet].join('|');
+    const key = [
+      session.id,
+      session.limitSeconds,
+      task.title,
+      !!state.wallet,
+      currentLocale(),
+    ].join('|');
     if (key !== this.#key || !this.#section) {
       this.#remove();
       this.#key = key;
       this.#build(task.title, session.id, task.id, !!state.wallet);
     }
     // 一時停止と再開は同じボタンの表示を変えるだけにする（押したボタンからフォーカスが消えないように）。
-    if (this.#pause)
-      this.#pause.textContent = session.running ? extensionCopy.pause : extensionCopy.resume;
+    const copy = currentMessages().extension;
+    if (this.#pause) this.#pause.textContent = session.running ? copy.pause : copy.resume;
     this.tick();
   }
 
   #build(title: string, sessionId: string, taskId: string, canConfirm: boolean): void {
+    const copy = currentMessages().extension;
     const section = el('section', {
       className: 'timer',
-      attrs: { 'aria-label': extensionCopy.timerLabel },
+      attrs: { 'aria-label': copy.timerLabel },
     });
     const elapsed = el('span', { className: 'elapsed', attrs: { 'aria-live': 'off' } });
-    const progress = el('progress', { attrs: { 'aria-label': extensionCopy.progressLabel } });
+    const progress = el('progress', { attrs: { 'aria-label': copy.progressLabel } });
     const actions = el('div', { className: 'timer-actions' });
-    const pause = button(extensionCopy.pause, () => {
+    const pause = button(copy.pause, () => {
       const running = this.context.state?.workSession?.running ?? true;
       void runAction(section, { type: running ? 'PAUSE_WORK' : 'RESUME_WORK' }).then((reply) => {
         if (reply?.ok) this.context.apply(reply);
@@ -54,29 +62,29 @@ export class TimerBar {
     actions.append(pause);
     if (canConfirm) {
       actions.append(
-        button(extensionCopy.confirmWork, () => {
+        button(copy.confirmWork, () => {
           void runAction(section, { type: 'CONFIRM_WORK', sessionId }).then((reply) => {
             if (!reply?.ok) return;
             this.context.apply(reply);
             if (reply.work)
-              this.context.toast(workRewardMessage(reply.work.rewardSeconds, reply.work.deferred));
+              this.context.toast(copy.workReward(reply.work.rewardSeconds, reply.work.deferred));
           });
         }),
       );
     }
     actions.append(
       button(
-        extensionCopy.complete,
+        copy.complete,
         () => {
           void runAction(section, { type: 'COMPLETE_TASK', taskId }).then(async (reply) => {
             if (!reply?.ok) return;
             this.context.apply(reply);
-            const reward = workRewardMessage(
+            const reward = copy.workReward(
               reply.work?.rewardSeconds ?? 0,
               reply.work?.deferred ?? false,
             );
             const line = await this.context.line('complete', taskId);
-            this.context.toast(line ? `${line}（${reward}）` : reward);
+            this.context.toast(line ? copy.completeToast(line, reward) : reward);
           });
         },
         'tonal',

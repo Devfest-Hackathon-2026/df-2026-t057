@@ -1,0 +1,10 @@
+{
+  "appName": {
+    "message": "DOPAGAKI",
+    "description": "Extension name shown in the Chrome Web Store and the extensions page"
+  },
+  "appDescription": {
+    "message": "Finish your tasks, then enjoy what's next. Calendar sync and a work timer.",
+    "description": "Extension description shown in the Chrome Web Store and the extensions page"
+  }
+}

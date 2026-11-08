@@ -1,158 +1,174 @@
 name: Check
-on:
+'on':
   push:
-    branches: [main]
-  pull_request:
+    branches:
+      - main
+  pull_request: null
+  workflow_dispatch: {}
 permissions:
   contents: read
   pull-requests: read
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  check:
+  changes:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
     outputs:
-      deploy: ${{ steps.changes.outputs.deploy }}
+      code: ${{ steps.policy.outputs.code }}
+      api: ${{ steps.policy.outputs.api }}
+      web: ${{ steps.policy.outputs.web }}
+      extension: ${{ steps.policy.outputs.extension }}
+      shared: ${{ steps.policy.outputs.shared }}
+      generate: ${{ steps.policy.outputs.generate }}
+      e2e: ${{ steps.policy.outputs.e2e }}
+      suite: ${{ steps.policy.outputs.suite }}
+      image: ${{ steps.policy.outputs.image }}
+      docker: ${{ steps.policy.outputs.docker }}
+      deploy: ${{ steps.policy.outputs.deploy }}
+      terraform: ${{ steps.policy.outputs.terraform }}
     steps:
       - uses: actions/checkout@v7
-      # 文書だけの変更では、重い検証を省く。結果（成功）は残す。
       - uses: dorny/paths-filter@v4
         id: changes
         with:
           base: ${{ github.ref }}
           filters: .github/ci-paths.yaml
-      # Node・pnpm・Go・golangci-lint のバージョンは mise.toml を正とする。
-      - uses: jdx/mise-action@v3
-        if: steps.changes.outputs.code == 'true'
+          list-files: json
+      - name: Select checks for this change
+        id: policy
+        env:
+          CHANGES: ${{ toJSON(steps.changes.outputs) }}
+          EVENT_NAME: ${{ github.event_name }}
+          REQUEST_DEPLOY: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy]') }}
+        run: node deploy/ci-policy.mjs
+  api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go
         with:
-          cache: true
-      - name: Cache Go dependencies and compilation
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.api == 'true' || steps.changes.outputs.e2e == 'true')
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/.cache/golangci-lint
-          # 新しいソースで更新した結果も次回へ残す。復元時は同じツール・依存のキーを優先する。
-          key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-${{ hashFiles('apps/api/**/*.go', 'apps/api/.golangci.yml') }}
-          restore-keys: |
-            go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-
-      - name: Find pnpm store
-        id: pnpm-store
-        if: steps.changes.outputs.code == 'true'
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      - name: Cache pnpm dependencies
-        if: steps.changes.outputs.code == 'true'
-        uses: actions/cache@v5
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml') }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml') }}-
-      - name: Install dependencies
-        if: steps.changes.outputs.code == 'true'
-        run: pnpm install --frozen-lockfile
-      - name: Generated code is up to date
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.generate == 'true')
-        run: |
-          pnpm generate
-          git diff --exit-code || { echo '::error::生成物が古いままです。pnpm generate を実行してコミットしてください。'; exit 1; }
+          cache-suffix: '-api'
+      - name: Go format
+        run: test -z "$(gofmt -l .)"
+      - name: Generated Go code is up to date
+        if: needs.changes.outputs.generate == 'true'
+        run: |-
+          go generate ./...
+          git diff --exit-code
+      - name: API lint
+        run: |-
+          read -r go_version lint_version < <(python3 -c 'import tomllib; t = tomllib.load(open("../../mise.toml", "rb"))["tools"]; print(t["go"], t["golangci-lint"])')
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/app" -w /app \
+            -v "$HOME/go/pkg/mod:/.cache/mod" -e GOMODCACHE=/.cache/mod \
+            -v "$HOME/.cache/go-build:/.cache/go-build" -e GOCACHE=/.cache/go-build \
+            -v "$HOME/.cache/golangci-lint:/.cache/golangci-lint" -e GOLANGCI_LINT_CACHE=/.cache/golangci-lint \
+            -e GOTOOLCHAIN="go$go_version" \
+            "golangci/golangci-lint:v$lint_version" golangci-lint run --config .golangci.yml ./...
+      - name: API race tests
+        run: go test -race ./...
+    concurrency:
+      group: ci-${{ github.workflow }}-api-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-node
+      - name: Generated frontend code is up to date
+        if: needs.changes.outputs.generate == 'true'
+        run: |-
+          pnpm --filter @dopagaki/contract generate
+          pnpm --filter @dopagaki/tokens generate
+          git diff --exit-code
       - name: Format and frontend lint
-        if: steps.changes.outputs.code == 'true'
-        run: |
-          pnpm format:check
+        run: |-
+          pnpm exec prettier --check .
           pnpm lint:ts
           pnpm lint:css
-      - name: API lint and race tests
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.api == 'true')
-        run: |
-          pnpm --filter @dopagaki/api lint
-          pnpm --filter @dopagaki/api test
       - name: Shared package checks
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.shared == 'true')
+        if: needs.changes.outputs.shared == 'true'
         run: |
           pnpm --filter './packages/**' --recursive --if-present lint
           pnpm --filter './packages/**' --recursive --if-present typecheck
           pnpm --filter './packages/**' --recursive --if-present test
       - name: Web typecheck and unit tests
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.web == 'true')
+        if: needs.changes.outputs.web == 'true'
         run: |
           pnpm --filter @dopagaki/web typecheck
           pnpm --filter @dopagaki/web test
       - name: Extension typecheck and unit tests
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.extension == 'true')
+        if: needs.changes.outputs.extension == 'true'
         run: |
           pnpm --filter @dopagaki/extension typecheck
           pnpm --filter @dopagaki/extension test
       - name: E2E typecheck
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.e2e == 'true')
+        if: needs.changes.outputs.e2e == 'true'
         run: pnpm --filter @dopagaki/e2e typecheck
       - name: Deploy and CI regression tests
-        if: steps.changes.outputs.code == 'true'
+        if: needs.changes.outputs.code == 'true'
         run: pnpm --filter @dopagaki/deploy test
-      - name: Build
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.e2e == 'true')
-        run: pnpm build
-      - name: Install browser
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.e2e == 'true')
-        run: pnpm --filter @dopagaki/e2e exec playwright install --with-deps chromium
-      - name: E2E tests (including accessibility)
-        id: e2e
-        if: steps.changes.outputs.code == 'true' && (github.event_name == 'push' || steps.changes.outputs.e2e == 'true')
-        env:
-          EXTENSION_ONLY: ${{ github.event_name == 'pull_request' && steps.changes.outputs.extension == 'true' && steps.changes.outputs.web != 'true' && steps.changes.outputs.api != 'true' && steps.changes.outputs.e2e_sources != 'true' }}
-        run: |
-          if [ "$EXTENSION_ONLY" = 'true' ]; then
-            pnpm --filter @dopagaki/e2e exec playwright test 'extension.*\.spec\.ts'
-          else
-            pnpm test:e2e
-          fi
-      - name: Set up container builder
-        if: github.event_name == 'pull_request' && steps.changes.outputs.deploy == 'true'
-        uses: docker/setup-buildx-action@v4
-      - name: Validate production container
-        if: github.event_name == 'pull_request' && steps.changes.outputs.deploy == 'true'
-        uses: docker/build-push-action@v7
-        env:
-          DOCKER_BUILD_RECORD_UPLOAD: 'false'
-        with:
-          context: .
-          platforms: linux/amd64
-          cache-from: type=gha,scope=production
-          cache-to: type=gha,mode=max,scope=production
-      - uses: actions/upload-artifact@v4
-        if: failure() && steps.e2e.outcome == 'failure'
-        with:
-          name: browser-test-results
-          path: e2e/test-results
-          retention-days: 3
-  deploy:
-    needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check.outputs.deploy == 'true'
+    concurrency:
+      group: ci-${{ github.workflow }}-frontend-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+  terraform:
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment:
-      name: production
-      url: https://dopagaki-1032251723022.asia-northeast1.run.app
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      PROJECT_ID: devfest-2026-513816
-      REGION: asia-northeast1
-      SERVICE: dopagaki
-      SERVICE_URL: https://dopagaki-1032251723022.asia-northeast1.run.app
-      IMAGE: asia-northeast1-docker.pkg.dev/devfest-2026-513816/dopagaki/app
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: deploy/terraform
     steps:
       - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v3
         with:
-          persist-credentials: false
+          # setup-go と同じく、GitHub Releases の障害を避けて公式ミラーから mise を取る。
+          fetch_from_github: false
+          install_args: terraform
+          cache: true
+      - name: Terraform format and validate
+        run: |-
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+    concurrency:
+      group: ci-${{ github.workflow }}-terraform-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+  e2e:
+    needs:
+      - changes
+      - api
+      - frontend
+    if: "!cancelled() && needs.frontend.result == 'success' && (needs.api.result == 'success' || needs.api.result == 'skipped') && (needs.changes.outputs.e2e == 'true' || needs.changes.outputs.docker == 'true')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-node
+      - uses: ./.github/actions/setup-go
+        if: needs.changes.outputs.image != 'true'
+      - name: Build extension once
+        env:
+          APP_URL: http://127.0.0.1:4300
+        run: pnpm --filter @dopagaki/extension build
+      - name: Build API and web once
+        if: needs.changes.outputs.image != 'true'
+        run: |-
+          pnpm --filter @dopagaki/api build
+          pnpm --filter @dopagaki/web build
       - name: Set up container builder
+        if: needs.changes.outputs.image == 'true'
         uses: docker/setup-buildx-action@v4
-      - name: Build production image
+      - name: Build tested production image
+        if: needs.changes.outputs.image == 'true'
         uses: docker/build-push-action@v7
         env:
           DOCKER_BUILD_RECORD_UPLOAD: 'false'
@@ -160,22 +176,97 @@ jobs:
           context: .
           platforms: linux/amd64
           load: true
-          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          tags: dopagaki:${{ github.sha }}
           cache-from: type=gha,scope=production
-          cache-to: type=gha,mode=max,scope=production
-      # Authenticate after the build so the short-lived credential is fresh for deployment.
-      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+          cache-to: ${{ github.event_name == 'push' && 'type=gha,mode=max,scope=production' || '' }}
+      - name: Start tested production image
+        if: needs.changes.outputs.image == 'true'
+        run: |-
+          docker run -d --name dopagaki-e2e -p 127.0.0.1:4300:8080 -e APP_MODE=demo -e DEMO_PUBLIC=true -e APP_URL=http://127.0.0.1:4300 "dopagaki:$GITHUB_SHA"
+          curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 --max-time 2 http://127.0.0.1:4300/api/health || { docker logs dopagaki-e2e; exit 1; }
+      - name: Install browser
+        run: pnpm --filter @dopagaki/e2e exec playwright install --with-deps chromium
+      - name: E2E tests (including accessibility)
+        id: e2e
+        env:
+          E2E_SUITE: ${{ needs.changes.outputs.suite }}
+          E2E_SKIP_EXTENSION_BUILD: '1'
+          E2E_USE_BUILD: '1'
+          E2E_EXTERNAL_SERVER: ${{ needs.changes.outputs.image == 'true' && '1' || '0' }}
+        run: |-
+          case "$E2E_SUITE" in
+            full) pnpm test:e2e ;;
+            smoke) pnpm --filter @dopagaki/e2e exec playwright test --grep @smoke ;;
+            extension-smoke) pnpm --filter @dopagaki/e2e exec playwright test 'extension.*\.spec\.ts' --grep @smoke ;;
+            *) exit 1 ;;
+          esac
+      - name: Save tested image
+        id: handoff
+        if: github.event_name == 'push' && needs.changes.outputs.deploy == 'true'
+        run: bash deploy/save-image.sh
+      - name: Pass tested image to CD
+        id: production-image
+        if: github.event_name == 'push' && needs.changes.outputs.deploy == 'true'
+        uses: actions/upload-artifact@v4
         with:
-          project_id: devfest-2026-513816
-          workload_identity_provider: projects/1032251723022/locations/global/workloadIdentityPools/dopagaki-github/providers/github
-          service_account: dopagaki-deploy@devfest-2026-513816.iam.gserviceaccount.com
-      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
-      - name: Push image
-        run: |
-          gcloud auth configure-docker asia-northeast1-docker.pkg.dev --quiet
-          docker push "$IMAGE:$GITHUB_SHA"
-      - name: Deploy and verify
-        run: |
-          digest=$(gcloud artifacts docker images describe "$IMAGE:$GITHUB_SHA" \
-            --project="$PROJECT_ID" --format='value(image_summary.digest)')
-          bash deploy/cloud-run.sh "$IMAGE@$digest"
+          name: tested-production-${{ github.sha }}-${{ github.run_attempt }}
+          path: dist/production-image.tar.gz
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.e2e.outcome == 'failure'
+        with:
+          name: browser-test-results
+          path: e2e/test-results
+          retention-days: 3
+      - name: Stop test container
+        if: always() && needs.changes.outputs.image == 'true'
+        run: docker rm -f dopagaki-e2e >/dev/null 2>&1 || true
+    concurrency:
+      group: ci-${{ github.workflow }}-e2e-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    outputs:
+      image-artifact-id: ${{ steps.production-image.outputs.artifact-id }}
+      image-id: ${{ steps.handoff.outputs.image-id }}
+  check:
+    needs:
+      - changes
+      - api
+      - frontend
+      - terraform
+      - e2e
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require successful checks
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |-
+          case ",$RESULTS," in
+            *,failure,*|*,cancelled,*) exit 1 ;;
+          esac
+      - uses: actions/checkout@v7
+        if: github.event_name == 'push'
+      - name: Check current main revision
+        id: current
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash deploy/current-main.sh
+    outputs:
+      current: ${{ steps.current.outputs.current }}
+  deploy:
+    needs:
+      - changes
+      - check
+      - e2e
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check.result == 'success' && needs.check.outputs.current == 'true' && needs.changes.outputs.deploy == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/cd.yml
+    with:
+      image-artifact-id: ${{ needs.e2e.outputs.image-artifact-id }}
+      image-id: ${{ needs.e2e.outputs.image-id }}

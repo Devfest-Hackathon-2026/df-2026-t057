@@ -52,6 +52,9 @@ export async function patchState(version: number, patch: Partial<ExtensionState>
   if (patch.settings && current.settings && current.settings.revision > patch.settings.revision) {
     next.settings = current.settings;
   }
+  if (patch.profile && current.profile && current.profile.revision > patch.profile.revision) {
+    next.profile = current.profile;
+  }
   state = next;
   loaded = true;
   await chrome.storage.local.set({ [KEY]: next });

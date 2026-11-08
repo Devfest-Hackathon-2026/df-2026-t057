@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/wallet"
 )
@@ -19,7 +20,8 @@ type Wallet interface {
 	Read(ctx context.Context, uid string, fn func(ctx context.Context, tx *store.Tx, a *wallet.Account) error) error
 }
 
-// ZoneSource は本人のタイムゾーン。
-type ZoneSource interface {
+// Profiles は本人のタイムゾーンと言語（profile.Service が実装する）。
+type Profiles interface {
 	Location(ctx context.Context, tx *store.Tx, uid string) (*time.Location, error)
+	Locale(ctx context.Context, tx *store.Tx, uid string) (locale.Locale, error)
 }

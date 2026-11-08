@@ -19,6 +19,7 @@ import (
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/companion"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 )
@@ -104,7 +105,7 @@ func TestDetailSendsPersonaAndProfileToVertex(t *testing.T) {
 		"steps": []map[string]any{{"title": " 構成を箇条書きにする ", "minutes": 10}, {"title": "本文を書く", "minutes": 20}},
 		"note":  strings.Repeat("長", task.MaxNoteRunes+1),
 	}))
-	res, err := c.Detail(t.Context(), "u", task.DetailRequest{Title: "レポート", Minutes: 30, Context: "文章の書き出しが苦手"})
+	res, err := c.Detail(t.Context(), "u", task.DetailRequest{Title: "レポート", Minutes: 30, Context: "文章の書き出しが苦手", Locale: locale.Ja})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +113,7 @@ func TestDetailSendsPersonaAndProfileToVertex(t *testing.T) {
 		t.Fatalf("result: %+v", res)
 	}
 	body := fake.body(0)
-	if !strings.Contains(body, "文章の書き出しが苦手") || !strings.Contains(body, "systemInstruction") || !strings.Contains(body, CompanionName) || !strings.Contains(body, "合計は必ず30分") {
+	if !strings.Contains(body, "文章の書き出しが苦手") || !strings.Contains(body, "systemInstruction") || !strings.Contains(body, "相棒") || !strings.Contains(body, "合計は必ず30分") || !strings.Contains(body, "日本語で、動詞で終わる") {
 		t.Fatal("profile, persona or minutes were not sent")
 	}
 	if want := "/projects/fixture-project/locations/us-central1/publishers/google/models/fixture-model:generateContent"; !strings.HasSuffix(fake.paths[0], want) {
@@ -231,12 +232,23 @@ func TestAdjustParsesChanges(t *testing.T) {
 
 func TestLine(t *testing.T) {
 	c, fake := newClient(t, &countingQuota{}, ok("よし、始めよう。"))
-	line, err := c.Line(t.Context(), "u", companion.LineRequest{Moment: companion.MomentNotice, Task: &companion.TaskSummary{Title: "レポート", Why: "単位を落とさない"}})
+	line, err := c.Line(t.Context(), "u", companion.LineRequest{Moment: companion.MomentNotice, Task: &companion.TaskSummary{Title: "レポート", Why: "単位を落とさない"}, Locale: locale.Ja})
 	if err != nil || line != "よし、始めよう。" {
 		t.Fatalf("line: %q %v", line, err)
 	}
-	if body := fake.body(0); !strings.Contains(body, "単位を落とさない") || !strings.Contains(body, "予定の開始時刻が来た") || !strings.Contains(body, CompanionName) {
-		t.Fatal("moment, task or persona were not sent")
+	if body := fake.body(0); !strings.Contains(body, "単位を落とさない") || !strings.Contains(body, "予定の開始時刻が来た") || !strings.Contains(body, "相棒") || !strings.Contains(body, "日本語で1つだけ") {
+		t.Fatal("moment, task, persona or language were not sent")
+	}
+}
+
+func TestLineInEnglish(t *testing.T) {
+	c, fake := newClient(t, &countingQuota{}, ok("Let's start."))
+	if _, err := c.Line(t.Context(), "u", companion.LineRequest{Moment: companion.MomentNotice, Locale: locale.En}); err != nil {
+		t.Fatal(err)
+	}
+	body := fake.body(0)
+	if !strings.Contains(body, "英語（English）で1つだけ") || !strings.Contains(body, "100文字以内") || !strings.Contains(body, "Buddy") || strings.Contains(body, "{LANGUAGE}") {
+		t.Fatal("english instruction or persona were not sent")
 	}
 }
 
@@ -251,13 +263,13 @@ func TestConsultLoopsThroughToolsAndKeepsThoughtSignatures(t *testing.T) {
 			{"functionCall": map[string]any{"name": assistant.ToolProposeTask, "args": map[string]any{"title": "レポート", "minutes": 30}}},
 		}
 	})
-	conv := c.Consult(assistant.ConsultInput{User: "今日なにやればいい？", TimeZone: "Asia/Tokyo"})
+	conv := c.Consult(assistant.ConsultInput{Locale: locale.Ja, User: "今日なにやればいい？", TimeZone: "Asia/Tokyo"})
 	step, err := conv.Next(t.Context(), "u", nil)
 	if err != nil || len(step.Calls) != 1 || step.Calls[0].Name != assistant.ToolGetToday || step.Calls[0].ID != "call-1" || step.Reply != "" {
 		t.Fatalf("first step: %+v %v", step, err)
 	}
 	first := fake.body(0)
-	if !strings.Contains(first, "今日なにやればいい？") || !strings.Contains(first, "propose_reschedule") || !strings.Contains(first, CompanionName) {
+	if !strings.Contains(first, "今日なにやればいい？") || !strings.Contains(first, "propose_reschedule") || !strings.Contains(first, "相棒") || !strings.Contains(first, "日本語の短い平文") {
 		t.Fatal("prompt, tools or persona were not sent")
 	}
 	step, err = conv.Next(t.Context(), "u", []assistant.ToolResult{{ID: "call-1", Name: assistant.ToolGetToday, Data: map[string]any{"tasks": []string{"ゼミ発表"}}}})

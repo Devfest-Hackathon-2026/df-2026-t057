@@ -30,7 +30,7 @@
 | Secret読取 | Calendar用の名前空間とSchedulerに限定 |
 | Secretバージョン追加 | Calendar用の名前空間に限定し、静的OAuth Secretを除外。Schedulerも対象外 |
 
-適用直前に取得したetag付きポリシーから変更ファイルを作成して適用した。最終ポリシーでもRuntimeに旧2ロールがなく、カスタムロールの実際の権限数が1・6であることを再取得して確認した。別のCompute標準SAやOwner等の権限は変更していない。[定義・戻し方](../deploy/iam/README.md)を参照。
+適用直前に取得したetag付きポリシーから変更ファイルを作成して適用した。最終ポリシーでもRuntimeに旧2ロールがなく、カスタムロールの実際の権限数が1・6であることを再取得して確認した。別のCompute標準SAやOwner等の権限は変更していない。定義は当時の `deploy/iam/` にあった。2026-11-08からは [Terraform](../deploy/terraform/iam.tf) で管理する。
 
 ## 実行アカウントによる確認
 

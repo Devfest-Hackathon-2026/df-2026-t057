@@ -1,0 +1,10 @@
+{
+  "appName": {
+    "message": "DOPAGAKI",
+    "description": "拡張機能の名前。Chrome ウェブストアと拡張機能の一覧に出る"
+  },
+  "appDescription": {
+    "message": "課題を終えて、次の楽しみに。カレンダー連携と作業タイマー。",
+    "description": "拡張機能の説明。Chrome ウェブストアと拡張機能の一覧に出る"
+  }
+}

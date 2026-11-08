@@ -1,9 +1,8 @@
-import { computed, signal } from '@angular/core';
+import { computed, inject, signal } from '@angular/core';
 import { ApiError, type ProblemCode } from '@dopagaki/contract';
-import { errorMessage } from '@dopagaki/messages';
+import { errorMessage, messages, type Locale } from '@dopagaki/messages';
 import type { AccountScope } from '../auth/account-scope';
-
-export const accountSwitchedMessage = 'アカウントが切り替わりました。操作をやり直してください。';
+import { LocaleStore } from '../i18n/locale.store';
 
 /** 操作に失敗したときに画面へ出す情報。 */
 export interface OperationError {
@@ -24,12 +23,18 @@ export class AccountSwitchedError extends Error {
   }
 }
 
-export function toOperationError(cause: unknown): OperationError {
+export function toOperationError(cause: unknown, locale: Locale): OperationError {
+  const text = messages[locale];
   if (cause instanceof AccountSwitchedError) {
-    return { message: accountSwitchedMessage, code: undefined, status: undefined, cause };
+    return {
+      message: text.web.app.operation.accountSwitched,
+      code: undefined,
+      status: undefined,
+      cause,
+    };
   }
   return {
-    message: errorMessage(cause),
+    message: errorMessage(cause, text.shared),
     code: cause instanceof ApiError ? cause.code : undefined,
     status: cause instanceof ApiError ? cause.status : undefined,
     cause,
@@ -39,8 +44,10 @@ export function toOperationError(cause: unknown): OperationError {
 /**
  * 1種類の操作の通信状態とエラー（AGENTS.md「管理画面」：操作ごとに持つ）。
  * 実行中に呼ばれても捨てずに、前の実行が終わってから順に実行する。
+ * エラーの文言を LocaleStore の言語で作るので、注入できる場所（store のフィールドなど）で作る。
  */
 export class Operation {
+  private readonly locale = inject(LocaleStore).locale;
   private readonly running = signal(0);
   private tail: Promise<unknown> = Promise.resolve();
   readonly pending = computed(() => this.running() > 0);
@@ -72,7 +79,7 @@ export class Operation {
       apply?.(value);
       return { ok: true, value };
     } catch (cause: unknown) {
-      const error = toOperationError(cause);
+      const error = toOperationError(cause, this.locale());
       this.error.set(error);
       return { ok: false, error };
     } finally {

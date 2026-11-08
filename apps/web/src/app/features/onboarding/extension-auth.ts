@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { detectLocale, messages } from '@dopagaki/messages';
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
@@ -15,8 +16,11 @@ import { z } from 'zod';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExtensionAuth {
-  protected readonly status = 'Googleアカウントへの接続を確認しています。';
+  // 単独で起動するページで LocaleStore（プロフィールの言語）を持たないので、ブラウザーの言語で表示する。
+  private readonly locale = detectLocale(navigator.languages);
+  protected readonly status = messages[this.locale].web.onboarding.extensionAuth.checking;
   constructor() {
+    document.documentElement.lang = this.locale;
     const origin = location.ancestorOrigins[0];
     if (!origin || !/^chrome-extension:\/\/[a-p]{32}$/.test(origin)) return;
     let running = false;

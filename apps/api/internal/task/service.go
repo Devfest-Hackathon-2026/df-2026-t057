@@ -15,6 +15,7 @@ import (
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/id"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 )
 
@@ -153,8 +154,8 @@ func codeOf(err error) string {
 }
 
 // detail は AI で手順を具体化した計画を作る。利用上限なら逆算だけの計画にし、AI が使えない環境では逆算の計画にする。
-func (s *Service) detail(ctx context.Context, uid string, t Task, profileContext string) (Plan, error) {
-	res, err := s.Planner.Detail(ctx, uid, DetailRequest{Title: t.Title, Notes: t.Notes, Why: t.Why, Minutes: t.Minutes, Context: profileContext})
+func (s *Service) detail(ctx context.Context, uid string, t Task, profileContext string, lang locale.Locale) (Plan, error) {
+	res, err := s.Planner.Detail(ctx, uid, DetailRequest{Title: t.Title, Notes: t.Notes, Why: t.Why, Minutes: t.Minutes, Context: profileContext, Locale: lang})
 	switch code := codeOf(err); {
 	case err == nil:
 		plan, ok := DetailedPlan(t, res.Steps, res.Note)
@@ -196,6 +197,7 @@ func (s *Service) Create(ctx context.Context, uid string, req CreateRequest) (Cr
 		taskID = s.ids.New()
 	}
 	var profileContext string
+	var lang locale.Locale
 	err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
 		if _, found, err := store.Get[Task](ctx, tx, taskRef(uid, taskID)); err != nil || found {
 			if found {
@@ -204,6 +206,9 @@ func (s *Service) Create(ctx context.Context, uid string, req CreateRequest) (Cr
 			return err
 		}
 		var err error
+		if lang, err = s.Profiles.Locale(ctx, tx, uid); err != nil {
+			return err
+		}
 		profileContext, _, err = s.Profiles.Context(ctx, tx, uid)
 		return err
 	})
@@ -211,7 +216,7 @@ func (s *Service) Create(ctx context.Context, uid string, req CreateRequest) (Cr
 		return Created{}, err
 	}
 	t := NewTask(taskID, req.Input, store.Truncate(now))
-	if t.Plan, err = s.detail(ctx, uid, t, profileContext); err != nil {
+	if t.Plan, err = s.detail(ctx, uid, t, profileContext, lang); err != nil {
 		return Created{}, err
 	}
 	var out Created
@@ -351,6 +356,7 @@ func (s *Service) Update(ctx context.Context, uid, taskID string, in Input, ifMa
 	var original Task
 	var profileContext string
 	var since *time.Time
+	var lang locale.Locale
 	err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
 		if err := tx.Expect(ctx, uid, store.ResourceTasks, ifMatch); err != nil {
 			return err
@@ -364,6 +370,9 @@ func (s *Service) Update(ctx context.Context, uid, taskID string, in Input, ifMa
 		}
 		t, _ := Find(tasks, taskID)
 		original = *t
+		if lang, err = s.Profiles.Locale(ctx, tx, uid); err != nil {
+			return err
+		}
 		profileContext, since, err = s.Profiles.Context(ctx, tx, uid)
 		return err
 	})
@@ -373,7 +382,7 @@ func (s *Service) Update(ctx context.Context, uid, taskID string, in Input, ifMa
 	updated := original
 	updated.ApplyInput(in)
 	updated.Plan = Plan{}
-	plan, err := s.detail(ctx, uid, updated, profileContext)
+	plan, err := s.detail(ctx, uid, updated, profileContext, lang)
 	if err != nil {
 		return Created{}, err
 	}
@@ -555,6 +564,7 @@ func (s *Service) Adjust(ctx context.Context, uid string, draft Draft, instructi
 	now := s.clock.Now()
 	var tasks []Task
 	var profileContext string
+	var lang locale.Locale
 	var loc *time.Location
 	err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
 		if err := tx.Expect(ctx, uid, store.ResourceTasks, draft.BaseRevision); err != nil {
@@ -565,6 +575,9 @@ func (s *Service) Adjust(ctx context.Context, uid string, draft Draft, instructi
 			return err
 		}
 		if profileContext, _, err = s.Profiles.Context(ctx, tx, uid); err != nil {
+			return err
+		}
+		if lang, err = s.Profiles.Locale(ctx, tx, uid); err != nil {
 			return err
 		}
 		loc, err = s.Profiles.Location(ctx, tx, uid)
@@ -582,7 +595,7 @@ func (s *Service) Adjust(ctx context.Context, uid string, draft Draft, instructi
 		}
 		base[i] = Change{TaskID: t.ID, Title: t.Title, Before: t.Plan, After: c.After, OriginalMinutes: t.Minutes, PlannedSeconds: c.After.Seconds()}
 	}
-	proposed, err := s.Planner.Adjust(ctx, uid, AdjustRequest{Changes: base, Instruction: instruction, Context: profileContext, Location: loc, Now: now})
+	proposed, err := s.Planner.Adjust(ctx, uid, AdjustRequest{Changes: base, Instruction: instruction, Context: profileContext, Locale: lang, Location: loc, Now: now})
 	if err != nil {
 		return Draft{}, err
 	}
@@ -662,8 +675,12 @@ func (s *Service) AddSamples(ctx context.Context, uid string) (l List, err error
 		if len(tasks) > 0 {
 			return apperr.Conflict("demo.tasks_exist")
 		}
+		lang, err := s.Profiles.Locale(ctx, tx, uid)
+		if err != nil {
+			return err
+		}
 		created := store.Truncate(now)
-		for i, in := range SampleInputs(now) {
+		for i, in := range SampleInputs(now, lang) {
 			t := NewTask(s.ids.New(), in, created.Add(time.Duration(i)*time.Millisecond))
 			t.Plan = BackwardPlan(t, ReasonBackward)
 			tasks = append(tasks, t)

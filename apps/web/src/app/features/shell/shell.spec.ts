@@ -10,7 +10,13 @@ import { settings, taskList, wallet } from '../../../testing/fixtures';
 import { AboutPage } from '../about/about-page';
 import { Shell } from './shell';
 
-const profile: Profile = { name: '山田', context: '', timeZone: 'Asia/Tokyo', revision: 1 };
+const profile: Profile = {
+  name: '山田',
+  context: '',
+  timeZone: 'Asia/Tokyo',
+  locale: 'ja',
+  revision: 1,
+};
 const liveAccount: Account = {
   id: 'u1',
   email: 'taro@example.com',
@@ -122,5 +128,19 @@ describe('Shell', () => {
     );
     expect(current.map(linkName)).toEqual(['アプリについて']);
     expect(element.querySelector('main h1')?.textContent).toContain('このアプリについて');
+  });
+
+  it('ハンバーガーメニューに各ページと使い方を並べる', async () => {
+    const element = await render();
+    const button = element.querySelector<HTMLButtonElement>('button[aria-label="メニューを開く"]');
+    expect(button?.querySelector('.hamburger')?.getAttribute('aria-hidden')).toBe('true');
+    button?.click();
+    await flush();
+    TestBed.tick();
+    const menu = document.querySelector('[role="menu"][aria-label="メインメニュー"]');
+    const items = Array.from(menu?.querySelectorAll('[role="menuitem"]') ?? []).map((item) =>
+      item.querySelector('span')?.textContent.trim(),
+    );
+    expect(items).toEqual(['カレンダー', '課題', '記録', 'アプリについて', '使い方']);
   });
 });

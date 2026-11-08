@@ -32,7 +32,7 @@ test('?tutorial walks through the screen and ends on task registration', async (
   expect(pageErrors).toEqual([]);
 });
 
-test('tutorial can be skipped and replayed from the top bar', async ({ page }) => {
+test('tutorial can be skipped and replayed from the mobile menu', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/?tutorial');
   const card = page.locator('.tour-card');
@@ -43,7 +43,9 @@ test('tutorial can be skipped and replayed from the top bar', async ({ page }) =
   await expect(page.getByRole('heading', { level: 1, name: 'カレンダー' })).toBeVisible();
   await expect(card).toHaveCount(0);
 
-  await page.getByRole('button', { name: '使い方', exact: true }).click();
+  // スマホの幅では「使い方」はハンバーガーメニューの中にある
+  await page.getByRole('button', { name: 'メニューを開く', exact: true }).click();
+  await page.getByRole('menuitem', { name: '使い方', exact: true }).click();
   await expect(card).toBeVisible();
   await expect(card.getByRole('button', { name: '案内を見る', exact: true })).toBeFocused();
   await card.getByRole('button', { name: '案内を見る', exact: true }).click();

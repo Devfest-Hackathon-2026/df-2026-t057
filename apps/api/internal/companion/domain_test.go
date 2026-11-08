@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/wallet"
@@ -65,24 +66,31 @@ func TestSupportFadesWithStreak(t *testing.T) {
 func TestCleanLine(t *testing.T) {
 	tests := []struct {
 		raw  string
+		lang locale.Locale
 		want string
 		ok   bool
 	}{
-		{"よし、まず資料を開こう。", "よし、まず資料を開こう。", true},
-		{" 「よし、始めよう」 ", "よし、始めよう", true},
-		{`"引用符つき"`, "引用符つき", true},
-		{"", "", false},
-		{"「」", "", false},
-		{"それは依存症ですね", "", false},
-		{"意志が弱いわけじゃない", "", false},
-		{"治療しよう", "", false},
-		{strings.Repeat("あ", 60), strings.Repeat("あ", 60), true},
-		{strings.Repeat("あ", 61), "", false},
+		{"よし、まず資料を開こう。", locale.Ja, "よし、まず資料を開こう。", true},
+		{" 「よし、始めよう」 ", locale.Ja, "よし、始めよう", true},
+		{`"引用符つき"`, locale.Ja, "引用符つき", true},
+		{"", locale.Ja, "", false},
+		{"「」", locale.Ja, "", false},
+		{"それは依存症ですね", locale.Ja, "", false},
+		{"意志が弱いわけじゃない", locale.Ja, "", false},
+		{"治療しよう", locale.Ja, "", false},
+		{strings.Repeat("あ", 60), locale.Ja, strings.Repeat("あ", 60), true},
+		{strings.Repeat("あ", 61), locale.Ja, "", false},
+		{"“Open the doc first.”", locale.En, "Open the doc first.", true},
+		{"You're not an Addict.", locale.En, "", false},
+		{"No treatment needed", locale.En, "", false},
+		{"This is not a disease", locale.En, "", false},
+		{strings.Repeat("a", 140), locale.En, strings.Repeat("a", 140), true},
+		{strings.Repeat("a", 141), locale.En, "", false},
 	}
 	for _, tt := range tests {
-		got, ok := CleanLine(tt.raw)
+		got, ok := CleanLine(tt.raw, tt.lang)
 		if got != tt.want || ok != tt.ok {
-			t.Errorf("CleanLine(%q) = %q, %v", tt.raw, got, ok)
+			t.Errorf("CleanLine(%q, %q) = %q, %v", tt.raw, tt.lang, got, ok)
 		}
 	}
 }

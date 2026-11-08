@@ -1,12 +1,18 @@
+import { TestBed } from '@angular/core/testing';
 import { ApiError, NetworkError } from '@dopagaki/contract';
-import { networkMessage, problemMessages } from '@dopagaki/messages';
+import { messages } from '@dopagaki/messages';
 import { flush } from '../../../testing/fake-backend';
 import { AccountScope } from '../auth/account-scope';
-import { Operation, accountSwitchedMessage } from './operation';
+import { Operation } from './operation';
 
 describe('Operation', () => {
+  // Operation は LocaleStore を注入するので、注入できる場所で作る。
+  function createOperation(scope?: AccountScope): Operation {
+    return TestBed.runInInjectionContext(() => new Operation(scope));
+  }
+
   it('成功したら結果を反映し、エラーを消す', async () => {
-    const operation = new Operation();
+    const operation = createOperation();
     operation.error.set({
       message: '前の失敗',
       code: undefined,
@@ -24,26 +30,26 @@ describe('Operation', () => {
   });
 
   it('失敗を code から文言にして持つ', async () => {
-    const operation = new Operation();
+    const operation = createOperation();
     const outcome = await operation.run(() =>
       Promise.reject(
         new ApiError({ type: 'about:blank', status: 412, code: 'precondition.failed' }),
       ),
     );
     expect(outcome.ok).toBe(false);
-    expect(operation.error()?.message).toBe(problemMessages['precondition.failed']);
+    expect(operation.error()?.message).toBe(messages.ja.shared.problems['precondition.failed']);
     expect(operation.error()?.code).toBe('precondition.failed');
     expect(operation.error()?.status).toBe(412);
   });
 
   it('通信の失敗は通信の文言にする', async () => {
-    const operation = new Operation();
+    const operation = createOperation();
     await operation.run(() => Promise.reject(new NetworkError(new TypeError('offline'))));
-    expect(operation.error()?.message).toBe(networkMessage);
+    expect(operation.error()?.message).toBe(messages.ja.shared.network);
   });
 
   it('実行中に呼ばれても捨てずに順に実行する', async () => {
-    const operation = new Operation();
+    const operation = createOperation();
     const order: string[] = [];
     let releaseFirst: () => void = () => undefined;
     const first = operation.run(
@@ -69,7 +75,7 @@ describe('Operation', () => {
 
   it('通信中にアカウントが切り替わったら結果を反映しない', async () => {
     const scope = new AccountScope();
-    const operation = new Operation(scope);
+    const operation = createOperation(scope);
     const applied: string[] = [];
     let release: () => void = () => undefined;
     const pending = operation.run(
@@ -87,12 +93,12 @@ describe('Operation', () => {
     const outcome = await pending;
     expect(outcome.ok).toBe(false);
     expect(applied).toEqual([]);
-    expect(operation.error()?.message).toBe(accountSwitchedMessage);
+    expect(operation.error()?.message).toBe(messages.ja.web.app.operation.accountSwitched);
   });
 
   it('アカウントが切り替わるとエラーを消す', () => {
     const scope = new AccountScope();
-    const operation = new Operation(scope);
+    const operation = createOperation(scope);
     operation.error.set({ message: 'x', code: undefined, status: undefined, cause: undefined });
     scope.reset();
     expect(operation.error()).toBeUndefined();

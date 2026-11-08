@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { SettingsStore } from '../settings/settings.store';
 import { TaskActions } from '../tasks/task-actions';
 import { WalletStore } from '../wallet/wallet.store';
@@ -77,8 +78,12 @@ export class TutorialOverlay {
   private readonly wallet = inject(WalletStore);
   private readonly actions = inject(TaskActions);
   private readonly card = viewChild<ElementRef<HTMLElement>>('card');
+  protected readonly text = inject(LocaleStore).web;
+  private readonly shared = inject(LocaleStore).shared;
 
-  protected readonly steps = computed(() => tutorialSteps(this.wallet.value()?.rules));
+  protected readonly steps = computed(() =>
+    tutorialSteps(this.wallet.value()?.rules, this.text().onboarding.steps, this.shared()),
+  );
   protected readonly index = this.tour.step;
   protected readonly current = computed(() => this.steps()[this.index()] ?? this.steps()[0]);
   protected readonly isFirst = computed(() => this.index() === 0);

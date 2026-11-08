@@ -1,8 +1,11 @@
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import type { CalendarStatus, Profile, SleepState } from '@dopagaki/contract';
-import { problemMessages } from '@dopagaki/messages';
+import { messages } from '@dopagaki/messages';
 import { ConfigStore } from '../../../core/config/config.store';
+import { LocaleStore } from '../../../core/i18n/locale.store';
 import { FakeBackend, flush, provideFakeBackend } from '../../../../testing/fake-backend';
 import { settings, taskList, wallet, workSession } from '../../../../testing/fixtures';
 import { CalendarStore } from '../../calendar/calendar.store';
@@ -14,7 +17,13 @@ import { ProfileStore } from '../profile.store';
 import { SettingsStore } from '../settings.store';
 import { SettingsPage } from './settings-page';
 
-const profile: Profile = { name: '山田', context: '', timeZone: 'Asia/Tokyo', revision: 1 };
+const profile: Profile = {
+  name: '山田',
+  context: '',
+  timeZone: 'Asia/Tokyo',
+  locale: 'ja',
+  revision: 1,
+};
 const noSleep: SleepState = { sleep: null, revision: 1 };
 const connectedCalendar: CalendarStatus = {
   enabled: true,
@@ -164,6 +173,24 @@ describe('SettingsPage', () => {
     expect(backend.count('PUT', '/profile')).toBe(2);
   });
 
+  it('言語を選んで保存すると、プロフィールに保存して画面の言語を切り替える', async () => {
+    await render();
+    backend.on('PUT', '/profile', ({ body }) => ({ body: { ...(body as object), revision: 2 } }));
+    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+      MatSelectHarness.with({ selector: '[formcontrolname=locale]' }),
+    );
+    await select.open();
+    await select.clickOptions({ text: 'English' });
+    await settle();
+    button('変更を保存').click();
+    await settle();
+    expect(
+      backend.requests.find((item) => item.method === 'PUT' && item.path === '/profile')?.body,
+    ).toEqual({ name: '山田', context: '', timeZone: 'Asia/Tokyo', locale: 'en' });
+    expect(TestBed.inject(LocaleStore).locale()).toBe('en');
+    expect(hasButton('Save changes')).toBe(true);
+  });
+
   it('視聴ルールを保存し、作業中は保存できない', async () => {
     await render();
     backend.on('PUT', '/wallet/policy', { body: wallet({ revision: 2 }) });
@@ -265,7 +292,7 @@ describe('SettingsPage', () => {
     button('連携を解除する', dialog()).click();
     await settle();
     expect(dialog().querySelector('[role=alert]')?.textContent).toContain(
-      problemMessages['external.failed'],
+      messages.ja.shared.problems['external.failed'],
     );
     expect(backend.count('GET', '/calendar')).toBe(1);
     expect(backend.count('GET', '/tasks')).toBe(0);

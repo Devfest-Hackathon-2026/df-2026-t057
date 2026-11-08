@@ -1,14 +1,21 @@
-// Chrome拡張だけで使う表示の文言。エラーの文言と相棒の一言は shared.ts の対応表から引く。
-// 文言の値は API が返したものをそのまま使い、ここでは計算しない。
+// Chrome拡張だけで使う、日本語の文言。エラーの文言と相棒の一言は shared.ts の対応表から引く。
+// 文言の値は API が返したものをそのまま使い、ここでは計算しない。英語の文言（en/extension.ts）は、このオブジェクトの型に合わせる。
 import type { TimePolicyMode } from '@dopagaki/contract';
-import { durationLabel, problemMessages } from './shared.ts';
+import { shared } from './shared.ts';
 
-export const extensionCopy = {
+/** 報酬のルールの説明に必要な、Wallet の項目。値は API から受け取る。 */
+export interface RewardRuleSource {
+  policy: { mode: TimePolicyMode };
+  rules: { workSecondsPerReward: number; rewardSecondsPerUnit: number };
+}
+
+export const extension = {
   // 共通
   pending: '処理しています…',
   transportFailed: '接続できませんでした。入力は残っています。再試行してください。',
   accountChanged: 'アカウントが切り替わりました。管理画面から再接続してください。',
   connectFromApp: '管理画面から接続してください。',
+  connectFromPopup: '拡張のポップアップから同じGoogleアカウントで接続してください。',
   untrustedSender: '接続元を確認してください。',
   operationUnknown: '操作を確認してください。',
   fromShorts: '視聴中のShortsから操作してください。',
@@ -16,6 +23,14 @@ export const extensionCopy = {
   sessionEnded: 'この視聴の区切りは終了しています。',
   autoplayBlocked: '動画の再生ボタンから再開できます。',
   close: '閉じる',
+
+  // Googleアカウントでの接続
+  authConfigUnavailable: '接続設定を取得できませんでした。通信が戻ると再試行します。',
+  authNotConfigured: 'Googleログインが設定されていません。',
+  authUnavailable: 'この環境では拡張のGoogleログインを利用しません。',
+  authInProgress: 'ログインを確認しています。',
+  authTimedOut: 'ログインを確認できませんでした。もう一度接続してください。',
+  authFailed: 'Googleアカウントへの接続に失敗しました。',
 
   // 視聴の区切り
   choiceLabel: '視聴の区切り',
@@ -31,7 +46,7 @@ export const extensionCopy = {
   choose: (minutes: number, limit: string | undefined) =>
     `${minutes}分にする${limit ? `（残り${limit}まで）` : ''}`,
   extend: '残り枠からもう5分',
-  exhausted: problemMessages['viewing.exhausted'],
+  exhausted: shared.problems['viewing.exhausted'],
   endHere: 'ここで終える',
   notNow: '今は見ない',
   nextWork: '次の作業へ',
@@ -89,14 +104,17 @@ export const extensionCopy = {
   confirmWork: 'ここまで取り組んだ',
   complete: '課題を完了',
   progressLabel: '作業の進捗',
+  completeToast: (line: string, reward: string) => `${line}（${reward}）`,
 
   // デスクトップ通知
   notificationTitle: 'DOPAGAKI · はじめる時間です',
   notificationStart: '作業をはじめる',
   notificationSnooze: 'スヌーズの予定を確認',
   morningTitle: 'DOPAGAKI · おはよう',
-  morningBonus: (seconds: number) => `早寝ボーナス ＋${durationLabel(seconds)}`,
-  morningReleased: (seconds: number) => `昨夜の報酬 ＋${durationLabel(seconds)}`,
+  morningBonus: (seconds: number) => `早寝ボーナス ＋${shared.durationLabel(seconds)}`,
+  morningReleased: (seconds: number) => `昨夜の報酬 ＋${shared.durationLabel(seconds)}`,
+  testNoticeTitle: 'DOPAGAKI 接続テスト',
+  testNoticeMessage: '通知が表示されたら管理画面で確認してください。',
 
   // ポップアップ
   popupAvailable: '視聴できる時間',
@@ -115,31 +133,29 @@ export const extensionCopy = {
   popupWorkSiteEnabled: 'このサイトで作業タイマーを表示します。',
   popupWorkSiteFailed: 'タイマーを表示できませんでした。',
   popupStartNext: '次の課題を開始',
-} as const;
+  popupSignIn: 'Googleアカウントで拡張に接続',
+  popupTestNotice: '通知をテスト',
 
-/** 作業を記録したときの一文。報酬は API が返した値をそのまま使う。 */
-export function workRewardMessage(rewardSeconds: number, deferred: boolean): string {
-  return rewardSeconds > 0
-    ? `作業を記録しました。視聴時間 ＋${durationLabel(rewardSeconds)}${deferred ? '（朝に受け取れます）' : ''}`
-    : '作業を記録しました';
-}
+  /** 作業を記録したときの一文。報酬は API が返した値をそのまま使う。 */
+  workReward(rewardSeconds: number, deferred: boolean): string {
+    return rewardSeconds > 0
+      ? `作業を記録しました。視聴時間 ＋${shared.durationLabel(rewardSeconds)}${deferred ? '（朝に受け取れます）' : ''}`
+      : '作業を記録しました';
+  },
 
-/** 報酬のルールの説明に必要な、Wallet の項目。値は API から受け取る。 */
-export interface RewardRuleSource {
-  policy: { mode: TimePolicyMode };
-  rules: { workSecondsPerReward: number; rewardSecondsPerUnit: number };
-}
+  /** 通知に添える、報酬のルールの説明。 */
+  rewardDescription(wallet: RewardRuleSource | null): string {
+    if (!wallet) return '取り組んだ時間を記録しましょう';
+    if (wallet.policy.mode !== 'rewards') return '区切りまで、ひとつずつ取り組みましょう';
+    const work = shared.durationLabel(wallet.rules.workSecondsPerReward);
+    const reward = shared.durationLabel(wallet.rules.rewardSecondsPerUnit);
+    return `取り組んだ${work}で視聴${reward}。記録した分だけ増えます`;
+  },
 
-/** 通知に添える、報酬のルールの説明。 */
-export function rewardDescription(wallet: RewardRuleSource | null): string {
-  if (!wallet) return '取り組んだ時間を記録しましょう';
-  if (wallet.policy.mode !== 'rewards') return '区切りまで、ひとつずつ取り組みましょう';
-  const work = durationLabel(wallet.rules.workSecondsPerReward);
-  const reward = durationLabel(wallet.rules.rewardSecondsPerUnit);
-  return `取り組んだ${work}で視聴${reward}。記録した分だけ増えます`;
-}
+  /** 端末のタイムゾーンでの「HH:MM」。 */
+  timeLabel(value: string): string {
+    return new Date(value).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  },
+};
 
-/** 端末のタイムゾーンでの「HH:MM」。 */
-export function timeLabel(value: string): string {
-  return new Date(value).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-}
+export type ExtensionMessages = typeof extension;

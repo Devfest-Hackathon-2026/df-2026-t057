@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 )
@@ -195,13 +196,13 @@ func Hash(e Event) string {
 
 // RenderDescription は本人のメモの後に、計画の手順と締切を書いたブロックを付ける。
 // 計画の理由（Reason）は表示の文言をクライアントが持つ code なので、予定には書かない。
-func RenderDescription(notes string, t task.Task, loc *time.Location) string {
+func RenderDescription(notes string, t task.Task, loc *time.Location, lang locale.Locale) string {
 	var b strings.Builder
 	b.WriteString(blockStart + "\n")
 	for _, step := range t.Plan.Steps {
 		fmt.Fprintf(&b, "%s–%s %s\n", step.Start.In(loc).Format("15:04"), step.End.In(loc).Format("15:04"), step.Title)
 	}
-	b.WriteString(deadlineLabel + t.Deadline.In(loc).Format("01/02 15:04") + "\n" + blockEnd)
+	b.WriteString(texts[lang].deadlineLabel + t.Deadline.In(loc).Format("01/02 15:04") + "\n" + blockEnd)
 	return strings.TrimSpace(notes + "\n\n" + b.String())
 }
 
@@ -213,24 +214,24 @@ func taskTimes(t task.Task) (EventTime, EventTime) {
 }
 
 // NewTaskEvent は課題から作る予定。
-func NewTaskEvent(uid string, t task.Task, loc *time.Location) Event {
+func NewTaskEvent(uid string, t task.Task, loc *time.Location, lang locale.Locale) Event {
 	start, end := taskTimes(t)
 	return Event{
-		ID: EventID(uid, t.ID), Summary: t.Title, Description: RenderDescription(t.Notes, t, loc),
+		ID: EventID(uid, t.ID), Summary: t.Title, Description: RenderDescription(t.Notes, t, loc, lang),
 		Start: start, End: end, Private: map[string]string{PropTaskID: t.ID},
 	}
 }
 
 // PlanPatch は計画だけを書き直す（本人のメモと、予定の題名・時刻はそのまま）。
-func PlanPatch(t task.Task, e Event, loc *time.Location) EventPatch {
-	return EventPatch{Description: RenderDescription(StripBlock(e.Description), t, loc)}
+func PlanPatch(t task.Task, e Event, loc *time.Location, lang locale.Locale) EventPatch {
+	return EventPatch{Description: RenderDescription(StripBlock(e.Description), t, loc, lang)}
 }
 
 // ContentPatch は課題の内容（題名・メモ・時刻）と計画を書き直す。
-func ContentPatch(t task.Task, loc *time.Location) EventPatch {
+func ContentPatch(t task.Task, loc *time.Location, lang locale.Locale) EventPatch {
 	start, end := taskTimes(t)
 	title := t.Title
-	return EventPatch{Summary: &title, Description: RenderDescription(t.Notes, t, loc), Start: &start, End: &end}
+	return EventPatch{Summary: &title, Description: RenderDescription(t.Notes, t, loc, lang), Start: &start, End: &end}
 }
 
 // Apply は書き換えた後の予定。
@@ -342,13 +343,13 @@ func (c EventChange) Import(taskID string, detail *task.DetailResult) task.Impor
 }
 
 // SleepEvent は就寝の予定。毎日繰り返し、ほかの予定の邪魔をしない（transparent）。本人が消した予定も、書き直すと戻る（confirmed）。
-func SleepEvent(uid string, s sleep.Schedule, now time.Time, loc *time.Location) Event {
+func SleepEvent(uid string, s sleep.Schedule, now time.Time, loc *time.Location, lang locale.Locale) Event {
 	night := s.NightOf(now, loc)
 	start := night.Start.Add(sleep.WindDown).In(loc)
 	end := night.End.In(loc)
 	return Event{
-		ID: SleepEventID(uid), Status: EventConfirmed, Summary: sleepSummary,
-		Description: fmt.Sprintf(sleepDescriptionFormat, s.Bedtime, s.Wake),
+		ID: SleepEventID(uid), Status: EventConfirmed, Summary: texts[lang].sleepSummary,
+		Description: fmt.Sprintf(texts[lang].sleepDescriptionFormat, s.Bedtime, s.Wake),
 		Start:       EventTime{DateTime: start.Format(time.RFC3339), TimeZone: loc.String()},
 		End:         EventTime{DateTime: end.Format(time.RFC3339), TimeZone: loc.String()},
 		Recurrence:  []string{"RRULE:FREQ=DAILY"}, Transparent: true,
