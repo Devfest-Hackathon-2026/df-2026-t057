@@ -30,3 +30,13 @@ test('通信エラーと想定外のエラーにも文言を返す', () => {
   assert.match(errorMessage(new NetworkError(new TypeError('x'))), /接続できませんでした/);
   assert.match(errorMessage(new Error('x')), /問題が発生しました/);
 });
+
+test('予定の検証エラーも内訳の文言を使う', () => {
+  const error = new ApiError({
+    type: 'about:blank',
+    status: 400,
+    code: 'plan.invalid_changes',
+    errors: [{ field: 'changes/0/after', code: 'plan.overlaps_other' }],
+  });
+  assert.equal(errorMessage(error), '別の課題の予定と重なっています。');
+});

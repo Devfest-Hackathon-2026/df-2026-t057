@@ -145,9 +145,9 @@ export const networkMessage = '接続できませんでした。通信状態を�
 /** 例外を、利用者に見せる一文にする。 */
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    // 項目ごとのエラーがあれば、そのほうが具体的（例: plan.invalid_changes の内訳）。
     const first = error.fields[0];
-    if (error.code === 'request.invalid' && first) return fieldMessages[first.code];
-    return problemMessages[error.code];
+    return first ? fieldMessages[first.code] : problemMessages[error.code];
   }
   if (error instanceof NetworkError) return networkMessage;
   return problemMessages.internal;
