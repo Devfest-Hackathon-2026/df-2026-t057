@@ -14,15 +14,17 @@ import (
 type Kind int
 
 const (
-	KindInternal           Kind = iota // 500
-	KindInvalid                        // 400 入力エラー
-	KindUnauthenticated                // 401
-	KindForbidden                      // 403
-	KindNotFound                       // 404
-	KindConflict                       // 409 状態と矛盾する操作
-	KindPreconditionFailed             // 412 版の不一致
-	KindRateLimited                    // 429
-	KindUnavailable                    // 503 外部サービスや設定が使えない
+	KindInternal             Kind = iota // 500
+	KindInvalid                          // 400 入力エラー
+	KindUnauthenticated                  // 401
+	KindForbidden                        // 403
+	KindNotFound                         // 404
+	KindConflict                         // 409 状態と矛盾する操作
+	KindPreconditionFailed               // 412 版の不一致
+	KindRateLimited                      // 429
+	KindUnavailable                      // 503 外部サービスや設定が使えない
+	KindPreconditionRequired             // 428 If-Match が無い
+	KindTooLarge                         // 413 リクエストが大きすぎる
 )
 
 // FieldError は入力項目ごとのエラー。
@@ -74,6 +76,17 @@ func PreconditionFailed(code string) *Error {
 	return newError(KindPreconditionFailed, code)
 }
 func Unavailable(code string) *Error { return newError(KindUnavailable, code) }
+func PreconditionRequired(code string) *Error {
+	return newError(KindPreconditionRequired, code)
+}
+func TooLarge(code string) *Error { return newError(KindTooLarge, code) }
+
+// Wrap は原因を残したまま、既存の *Error と同じ種類のエラーを作る。
+func (e *Error) Wrap(cause error) *Error {
+	c := *e
+	c.cause = cause
+	return &c
+}
 func RateLimited(code string, retryAfter time.Duration) *Error {
 	e := newError(KindRateLimited, code)
 	e.RetryAfter = retryAfter
