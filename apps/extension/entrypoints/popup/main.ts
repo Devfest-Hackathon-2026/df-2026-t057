@@ -1,9 +1,11 @@
-// ポップアップ。接続の状態、視聴できる時間、作業中の課題か次の課題、作業サイトでのタイマーの許可。
+// ポップアップ。接続の状態、視聴できる時間、作業中の課題か次の課題、課題の登録、作業サイトでのタイマーの許可。
 import '@dopagaki/tokens/tokens.css';
 import './style.css';
+import { newIdempotencyKey, type TaskCreateInput } from '@dopagaki/contract';
 import { clockLabel } from '@dopagaki/messages';
 import { send } from '../../content/messaging';
 import { MANAGEMENT_ORIGIN } from '../../lib/config';
+import { fromLocalInput, toLocalInput } from '../../lib/draft-edit';
 import { currentLocale, currentMessages, followLocale } from '../../lib/locale';
 import type { OkReply, Request } from '../../lib/protocol';
 import type { ExtensionState } from '../../lib/schemas';
@@ -25,6 +27,19 @@ const workActions = byId('work-actions', HTMLElement);
 const status = byId('status', HTMLElement);
 const openButton = byId('open', HTMLButtonElement);
 const permissionButton = byId('permission', HTMLButtonElement);
+const workSection = byId('work', HTMLElement);
+const links = byId('links', HTMLElement);
+const addTaskButton = byId('add-task', HTMLButtonElement);
+const taskForm = byId('task-form', HTMLFormElement);
+const titleInput = byId('task-title', HTMLInputElement);
+const deadlineInput = byId('task-deadline', HTMLInputElement);
+const minutesInput = byId('task-minutes', HTMLInputElement);
+const presets = byId('task-presets', HTMLElement);
+const whyInput = byId('task-why', HTMLInputElement);
+const urlInput = byId('task-url', HTMLInputElement);
+const notesInput = byId('task-notes', HTMLTextAreaElement);
+const cancelTaskButton = byId('task-cancel', HTMLButtonElement);
+const submitTaskButton = byId('task-submit', HTMLButtonElement);
 
 const connectButton = button('', () => {
   void runAction(workActions, { type: 'SIGN_IN' }).then((reply) => {
@@ -36,6 +51,24 @@ const testButton = button('', () => {
 });
 document.body.append(connectButton, testButton);
 
+const presetButtons = [15, 30, 60, 90, 120].map((minutes) => {
+  const element = button('', () => {
+    minutesInput.value = String(minutes);
+    markPreset();
+  });
+  presets.append(element);
+  return { minutes, element };
+});
+
+/** 必要時間の欄と同じ値のボタンを、押された状態で示す。 */
+function markPreset(): void {
+  for (const { minutes, element } of presetButtons) {
+    const selected = Number(minutesInput.value) === minutes;
+    element.className = `button ${selected ? 'tonal' : 'outlined'}`;
+    element.setAttribute('aria-pressed', String(selected));
+  }
+}
+
 /** 状態によらない文言。プロフィールの言語を受け取ったら書き直す。 */
 function renderLabels(): void {
   const copy = currentMessages().extension;
@@ -45,6 +78,20 @@ function renderLabels(): void {
   permissionButton.textContent = copy.popupWorkSite;
   connectButton.textContent = copy.popupSignIn;
   testButton.textContent = copy.popupTestNotice;
+  addTaskButton.textContent = copy.popupAddTask;
+  byId('task-heading', HTMLElement).textContent = copy.popupAddTask;
+  byId('task-title-label', HTMLElement).textContent = copy.popupTaskTitle;
+  byId('task-deadline-label', HTMLElement).textContent = copy.popupTaskDeadline;
+  byId('task-minutes-label', HTMLElement).textContent = copy.popupTaskMinutes;
+  byId('task-details', HTMLElement).textContent = copy.popupTaskDetails;
+  byId('task-why-label', HTMLElement).textContent = copy.popupTaskWhy;
+  byId('task-url-label', HTMLElement).textContent = copy.popupTaskUrl;
+  byId('task-notes-label', HTMLElement).textContent = copy.popupTaskNotes;
+  presets.setAttribute('aria-label', copy.popupTaskPresets);
+  for (const { minutes, element } of presetButtons)
+    element.textContent = copy.popupTaskPreset(minutes);
+  cancelTaskButton.textContent = copy.cancel;
+  submitTaskButton.textContent = copy.popupTaskRegister;
 }
 
 renderLabels();
@@ -131,6 +178,7 @@ function render(current: ExtensionState): void {
   renderLabels();
   renderBalance(current);
   renderWork(current);
+  addTaskButton.hidden = false;
 }
 
 setInterval(() => {
@@ -142,6 +190,76 @@ setInterval(() => {
     clockLabel(workElapsedSeconds(session, state.workSyncedAt, Date.now())),
   );
 }, 1000);
+
+/** 登録する課題の ID。送り直しても二重に登録しないよう、フォームを開くたびに一度だけ作る。 */
+let newTaskId = newIdempotencyKey();
+
+function showTaskForm(shown: boolean): void {
+  taskForm.hidden = !shown;
+  workSection.hidden = shown;
+  links.hidden = shown;
+}
+
+addTaskButton.addEventListener('click', () => {
+  taskForm.reset();
+  taskForm.querySelector(':scope > .error')?.remove();
+  // 管理画面の登録と同じく、今より後の次の15分刻みを締切の初期値にする。
+  deadlineInput.value = toLocalInput(
+    new Date((Math.floor(Date.now() / 900_000) + 1) * 900_000).toISOString(),
+  );
+  minutesInput.value = '30';
+  markPreset();
+  newTaskId = newIdempotencyKey();
+  status.textContent = '';
+  showTaskForm(true);
+  titleInput.focus();
+});
+
+cancelTaskButton.addEventListener('click', () => {
+  showTaskForm(false);
+  addTaskButton.focus();
+});
+
+minutesInput.addEventListener('input', markPreset);
+
+/** 入力を確かめて、送る形にする。足りなければ欄ごとの理由を出して undefined を返す。 */
+function taskInput(): TaskCreateInput | undefined {
+  const copy = currentMessages().extension;
+  const title = titleInput.value.trim();
+  const deadline = fromLocalInput(deadlineInput.value);
+  const minutes = Number(minutesInput.value);
+  // ブラウザーの既定の文ではなく、プロフィールの言語の文で知らせる。
+  titleInput.setCustomValidity(title === '' ? copy.popupTaskTitleRequired : '');
+  deadlineInput.setCustomValidity(
+    deadline !== undefined && Date.parse(deadline) > Date.now() ? '' : copy.popupTaskDeadlinePast,
+  );
+  minutesInput.setCustomValidity(
+    Number.isInteger(minutes) && minutes >= 1 && minutes <= 720 ? '' : copy.popupTaskMinutesRange,
+  );
+  if (!taskForm.reportValidity() || deadline === undefined) return undefined;
+  return {
+    id: newTaskId,
+    title,
+    deadline,
+    minutes,
+    why: whyInput.value.trim(),
+    url: urlInput.value.trim(),
+    notes: notesInput.value,
+  };
+}
+
+taskForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const input = taskInput();
+  if (!input) return;
+  void runAction(taskForm, { type: 'CREATE_TASK', input }).then((reply) => {
+    if (!reply?.ok) return;
+    if (reply.state) render(reply.state);
+    showTaskForm(false);
+    status.textContent = currentMessages().extension.popupTaskCreated(input.title);
+    addTaskButton.focus();
+  });
+});
 
 openButton.addEventListener('click', () => {
   void send({ type: 'OPEN_APP' }).then(() => {

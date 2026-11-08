@@ -32,6 +32,8 @@ pnpm --filter @dopagaki/extension build
 
 `chrome://extensions` でデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」から `apps/extension/.output/chrome-mv3` を指定します。その後、管理画面を開き直すと同じユーザーのデータに接続されます。拡張IDは manifest の `key`（[`apps/extension/buildconfig/extension-key.ts`](apps/extension/buildconfig/extension-key.ts) の公開鍵）で `egongmmfglcolkgiappacmmbiiiogpmb` に固定しており、どの端末で読み込んでも同じなので、APIの live モードではこのIDを環境変数 `EXTENSION_IDS` に設定します。
 
+拡張のポップアップの「課題を登録」から、管理画面を開かずに課題名・締切・必要時間を入れて登録できます。
+
 拡張のポップアップにある「この作業サイトにタイマーを表示」を押すと、そのサイトだけにタイマーを表示する権限を求めます。最初からすべてのサイトへのアクセスは要求しません。
 
 ## Chrome拡張のリリース

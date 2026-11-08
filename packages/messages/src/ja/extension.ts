@@ -135,6 +135,21 @@ export const extension = {
   popupStartNext: '次の課題を開始',
   popupSignIn: 'Googleアカウントで拡張に接続',
   popupTestNotice: '通知をテスト',
+  popupAddTask: '課題を登録',
+  popupTaskTitle: '課題名',
+  popupTaskTitleRequired: '課題名を入力してください。',
+  popupTaskDeadline: '締切',
+  popupTaskDeadlinePast: '締切は未来の日時を選んでください。',
+  popupTaskMinutes: '必要時間（分）',
+  popupTaskMinutesRange: '1〜720分で入力してください。',
+  popupTaskPresets: '必要時間をすばやく選ぶ',
+  popupTaskPreset: (minutes: number) => (minutes < 60 ? `${minutes}分` : `${minutes / 60}時間`),
+  popupTaskDetails: '詳細を追加',
+  popupTaskWhy: '目的（任意）',
+  popupTaskUrl: '作業リンク（任意）',
+  popupTaskNotes: 'やること・メモ',
+  popupTaskRegister: '登録する',
+  popupTaskCreated: (title: string) => `「${title}」を登録しました。`,
 
   /** 作業を記録したときの一文。報酬は API が返した値をそのまま使う。 */
   workReward(rewardSeconds: number, deferred: boolean): string {

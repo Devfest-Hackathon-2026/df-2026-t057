@@ -13,6 +13,7 @@ import type {
   Resource,
   Settings,
   Step,
+  TaskCreateInput,
   TaskStatus,
   TimePolicyMode,
   Viewing,
@@ -104,6 +105,17 @@ export const extensionTaskSchema = z.object({
   plan: planSchema,
 });
 export type ExtensionTask = z.infer<typeof extensionTaskSchema>;
+
+/** ポップアップから登録する課題。締切が未来かなどのルールはサーバーが確かめる。 */
+export const taskCreateInputSchema: z.ZodType<TaskCreateInput> = z.object({
+  id: idSchema,
+  title: z.string().trim().min(1).max(200),
+  notes: z.string().max(4000),
+  why: z.string().max(200),
+  deadline: instantSchema,
+  minutes: z.number().int().min(1).max(720),
+  url: z.string().max(2000),
+});
 
 export const planChangeSchema: z.ZodType<PlanChange> = z.object({
   taskId: idSchema,
