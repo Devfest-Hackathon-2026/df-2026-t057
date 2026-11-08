@@ -1,0 +1,11 @@
+{
+  "name": "@dopagaki/deploy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test *.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2"
+  }
+}

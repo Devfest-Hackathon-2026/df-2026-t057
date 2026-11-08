@@ -6,13 +6,6 @@ import angular from 'angular-eslint';
 export default tseslint.config(
   {
     ignores: [
-      // 旧実装（作り直しが終わったら削除する）
-      'api/**',
-      'web/**',
-      'extension/**',
-      'shared/**',
-      'tests/**',
-      'playwright.config.ts',
       // 生成物
       '**/dist/**',
       '**/.angular/**',
@@ -30,7 +23,11 @@ export default tseslint.config(
       ...tseslint.configs.stylisticTypeChecked,
     ],
     languageOptions: {
-      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+      parserOptions: {
+        // ビルド設定のファイルは、どのアプリの tsconfig にも含めない。
+        projectService: { allowDefaultProject: ['apps/web/vitest.config.ts'] },
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     rules: {
       '@typescript-eslint/consistent-type-imports': 'error',

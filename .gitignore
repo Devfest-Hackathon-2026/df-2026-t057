@@ -41,7 +41,6 @@ Thumbs.db
 .angular/
 playwright-report/
 test-results/
-api/server
 .local/
 coverage/
 

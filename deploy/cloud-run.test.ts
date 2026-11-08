@@ -35,7 +35,7 @@ if (command === 'gcloud') {
   }
   writeFileSync(log, '');
   try {
-    const result = spawnSync('bash', [resolve('deploy/cloud-run.sh'), image], {
+    const result = spawnSync('bash', [resolve(import.meta.dirname, 'cloud-run.sh'), image], {
       env: {
         ...process.env,
         PATH: `${dir}:${process.env.PATH}`,
@@ -49,10 +49,10 @@ if (command === 'gcloud') {
       },
       encoding: 'utf8',
     });
-    const calls: { command: string; args: string[] }[] = readFileSync(log, 'utf8')
+    const calls = readFileSync(log, 'utf8')
       .split('\n')
       .filter(Boolean)
-      .map((line) => JSON.parse(line));
+      .map((line) => JSON.parse(line) as { command: string; args: string[] });
     return { result, calls };
   } finally {
     rmSync(dir, { recursive: true });

@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - e2e
+  - deploy
 
 # 依存の更新は、公開から一定期間たったものだけを受け入れる（供給網攻撃への備え）。
 minimumReleaseAge: 4320
