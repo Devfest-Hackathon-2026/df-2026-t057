@@ -1170,6 +1170,26 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/CalendarStatus' }
         default: { $ref: '#/components/responses/Problem' }
+  /calendar/events:
+    get:
+      tags: [calendar]
+      operationId: listCalendarEvents
+      description: |
+        Google カレンダーの主カレンダー（primary）の予定を、表示のために読む。保存も AI への送信もしない。
+        `to` より前に始まり、`from` より後に終わる予定を返す。期間は 42 日まで。
+        連携していなければ 409（`calendar.not_connected`）、主カレンダーを読む許可が無ければ 403（`calendar.reauth_required`）。
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date-time } }
+      responses:
+        '200':
+          description: 期間の予定（開始の早い順）
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CalendarEvent' }
+        default: { $ref: '#/components/responses/Problem' }
   /calendar/webhook:
     post:
       tags: [calendar]
@@ -1988,7 +2008,7 @@ components:
           type: boolean
     CalendarStatus:
       type: object
-      required: [enabled, connected, sync, failedJobs]
+      required: [enabled, connected, sync, failedJobs, primaryEvents]
       properties:
         enabled: { type: boolean, description: この環境でカレンダー連携を使える }
         connected: { type: boolean }
@@ -1997,6 +2017,21 @@ components:
         lastSync: { type: string, format: date-time }
         conflicts: { type: integer }
         failedJobs: { type: integer, description: 再試行しても反映できなかったジョブの数 }
+        primaryEvents:
+          type: boolean
+          description: 主カレンダーの予定を読む許可がある（無ければ、同意し直すまで `GET /calendar/events` を使えない）
+    CalendarEvent:
+      type: object
+      description: 主カレンダーの予定。終日の予定は `startDate`・`endDate`、時刻のある予定は `start`・`end` を持つ。
+      required: [id, title, allDay]
+      properties:
+        id: { type: string }
+        title: { type: string, description: 題名。無ければ空 }
+        allDay: { type: boolean }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, description: 終日の予定の最後の日の翌日 }
 
     # ── realtime ──
     Resource:

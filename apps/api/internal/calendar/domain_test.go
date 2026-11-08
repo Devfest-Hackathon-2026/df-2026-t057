@@ -319,3 +319,46 @@ func TestSleepEvent(t *testing.T) {
 		t.Fatal("the sleep event must never be imported as a task")
 	}
 }
+
+func TestCheckPrimaryRange(t *testing.T) {
+	from := at("2026-11-09T00:00:00Z")
+	cases := []struct {
+		name string
+		to   time.Time
+		ok   bool
+	}{
+		{"1週", from.Add(7 * 24 * time.Hour), true},
+		{"上限ちょうど", from.Add(42 * 24 * time.Hour), true},
+		{"上限を超える", from.Add(42*24*time.Hour + time.Second), false},
+		{"同じ時刻", from, false},
+		{"逆向き", from.Add(-time.Hour), false},
+	}
+	for _, c := range cases {
+		if err := CheckPrimaryRange(from, c.to); (err == nil) != c.ok {
+			t.Errorf("%s: %v", c.name, err)
+		}
+	}
+}
+
+func TestToPrimaryEvents(t *testing.T) {
+	got := ToPrimaryEvents([]Event{
+		{ID: "timed", Summary: "ゼミ", Start: EventTime{DateTime: "2026-11-09T10:00:00+09:00"}, End: EventTime{DateTime: "2026-11-09T11:30:00+09:00"}},
+		{ID: "all-day", Summary: "学園祭", Start: EventTime{Date: "2026-11-10"}, End: EventTime{Date: "2026-11-12"}},
+		{ID: "untitled", Start: EventTime{DateTime: "2026-11-09T12:00:00Z"}, End: EventTime{DateTime: "2026-11-09T13:00:00Z"}},
+		{ID: "cancelled", Status: EventCancelled, Start: EventTime{DateTime: "2026-11-09T12:00:00Z"}, End: EventTime{DateTime: "2026-11-09T13:00:00Z"}},
+		{ID: "broken", Start: EventTime{DateTime: "明日"}, End: EventTime{DateTime: "2026-11-09T13:00:00Z"}},
+	})
+	want := []PrimaryEvent{
+		{ID: "timed", Title: "ゼミ", Start: at("2026-11-09T01:00:00Z"), End: at("2026-11-09T02:30:00Z")},
+		{ID: "all-day", Title: "学園祭", AllDay: true, Start: at("2026-11-10T00:00:00Z"), End: at("2026-11-12T00:00:00Z")},
+		{ID: "untitled", Start: at("2026-11-09T12:00:00Z"), End: at("2026-11-09T13:00:00Z")},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %+v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("%d: got %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}

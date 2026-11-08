@@ -102,6 +102,7 @@ test('manual Google sync waits for confirmation and preserves events on failure'
     connected: true,
     sync: 'synced',
     failedJobs: 0,
+    primaryEvents: false,
   };
   await page.route('**/api/calendar', (route) => route.fulfill({ json: connected }));
   const gate = new Gate();

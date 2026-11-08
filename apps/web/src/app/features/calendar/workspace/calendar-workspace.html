@@ -144,6 +144,43 @@
       </mat-button-toggle-group>
     </div>
 
+    @if (layersAvailable()) {
+      @let t = text().calendar.workspace;
+      <div class="calendar-layers" role="group" [attr.aria-label]="t.layers">
+        <mat-checkbox
+          [checked]="calendar.layers().tasks"
+          (change)="calendar.setLayer('tasks', $event.checked)"
+        >
+          {{ t.layerTasks }}
+        </mat-checkbox>
+        <mat-checkbox
+          class="google-layer"
+          [checked]="calendar.layers().google && calendar.primaryReadable()"
+          [disabled]="!calendar.primaryReadable()"
+          (change)="calendar.setLayer('google', $event.checked)"
+        >
+          {{ t.layerGoogle }}
+        </mat-checkbox>
+        @if (calendar.loaded() && !calendar.primaryReadable()) {
+          <p class="layer-hint">{{ calendar.connected() ? t.googleConsent : t.googleConnect }}</p>
+          <button
+            mat-button
+            type="button"
+            (click)="calendar.startConnect()"
+            [disabled]="calendar.connect.pending()"
+          >
+            {{ calendar.connected() ? t.reconnect : t.connect }}
+          </button>
+        }
+      </div>
+      @if (calendar.connect.error(); as error) {
+        <p class="error" role="alert">{{ error.message }}</p>
+      }
+      @if (calendar.loadPrimary.error(); as error) {
+        <p class="error" role="alert">{{ t.googleFailed(error.message) }}</p>
+      }
+    }
+
     <div class="calendar-body">
       @if (!rendered()) {
         <p class="calendar-loading" role="status">{{ text().calendar.workspace.loading }}</p>
@@ -200,6 +237,9 @@
         <p>{{ text().calendar.workspace.aboutConfirmed }}</p>
         <p>{{ text().calendar.workspace.timeZone(timeZone) }}</p>
         <p>{{ text().calendar.workspace.aboutSync }}</p>
+        @if (layersAvailable()) {
+          <p>{{ text().calendar.workspace.aboutGoogle }}</p>
+        }
       </details>
       <button mat-button type="button" (click)="sync()" [disabled]="syncing()">
         {{

@@ -38,6 +38,9 @@ type fakeCalendar struct {
 	watches   []WatchRequest
 	stopped   []string
 	patches   int
+	// primary は主カレンダーの予定。ranges は ListRange に渡された期間。
+	primary []Event
+	ranges  []string
 }
 
 func newFakeCalendar() *fakeCalendar { return &fakeCalendar{events: map[string]Event{}} }
@@ -182,6 +185,13 @@ func (f *fakeCalendar) userEdit(eventID string, edit func(e *Event)) Event {
 	e := f.events[eventID]
 	edit(&e)
 	return f.touch(e)
+}
+
+func (f *fakeCalendar) ListRange(_ context.Context, calendarID string, from, to time.Time) ([]Event, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.ranges = append(f.ranges, calendarID+" "+from.Format(time.RFC3339)+" "+to.Format(time.RFC3339))
+	return f.primary, nil
 }
 
 func (f *fakeCalendar) event(eventID string) (Event, bool) {
@@ -358,7 +368,7 @@ func newEnv(t *testing.T) *env {
 	e.disp = &fakeDispatcher{}
 	e.outbox = outbox.New(e.runner, e.disp, e.clock, ids, log)
 	e.cal = newFakeCalendar()
-	e.google = &fakeGoogle{cal: e.cal, grant: Grant{Subject: "google-1", HasRefreshToken: true, Token: []byte("token")}, saved: map[string][]byte{}, deleted: map[string]int{}, clientErr: map[string]error{}}
+	e.google = &fakeGoogle{cal: e.cal, grant: Grant{Subject: "google-1", HasRefreshToken: true, PrimaryEvents: true, Token: []byte("token")}, saved: map[string][]byte{}, deleted: map[string]int{}, clientErr: map[string]error{}}
 	e.planner = &fakePlanner{err: apperr.Unavailable("ai.unavailable")}
 	e.sessions = &fakeSessions{}
 	e.rewards = &fakeRewards{granted: map[string]int{}}

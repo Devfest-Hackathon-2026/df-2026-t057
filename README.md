@@ -133,7 +133,7 @@ AIは初期値で1人5回/分・30回/日、全体30回/分・300回/日に制�
 
 1. Firestore NativeデータベースとFirebaseのWebアプリを作成し、AuthenticationのGoogleプロバイダーを有効にします。Cloud Runのドメインを認証の許可ドメインへ追加します。Firestoreのクライアント用ルールは `deploy/firestore.rules` のとおり拒否し、APIのサービスアカウントだけで読み書きします。
 2. Google Cloud側の設定（APIの有効化、サービスアカウントと権限、Cloud Run、Cloud Tasks、Cloud Scheduler、FirestoreのTTLとルール）は `deploy/terraform` のTerraformで作ります。手順は [deploy/terraform/README.md](deploy/terraform/README.md) にあります。
-3. Web用OAuthクライアントを作成し、リダイレクトURIに `https://<管理画面のオリジン>/api/calendar/callback` を設定します。スコープは `openid`、`email`、`calendar.app.created`。テスト公開中は利用者をテストユーザーへ追加します。
+3. Web用OAuthクライアントを作成し、リダイレクトURIに `https://<管理画面のオリジン>/api/calendar/callback` を設定します。スコープは `openid`、`email`、`calendar.app.created`、`calendar.events.owned.readonly`（主カレンダーの予定を表示するため）。テスト公開中は利用者をテストユーザーへ追加します。
 4. FirebaseのWebアプリの設定とOAuthのクライアントIDを `deploy/terraform/terraform.tfvars` に書きます。OAuth client secretはTerraformの外で、Secret Managerの `dopagaki-calendar-oauth` へ登録します。`.env`、トークン、鍵はコミットしません。
 
 Cloud Run向けのコンテナーは次で作成できます。

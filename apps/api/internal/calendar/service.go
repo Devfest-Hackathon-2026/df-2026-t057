@@ -31,6 +31,8 @@ const (
 	webhookPath = "/api/calendar/webhook"
 	// resourceStateSync は、チャンネルを登録した直後の確認の通知。取り込みは要らない。
 	resourceStateSync = "sync"
+	// primaryCalendarID は Calendar API で本人の主カレンダーを指す ID。
+	primaryCalendarID = "primary"
 )
 
 // Config はカレンダー連携の設定。
@@ -74,6 +76,8 @@ type Status struct {
 	LastSync   *time.Time
 	FailedJobs int
 	Conflicts  int
+	// PrimaryEvents は、主カレンダーの予定を読めるか。
+	PrimaryEvents bool
 }
 
 // Status は連携の状態を返す。連携を使わない環境では enabled=false、disconnected。
@@ -95,7 +99,7 @@ func (s *Service) Status(ctx context.Context, uid string) (Status, error) {
 		if err != nil {
 			return err
 		}
-		st = Status{Conflicts: len(conflicts), Enabled: true, Connected: c.Connected, Sync: DeriveSync(c.Connected, pending, failed), LastSync: c.LastSync, FailedJobs: failed}
+		st = Status{Conflicts: len(conflicts), Enabled: true, Connected: c.Connected, Sync: DeriveSync(c.Connected, pending, failed), LastSync: c.LastSync, FailedJobs: failed, PrimaryEvents: c.Connected && c.PrimaryEvents}
 		if c.Reauth {
 			st.Sync = SyncReauth
 		} else if st.Conflicts > 0 {
@@ -213,7 +217,7 @@ func (s *Service) callback(ctx context.Context, state, code, errParam string) er
 	if err != nil {
 		return err
 	}
-	old, err := s.finishConnect(ctx, uid, ch, watch, replaced)
+	old, err := s.finishConnect(ctx, uid, ch, watch, replaced, grant.PrimaryEvents)
 	if err != nil {
 		return err
 	}
@@ -262,7 +266,7 @@ func (s *Service) startWatch(ctx context.Context, client Client, uid, calendarID
 
 // finishConnect は連携を確定し、最初の取り込みと書き直し、まだ予定の無い課題の予定づくりを積む。
 // 同じカレンダーにつなぎ直したときは syncToken を残す。前のチャンネルを返す（呼び出し側が止める）。
-func (s *Service) finishConnect(ctx context.Context, uid string, ch newChannel, w Watch, replaced bool) (Connection, error) {
+func (s *Service) finishConnect(ctx context.Context, uid string, ch newChannel, w Watch, replaced, primaryEvents bool) (Connection, error) {
 	var old Connection
 	err := s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
 		c, err := loadConnection(ctx, tx, uid)
@@ -290,6 +294,7 @@ func (s *Service) finishConnect(ctx context.Context, uid string, ch newChannel, 
 		expires := store.Truncate(w.Expires)
 		c.Connected = true
 		c.Reauth = false
+		c.PrimaryEvents = primaryEvents
 		c.ChannelID, c.ChannelToken, c.ChannelResource, c.ChannelExpires = ch.id, ch.token, w.ResourceID, &expires
 		if _, err := enqueueOnce(ctx, tx, s.outbox, uid, outbox.KindSync, &c.SyncJob); err != nil {
 			return err
@@ -333,6 +338,40 @@ func (s *Service) stopChannel(ctx context.Context, client Client, channelID, res
 	if err := client.StopChannel(ctx, channelID, resourceID); err != nil && !errors.Is(err, ErrEventGone) {
 		s.Log.WarnContext(ctx, "calendar channel stop failed", "code", apperr.As(err).Code)
 	}
+}
+
+// PrimaryEvents は主カレンダーの予定を、表示のためにその場で Google から読む。読むだけで副作用がないので Outbox を通さない。
+func (s *Service) PrimaryEvents(ctx context.Context, uid string, from, to time.Time) ([]PrimaryEvent, error) {
+	if !s.cfg.Enabled {
+		return nil, apperr.Unavailable("calendar.unavailable")
+	}
+	if err := CheckPrimaryRange(from, to); err != nil {
+		return nil, err
+	}
+	var c Connection
+	err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
+		var err error
+		c, err = loadConnection(ctx, tx, uid)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !c.Connected {
+		return nil, apperr.Conflict("calendar.not_connected")
+	}
+	if c.Reauth || !c.PrimaryEvents {
+		return nil, apperr.Forbidden("calendar.reauth_required")
+	}
+	client, err := s.Google.Client(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	events, err := client.ListRange(ctx, primaryCalendarID, from, to)
+	if err != nil {
+		return nil, err
+	}
+	return ToPrimaryEvents(events), nil
 }
 
 // SyncNow は取り込みのジョブを積み、連携の状態を返す（その場では取り込まない）。

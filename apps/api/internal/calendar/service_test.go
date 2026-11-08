@@ -680,3 +680,43 @@ func TestDisconnectSucceedsWhenTokenDeleteFails(t *testing.T) {
 		t.Fatal("still connected")
 	}
 }
+
+func TestPrimaryEvents(t *testing.T) {
+	e := newEnv(t)
+	from := e.clock.Now()
+	to := from.Add(7 * 24 * time.Hour)
+	if _, err := e.svc.PrimaryEvents(e.ctx, uid, from, to); !errors.Is(err, apperr.Conflict("calendar.not_connected")) {
+		t.Fatalf("before connect: %v", err)
+	}
+	e.cal.primary = []Event{
+		manualEvent("p-1", "ゼミ", from.Add(3*time.Hour), 60),
+		{ID: "p-2", Status: EventCancelled, Start: EventTime{DateTime: from.Format(time.RFC3339)}, End: EventTime{DateTime: from.Add(time.Hour).Format(time.RFC3339)}},
+	}
+	e.connect()
+	st, _ := e.svc.Status(e.ctx, uid)
+	if !st.PrimaryEvents {
+		t.Fatalf("status: %+v", st)
+	}
+	got, err := e.svc.PrimaryEvents(e.ctx, uid, from, to)
+	if err != nil || len(got) != 1 || got[0].ID != "p-1" || got[0].Title != "ゼミ" || !got[0].End.Equal(from.Add(3*time.Hour)) {
+		t.Fatalf("events: %+v %v", got, err)
+	}
+	if want := "primary " + from.Format(time.RFC3339) + " " + to.Format(time.RFC3339); len(e.cal.ranges) != 1 || e.cal.ranges[0] != want {
+		t.Fatalf("ranges: %v", e.cal.ranges)
+	}
+	if _, err := e.svc.PrimaryEvents(e.ctx, uid, to, from); !errors.Is(err, apperr.Invalid("request.invalid")) {
+		t.Fatalf("reversed range: %v", err)
+	}
+	// 主カレンダーを読む許可を外して同意し直したら、予定を読まない。
+	e.google.grant.PrimaryEvents = false
+	e.connect()
+	if st, _ := e.svc.Status(e.ctx, uid); st.PrimaryEvents {
+		t.Fatalf("status without the scope: %+v", st)
+	}
+	if _, err := e.svc.PrimaryEvents(e.ctx, uid, from, to); !errors.Is(err, apperr.Forbidden("calendar.reauth_required")) {
+		t.Fatalf("without the scope: %v", err)
+	}
+	if len(e.cal.ranges) != 1 {
+		t.Fatalf("read google without the scope: %v", e.cal.ranges)
+	}
+}

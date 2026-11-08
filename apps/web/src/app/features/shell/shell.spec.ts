@@ -65,7 +65,13 @@ describe('Shell', () => {
       .on('GET', '/sleep', { body: { sleep: null, revision: 1 } })
       .on('GET', '/viewing', { body: { session: null } })
       .on('GET', '/calendar', {
-        body: { enabled: false, connected: false, sync: 'disconnected', failedJobs: 0 },
+        body: {
+          enabled: false,
+          connected: false,
+          sync: 'disconnected',
+          failedJobs: 0,
+          primaryEvents: false,
+        },
       });
     TestBed.configureTestingModule({
       providers: [

@@ -15,6 +15,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -25,6 +26,7 @@ import {
   FullCalendarComponent,
   FullCalendarModule,
   type CalendarOptions,
+  type EventInput,
   type LocaleSingularArg,
 } from '@fullcalendar/angular';
 import themePlugin from '@fullcalendar/angular/themes/classic';
@@ -74,6 +76,7 @@ export function validDate(value: string | undefined): string | undefined {
     FullCalendarModule,
     MatButtonModule,
     MatButtonToggleModule,
+    MatCheckboxModule,
     MatIconModule,
     MatTooltipModule,
     MonthDayPipe,
@@ -111,6 +114,10 @@ export class CalendarWorkspace {
   protected readonly stylesReady = signal(false);
   protected readonly rendered = signal(false);
   protected readonly title = signal('');
+  /** 表示している期間（FullCalendar の datesSet）。主カレンダーの予定はこの期間だけ読む。 */
+  private readonly range = signal<{ readonly start: Date; readonly end: Date } | undefined>(
+    undefined,
+  );
   protected readonly startOrigin = signal<StartOrigin | undefined>(undefined);
   protected readonly timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -152,16 +159,55 @@ export class CalendarWorkspace {
       ? this.text().calendar.common.unlimited
       : this.shared().durationLabel(this.wallet.value()?.availableSeconds ?? 0),
   );
-  protected readonly events = computed(() => {
-    const selected = this.selected()?.id;
-    return this.tasks.tasks().map((task) => ({
-      id: task.id,
-      title: task.title,
-      start: task.plan.start,
-      end: task.plan.end,
-      classNames: ['workspace-event', task.status, ...(task.id === selected ? ['selected'] : [])],
-    }));
+  /** Google の連携を使える環境（live）だけ、表示する予定を選べるようにする。 */
+  protected readonly layersAvailable = computed(() => this.calendar.value()?.enabled === true);
+  private readonly showTasks = computed(
+    () => !this.layersAvailable() || this.calendar.layers().tasks,
+  );
+  private readonly showGoogle = computed(
+    () =>
+      this.layersAvailable() && this.calendar.layers().google && this.calendar.primaryReadable(),
+  );
+  private readonly googleEvents = computed<EventInput[]>(() => {
+    if (!this.showGoogle()) return [];
+    const untitled = this.text().calendar.workspace.untitled;
+    return this.calendar.primaryEvents().flatMap((event) => {
+      // 仕様では、終日なら startDate・endDate、それ以外は start・end が入る。
+      const start = event.allDay ? event.startDate : event.start;
+      const end = event.allDay ? event.endDate : event.end;
+      if (start === undefined || end === undefined) return [];
+      return {
+        // 課題の ID と重ならないようにする（クリックで課題を探すときに見つからないようにする）。
+        id: `google:${event.id}`,
+        title: event.title || untitled,
+        allDay: event.allDay,
+        start,
+        end,
+        // 表示するだけなので、選んだり開いたりできないようにする。
+        interactive: false,
+        classNames: ['google-event'],
+      };
+    });
   });
+  protected readonly events = computed<EventInput[]>(() => {
+    const selected = this.selected()?.id;
+    const tasks = this.showTasks()
+      ? this.tasks.tasks().map((task) => ({
+          id: task.id,
+          title: task.title,
+          start: task.plan.start,
+          end: task.plan.end,
+          classNames: [
+            'workspace-event',
+            task.status,
+            ...(task.id === selected ? ['selected'] : []),
+          ],
+        }))
+      : [];
+    return [...tasks, ...this.googleEvents()];
+  });
+  /** 終日の予定があるときだけ、終日の欄を出す（課題は時刻を持つので、ふだんは要らない）。 */
+  private readonly allDaySlot = computed(() => this.googleEvents().some((event) => event.allDay));
   protected readonly syncing = computed(() =>
     this.calendar.connected() ? this.calendar.sync.pending() : this.tasks.load.pending(),
   );
@@ -174,7 +220,6 @@ export class CalendarWorkspace {
     firstDay: 1,
     // 高さは中身に合わせ、スクロールは外側の .calendar-scroll で行う（テンプレートのコメントを参照）。
     height: 'auto',
-    allDaySlot: false,
     nowIndicator: true,
     editable: false,
     eventInteractive: true,
@@ -194,6 +239,7 @@ export class CalendarWorkspace {
     },
     datesSet: (info) => {
       this.title.set(info.view.title);
+      this.range.set({ start: info.start, end: info.end });
       this.rendered.set(true);
     },
     // 開いたときは、現在時刻の1時間前あたりから表示する。
@@ -215,6 +261,7 @@ export class CalendarWorkspace {
   protected readonly options = computed<CalendarOptions>(() => ({
     ...this.baseOptions,
     locale: calendarLocales[this.locale()],
+    allDaySlot: this.allDaySlot(),
   }));
 
   constructor() {
@@ -229,6 +276,12 @@ export class CalendarWorkspace {
           this.mobilePart.set('calendar');
         }
       });
+    });
+    // 表示する期間が変わったら、主カレンダーの予定を読み直す。
+    effect(() => {
+      const range = this.range();
+      if (!range || !this.showGoogle()) return;
+      untracked(() => void this.calendar.loadPrimaryEvents(range.start, range.end));
     });
     void loadFullCalendarStyles().then(() => {
       this.stylesReady.set(true);
@@ -284,6 +337,8 @@ export class CalendarWorkspace {
   protected sync(): void {
     if (this.calendar.connected()) void this.calendar.syncNow();
     else void this.tasks.refresh();
+    const range = this.range();
+    if (range && this.showGoogle()) void this.calendar.loadPrimaryEvents(range.start, range.end);
   }
 
   /** 作業を開始する。失敗は押した場所の近くに出す（テンプレートが `startOrigin` で選ぶ）。 */

@@ -223,6 +223,18 @@ export const web = {
       aboutConfirmed: '確定した作業時間を表示しています。',
       timeZone: (timeZone: string) => `時間帯：${timeZone}`,
       aboutSync: '予定の変更は、連携した専用カレンダーにも反映します。',
+      aboutGoogle:
+        'Googleカレンダー（メイン）の予定は表示するだけです。DOPAGAKIに保存せず、AIにも送りません。',
+      layers: '表示する予定',
+      layerTasks: 'DOPAGAKIの予定',
+      layerGoogle: 'Googleカレンダー',
+      googleConnect: 'Googleカレンダーの予定を表示するには、連携してください。',
+      googleConsent:
+        'Googleカレンダーの予定を表示するには、もう一度連携して読み取りを許可してください。',
+      connect: '連携する',
+      reconnect: 'もう一度連携する',
+      googleFailed: (reason: string) => `Googleカレンダーの予定を読み込めませんでした。${reason}`,
+      untitled: '（タイトルなし）',
       syncing: '更新中…',
       syncGoogle: 'Googleと同期',
       refresh: '予定を更新',

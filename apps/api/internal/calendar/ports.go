@@ -28,7 +28,9 @@ type Grant struct {
 	// Subject は ID トークン（audience を確認済み）の Google アカウントの ID。
 	Subject         string
 	HasRefreshToken bool
-	Token           []byte
+	// PrimaryEvents は、主カレンダーの予定を読む許可が含まれているか。
+	PrimaryEvents bool
+	Token         []byte
 }
 
 // WatchRequest は変更通知のチャンネルの登録。
@@ -54,7 +56,7 @@ type EventPage struct {
 
 // Google は Google の OAuth とトークンの保存。
 type Google interface {
-	// AuthURL は同意画面の URL（scope は openid・email・calendar.app.created、access_type=offline、
+	// AuthURL は同意画面の URL（scope は openid・email・calendar.app.created・calendar.events.owned.readonly、access_type=offline、
 	// prompt=consent select_account、login_hint）。
 	AuthURL(state, loginHint string) string
 	// Exchange は認可コードをトークンに換え、ID トークンを検証する。
@@ -81,6 +83,8 @@ type Client interface {
 	DeleteEvent(ctx context.Context, calendarID, eventID string) error
 	// ListEvents は消された予定を含めて一覧する。syncToken が空なら最初から。
 	ListEvents(ctx context.Context, calendarID, syncToken, pageToken string) (EventPage, error)
+	// ListRange は from より後に終わり、to より前に始まる予定を、繰り返しを展開して開始の早い順に返す。
+	ListRange(ctx context.Context, calendarID string, from, to time.Time) ([]Event, error)
 	Watch(ctx context.Context, calendarID string, req WatchRequest) (Watch, error)
 	StopChannel(ctx context.Context, channelID, resourceID string) error
 }

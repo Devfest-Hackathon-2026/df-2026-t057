@@ -607,6 +607,14 @@ func (s *Server) DisconnectCalendar(ctx context.Context, _ oapi.DisconnectCalend
 	return oapi.DisconnectCalendar200JSONResponse(st), nil
 }
 
+func (s *Server) ListCalendarEvents(ctx context.Context, req oapi.ListCalendarEventsRequestObject) (oapi.ListCalendarEventsResponseObject, error) {
+	events, err := s.Calendar.PrimaryEvents(ctx, uidFrom(ctx), req.Params.From, req.Params.To)
+	if err != nil {
+		return nil, err
+	}
+	return oapi.ListCalendarEvents200JSONResponse(events), nil
+}
+
 func (s *Server) CalendarWebhook(ctx context.Context, req oapi.CalendarWebhookRequestObject) (oapi.CalendarWebhookResponseObject, error) {
 	state := ""
 	if req.Params.XGoogResourceState != nil {

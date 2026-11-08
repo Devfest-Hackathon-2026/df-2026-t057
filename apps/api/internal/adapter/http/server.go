@@ -42,6 +42,7 @@ type Calendar interface {
 	Callback(ctx context.Context, state, code, errParam string) string
 	SyncNow(ctx context.Context, uid string) (oapi.CalendarStatus, error)
 	Disconnect(ctx context.Context, uid string) (oapi.CalendarStatus, error)
+	PrimaryEvents(ctx context.Context, uid string, from, to time.Time) ([]oapi.CalendarEvent, error)
 	Webhook(ctx context.Context, channelID, token, resourceState string) error
 	Renew(ctx context.Context) error
 }
@@ -168,6 +169,9 @@ func (calendarOff) SyncNow(context.Context, string) (oapi.CalendarStatus, error)
 }
 func (calendarOff) Disconnect(context.Context, string) (oapi.CalendarStatus, error) {
 	return oapi.CalendarStatus{}, apperr.Unavailable("calendar.unavailable")
+}
+func (calendarOff) PrimaryEvents(context.Context, string, time.Time, time.Time) ([]oapi.CalendarEvent, error) {
+	return nil, apperr.Unavailable("calendar.unavailable")
 }
 func (calendarOff) Webhook(context.Context, string, string, string) error {
 	return apperr.Forbidden("not_found")

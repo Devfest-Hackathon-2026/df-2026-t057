@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/account"
 	apihttp "github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/http"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/http/oapi"
@@ -235,6 +237,7 @@ func TestEventsStreamSendsInitialRevisions(t *testing.T) {
 type fakeCalendar struct {
 	connected   bool
 	disconnects int
+	ranges      [][2]time.Time
 }
 
 func (f *fakeCalendar) status() oapi.CalendarStatus {
@@ -259,6 +262,14 @@ func (f *fakeCalendar) Disconnect(context.Context, string) (oapi.CalendarStatus,
 	f.disconnects++
 	f.connected = false
 	return f.status(), nil
+}
+func (f *fakeCalendar) PrimaryEvents(_ context.Context, _ string, from, to time.Time) ([]oapi.CalendarEvent, error) {
+	f.ranges = append(f.ranges, [2]time.Time{from, to})
+	start, end := time.Date(2026, 11, 9, 1, 0, 0, 0, time.UTC), time.Date(2026, 11, 9, 2, 0, 0, 0, time.UTC)
+	return []oapi.CalendarEvent{
+		{Id: "timed", Title: "ゼミ", Start: &start, End: &end},
+		{Id: "all-day", Title: "学園祭", AllDay: true, StartDate: &openapi_types.Date{Time: time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)}, EndDate: &openapi_types.Date{Time: time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)}},
+	}, nil
 }
 func (f *fakeCalendar) Webhook(context.Context, string, string, string) error { return nil }
 func (f *fakeCalendar) Renew(context.Context) error                           { return nil }
@@ -293,6 +304,34 @@ func TestDisconnectCalendar(t *testing.T) {
 	// 連携していないときに呼んでも 200。
 	if r := call(t, srv, "POST", "/api/calendar/disconnect", "", "Idempotency-Key", "disc-0003"); r.status != 200 || r.body["connected"] != false {
 		t.Fatalf("disconnect while disconnected: %d %s", r.status, r.raw)
+	}
+}
+
+func TestListCalendarEvents(t *testing.T) {
+	off, _ := newServer(t, config.ModeDemo)
+	expectProblem(t, call(t, off, "GET", "/api/calendar/events?from=2026-11-09T00:00:00Z&to=2026-11-16T00:00:00Z", ""), 503, "calendar.unavailable")
+
+	w := testkit.New(t, time.Date(2026, 11, 8, 12, 0, 0, 0, testkit.JST))
+	cal := &fakeCalendar{connected: true}
+	api, err := apihttp.NewAPI(apihttp.Deps{
+		Config: config.Config{Mode: config.ModeDemo, AppURL: "http://app.test"}, Clock: w.Clock, Log: w.Log, Idempotency: w.Idempotency,
+		Profiles: w.Profiles, Tasks: w.Tasks, Work: w.Work, Wallet: w.Wallet, Viewing: w.Viewing, Sleep: w.Sleep,
+		Records: w.Records, Shortcut: w.Shortcut, Events: realtime.NewHub(w.Store, w.Log), Calendar: cal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(apihttp.APIOnly(api))
+	t.Cleanup(srv.Close)
+	expectProblem(t, call(t, srv, "GET", "/api/calendar/events?from=2026-11-09T00:00:00Z", ""), 400, "request.invalid")
+	r := call(t, srv, "GET", "/api/calendar/events?from=2026-11-09T00:00:00%2B09:00&to=2026-11-16T00:00:00%2B09:00", "")
+	want := `[{"allDay":false,"end":"2026-11-09T02:00:00Z","id":"timed","start":"2026-11-09T01:00:00Z","title":"ゼミ"},` +
+		`{"allDay":true,"endDate":"2026-11-11","id":"all-day","startDate":"2026-11-10","title":"学園祭"}]`
+	if r.status != 200 || strings.TrimSpace(r.raw) != want {
+		t.Fatalf("events: %d %s", r.status, r.raw)
+	}
+	if len(cal.ranges) != 1 || !cal.ranges[0][0].Equal(time.Date(2026, 11, 8, 15, 0, 0, 0, time.UTC)) {
+		t.Fatalf("range: %v", cal.ranges)
 	}
 }
 
