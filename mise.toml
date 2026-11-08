@@ -1,0 +1,5 @@
+# ツールのバージョンはここが正。CIとDockerfileも同じ値に合わせる。
+[tools]
+node = "24.22.1"
+go = "1.27.3"
+golangci-lint = "2.14.0"

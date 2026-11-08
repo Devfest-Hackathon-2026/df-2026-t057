@@ -2,6 +2,8 @@ module github.com/a-sumikawa/devfest-2026/api
 
 go 1.26.0
 
+toolchain go1.27.3
+
 require (
 	cloud.google.com/go/firestore v1.29.2
 	cloud.google.com/go/iam v1.14.0
