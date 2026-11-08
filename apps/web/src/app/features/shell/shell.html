@@ -27,12 +27,18 @@
 
   <div class="main-column">
     <header class="topbar">
+      <!-- スマホではサイドバーを隠すので、ロゴを上部に出す -->
+      <a class="brand mobile-brand" href="/" [attr.aria-label]="t.layout.home">
+        <img src="/logo.png" alt="" width="460" height="120" />
+      </a>
       <div class="topbar-right" data-tour="settings">
         @if (auth.mode() === 'demo') {
           <span class="demo-badge">{{ t.layout.demo }}</span>
         }
         <span class="today">{{ today() }}</span>
-        <button mat-button type="button" (click)="tutorial.start()">{{ t.layout.tutorial }}</button>
+        <button mat-button type="button" class="wide-only" (click)="tutorial.start()">
+          {{ t.layout.tutorial }}
+        </button>
         @if (auth.mode() === 'demo') {
           <a
             mat-icon-button
@@ -45,8 +51,38 @@
         } @else {
           <app-account-menu />
         }
+        <button
+          mat-icon-button
+          type="button"
+          class="menu-button"
+          [matMenuTriggerFor]="mobileMenu"
+          [attr.aria-label]="t.layout.openMenu"
+        >
+          <span class="hamburger" aria-hidden="true"></span>
+        </button>
       </div>
     </header>
+
+    <mat-menu #mobileMenu="matMenu" xPosition="before" [aria-label]="t.layout.mainMenu">
+      <p class="menu-today">{{ today() }}</p>
+      @for (item of nav(); track item.path) {
+        <a
+          mat-menu-item
+          class="menu-link"
+          [routerLink]="item.path"
+          routerLinkActive="selected"
+          ariaCurrentWhenActive="page"
+        >
+          <mat-icon>{{ item.icon }}</mat-icon>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+      <mat-divider />
+      <button mat-menu-item type="button" (click)="tutorial.start()">
+        <mat-icon>help</mat-icon>
+        <span>{{ t.layout.tutorial }}</span>
+      </button>
+    </mat-menu>
 
     @if (work.session()) {
       <app-focus-bar class="focus" />

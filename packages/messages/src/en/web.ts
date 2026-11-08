@@ -687,6 +687,7 @@ export const web: WebMessages = {
       tutorial: 'Guide',
       settings: 'Settings',
       openSettings: 'Open settings',
+      openMenu: 'Open menu',
       calendarNotSynced: "Some changes haven't been synced to Google Calendar.",
       syncing: 'Syncing…',
       retrySync: 'Retry sync',

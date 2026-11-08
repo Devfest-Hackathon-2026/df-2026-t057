@@ -169,3 +169,11 @@ test.describe('dialogs', () => {
     await expectAccessibleInBothSchemes(page);
   });
 });
+
+test('mobile menu', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calendar');
+  await page.getByRole('button', { name: 'メニューを開く', exact: true }).click();
+  await expect(page.getByRole('menu', { name: 'メインメニュー' })).toBeVisible();
+  await expectAccessibleInBothSchemes(page);
+});

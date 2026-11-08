@@ -674,6 +674,7 @@ export const web = {
       tutorial: '使い方',
       settings: '設定',
       openSettings: '設定を開く',
+      openMenu: 'メニューを開く',
       calendarNotSynced: '管理画面の予定をGoogleカレンダーへ反映できていません。',
       syncing: '同期しています…',
       retrySync: '同期を再試行',
