@@ -1,9 +1,14 @@
-<h2 mat-dialog-title>視聴時間について</h2>
+<div class="heading">
+  <h2 mat-dialog-title>視聴時間について</h2>
+  <button mat-icon-button type="button" class="close" aria-label="閉じる" mat-dialog-close>
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
 <mat-dialog-content>
   @if (wallet.value(); as current) {
     <div class="balance">
       <div>
-        <p class="label">{{ wallet.unlimited() ? '視聴の支援' : '今日、視聴できる時間' }}</p>
+        <p class="label">{{ wallet.unlimited() ? '視聴の支援' : '今日 視聴できる時間' }}</p>
         <strong class="value">
           {{ wallet.unlimited() ? '制限なし' : (current.availableSeconds | duration) }}
         </strong>
@@ -94,6 +99,3 @@
     <button mat-button type="button" (click)="openSettings()">視聴ルールの設定を開く</button>
   </details>
 </mat-dialog-content>
-<mat-dialog-actions align="end">
-  <button mat-button type="button" mat-dialog-close>閉じる</button>
-</mat-dialog-actions>

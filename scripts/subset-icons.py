@@ -12,7 +12,7 @@ WEB = Path("apps/web")
 SOURCE = WEB / "node_modules/material-symbols"
 PUBLIC = WEB / "public"
 
-icons = """add add_circle add_task arrow_upward assignment auto_awesome bedtime
+icons = """add add_circle add_task arrow_drop_down arrow_upward assignment auto_awesome bedtime
 calendar_month calendar_today check chevron_left chevron_right close delete edit
 edit_calendar error event_available expand_more flare forum grass help info link
 logout mobile motion_photos_off notifications open_in_new palette person person_add

@@ -17,6 +17,7 @@ test('registration, confirmation, timer and completion', async ({ page, pageErro
 
   await page.getByRole('button', { name: '課題を登録', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '課題を登録' });
+  await dialog.getByRole('button', { name: '明日', exact: true }).click();
   await dialog.getByLabel('課題名', { exact: true }).fill('演習レポート');
   await dialog.getByLabel('必要時間（分）').fill('30');
   await dialog.getByRole('button', { name: '登録する', exact: true }).click();
