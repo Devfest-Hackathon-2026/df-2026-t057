@@ -415,3 +415,41 @@ test('smoke selection covers registration, signed-out privacy, extension work fl
   );
   assert.ok(specs.length > 4);
 });
+
+test('each Go cache purpose restores only its own caches', () => {
+  const action = load(
+    readFileSync(new URL('../.github/actions/setup-go/action.yml', import.meta.url), 'utf8'),
+  );
+  const cache = action.runs.steps.find((step) => step.uses?.startsWith('actions/cache@'));
+  // 式の部分を、用途ごとの値に置き換えたキーで比べる。
+  const render = (text, suffix) =>
+    text.replaceAll('${{ inputs.cache-suffix }}', suffix).replaceAll(/\$\{\{[^}]+\}\}/g, 'x');
+  const restoreKeys = (suffix) =>
+    render(cache.with['restore-keys'], suffix)
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+  const keys = { api: render(cache.with.key, '-api'), build: render(cache.with.key, '-build') };
+  for (const prefix of restoreKeys('-build')) assert.ok(!keys.api.startsWith(prefix), prefix);
+  for (const prefix of restoreKeys('-api')) assert.ok(!keys.build.startsWith(prefix), prefix);
+  assert.ok(restoreKeys('-build').some((prefix) => keys.build.startsWith(prefix)));
+  const setup = workflow.jobs.e2e.steps.find((step) => step.uses === './.github/actions/setup-go');
+  assert.equal(setup.with['cache-suffix'], '-build');
+  const api = workflow.jobs.api.steps.find((step) => step.uses === './.github/actions/setup-go');
+  assert.equal(api.with['cache-suffix'], '-api');
+});
+
+test('E2E sets up Go before node_modules exist and builds the API and web together', () => {
+  const steps = workflow.jobs.e2e.steps;
+  const go = steps.findIndex((step) => step.uses === './.github/actions/setup-go');
+  const node = steps.findIndex((step) => step.uses === './.github/actions/setup-node');
+  assert.ok(go >= 0 && go < node, 'mise would hash node_modules while restoring its cache');
+  const build = steps.find((step) => step.name === 'Build API and web once');
+  assert.match(build.run, /api build &/);
+  assert.match(build.run, /wait "\$api"/);
+});
+
+test('E2E runs several browsers at once on the two-core CI runner', () => {
+  const config = readFileSync(new URL('../e2e/playwright.config.ts', import.meta.url), 'utf8');
+  assert.match(config, /workers: process\.env\['CI'\] \? 3 : undefined/);
+});

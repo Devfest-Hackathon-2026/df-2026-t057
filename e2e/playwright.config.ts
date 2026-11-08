@@ -10,6 +10,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
+  // テストごとに別のデモの利用者を使うので、並べて実行できる。CI の端末は2コアで、既定（コア数の半分）では
+  // 1つずつしか動かない。待ち時間が長いテストが多いので、3つ並べる。
+  workers: process.env['CI'] ? 3 : undefined,
   timeout: 30_000,
   reporter: process.env['CI'] ? [['github'], ['list']] : 'list',
   use: {
