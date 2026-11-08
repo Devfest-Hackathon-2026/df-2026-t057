@@ -15,6 +15,7 @@ import (
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/id"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/outbox"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
@@ -271,6 +272,9 @@ func (p fakeProfiles) Context(context.Context, *store.Tx, string) (string, *time
 }
 func (p fakeProfiles) Location(context.Context, *store.Tx, string) (*time.Location, error) {
 	return p.loc, nil
+}
+func (p fakeProfiles) Locale(context.Context, *store.Tx, string) (locale.Locale, error) {
+	return locale.Ja, nil
 }
 func (p fakeProfiles) SnoozeMinutes(context.Context, *store.Tx, string) (int, error) { return 10, nil }
 

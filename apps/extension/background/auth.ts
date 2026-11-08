@@ -9,6 +9,7 @@ import {
   signOut,
 } from 'firebase/auth/web-extension';
 import { MANAGEMENT_ORIGIN } from '../lib/config';
+import { ExtensionError } from './errors';
 
 let auth: Auth | undefined;
 let live = false;
@@ -19,7 +20,7 @@ export function ensureAuth(): Promise<void> {
   if (initialized) return Promise.resolve();
   initialization ??= (async () => {
     const response = await fetch(`${MANAGEMENT_ORIGIN}/api/config`, { headers: {} });
-    if (!response.ok) throw new Error('接続設定を取得できませんでした。通信が戻ると再試行します。');
+    if (!response.ok) throw new ExtensionError('authConfigUnavailable');
     const config = z
       .object({
         mode: z.enum(['demo', 'live']),
@@ -28,7 +29,7 @@ export function ensureAuth(): Promise<void> {
       .parse(await response.json());
     if (config.mode === 'demo') return;
     live = true;
-    if (!config.firebase?.['apiKey']) throw new Error('Googleログインが設定されていません。');
+    if (!config.firebase?.['apiKey']) throw new ExtensionError('authNotConfigured');
     auth ??= initializeAuth(initializeApp(config.firebase, 'extension'), {
       persistence: indexedDBLocalPersistence,
     });
@@ -51,16 +52,13 @@ export async function extensionConnection() {
 }
 export async function signIn() {
   await ensureAuth();
-  if (!auth) throw new Error('この環境では拡張のGoogleログインを利用しません。');
-  if (pending) throw new Error('ログインを確認しています。');
+  if (!auth) throw new ExtensionError('authUnavailable');
+  if (pending) throw new ExtensionError('authInProgress');
   await signOut(auth);
   const result = new Promise<void>((resolve, reject) => {
     pending = { resolve, reject };
   });
-  const timeout = setTimeout(
-    () => pending?.reject(new Error('ログインを確認できませんでした。もう一度接続してください。')),
-    60000,
-  );
+  const timeout = setTimeout(() => pending?.reject(new ExtensionError('authTimedOut')), 60000);
   try {
     if (!(await chrome.offscreen.hasDocument()))
       await chrome.offscreen.createDocument({
@@ -86,7 +84,7 @@ export async function receiveCredential(value: unknown) {
     })
     .safeParse(value);
   if (!result.success || result.data.error || !result.data.idToken || !result.data.accessToken) {
-    pending.reject(new Error('Googleアカウントへの接続に失敗しました。'));
+    pending.reject(new ExtensionError('authFailed'));
     return;
   }
   const data = result.data;
@@ -97,7 +95,7 @@ export async function receiveCredential(value: unknown) {
     );
     pending.resolve();
   } catch {
-    pending.reject(new Error('Googleアカウントへの接続に失敗しました。'));
+    pending.reject(new ExtensionError('authFailed'));
   }
 }
 export async function disconnectAuth() {

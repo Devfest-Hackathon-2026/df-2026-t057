@@ -10,6 +10,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { CompanionService } from '../companion/companion.service';
 import { SettingsStore } from '../settings/settings.store';
 import { TaskActions } from '../tasks/task-actions';
@@ -61,11 +62,14 @@ export class NotificationPreview {
   private readonly companion = inject(CompanionService);
   protected readonly settings = inject(SettingsStore);
   protected readonly actions = inject(TaskActions);
+  protected readonly text = inject(LocaleStore).web;
 
   protected readonly task = computed(() => this.tasks.find(this.data.taskId));
   protected readonly mode = computed(() => this.settings.value()?.mode ?? 'pachinko');
   protected readonly heading = computed(() =>
-    this.mode() === 'mahjong' ? 'まず、一手。' : 'そろそろ、やるか。',
+    this.mode() === 'mahjong'
+      ? this.text().notification.preview.headingMahjong
+      : this.text().notification.preview.heading,
   );
   protected readonly firstStep = computed(() => {
     const task = this.task();
@@ -74,10 +78,10 @@ export class NotificationPreview {
   });
   protected readonly reward = computed(() => {
     const wallet = this.wallet.value();
-    if (wallet?.policy.mode !== 'rewards') return '区切りまで、ひとつずつ取り組みましょう';
+    if (wallet?.policy.mode !== 'rewards') return this.text().notification.preview.noReward;
     const work = Math.round(wallet.rules.workSecondsPerReward / 60);
     const reward = Math.round(wallet.rules.rewardSecondsPerUnit / 60);
-    return `取り組んだ${work}分で視聴${reward}分。記録した分だけ増えます`;
+    return this.text().notification.preview.reward(work, reward);
   });
   protected readonly companionLine = signal<string | undefined>(undefined);
   protected readonly starting = this.tasks.start.pending;

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/outbox"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
@@ -147,6 +148,7 @@ func (s *Service) resolveJob(ctx context.Context, job outbox.Job) error {
 	var current task.Task
 	var rev int64
 	var loc *time.Location
+	var lang locale.Locale
 	if err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
 		items, err := s.Tasks.All(ctx, tx, uid)
 		if err != nil {
@@ -161,23 +163,26 @@ func (s *Service) resolveJob(ctx context.Context, job outbox.Job) error {
 		if err != nil {
 			return err
 		}
+		if lang, err = s.Profiles.Locale(ctx, tx, uid); err != nil {
+			return err
+		}
 		loc, err = s.Profiles.Location(ctx, tx, uid)
 		return err
 	}); err != nil {
 		return err
 	}
-	expected := ContentPatch(current, loc).Apply(conflict.Remote)
+	expected := ContentPatch(current, loc, lang).Apply(conflict.Remote)
 	alreadyApplied := conflict.Resolution == "app" && !gone && Hash(ev) == Hash(expected) && ev.Description == expected.Description
 	if rev != conflict.Revision || (!alreadyApplied && (gone != conflict.Deleted || (!gone && ev.ETag != conflict.Remote.ETag))) {
 		return s.captureConflict(ctx, uid, current, ev, gone)
 	}
 	if conflict.Resolution == "app" && !alreadyApplied {
 		if gone {
-			next := NewTaskEvent(uid, current, loc)
+			next := NewTaskEvent(uid, current, loc, lang)
 			next.ID = eventID
 			ev, err = client.InsertEvent(ctx, c.CalendarID, next)
 		} else {
-			ev, err = client.PatchEvent(ctx, c.CalendarID, ev.ID, ev.ETag, ContentPatch(current, loc))
+			ev, err = client.PatchEvent(ctx, c.CalendarID, ev.ID, ev.ETag, ContentPatch(current, loc, lang))
 		}
 		if errors.Is(err, ErrPreconditionFailed) || errors.Is(err, ErrEventExists) {
 			fresh, e := client.GetEvent(ctx, c.CalendarID, eventID)

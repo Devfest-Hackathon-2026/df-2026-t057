@@ -9,6 +9,7 @@ export const watchedResources = [
   'viewing',
   'settings',
   'sleep',
+  'profile',
 ] as const satisfies readonly Resource[];
 export type WatchedResource = (typeof watchedResources)[number];
 

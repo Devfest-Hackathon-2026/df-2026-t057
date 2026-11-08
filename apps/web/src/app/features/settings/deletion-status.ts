@@ -1,17 +1,21 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { createApiClient } from '@dopagaki/contract';
-import { errorMessage } from '@dopagaki/messages';
+import { detectLocale, errorMessage, messages } from '@dopagaki/messages';
+// 退会してログアウトした後に開くページなので、プロフィールの言語ではなくブラウザーの言語で表示する。
+const locale = detectLocale(navigator.languages);
 @Component({
   selector: 'app-root',
   template:
-    '<main><h1>退会処理の状況</h1><p role="status">{{message()}}</p><button type="button" (click)="check()" [disabled]="pending()">更新</button></main>',
+    '<main><h1>{{text.heading}}</h1><p role="status">{{message()}}</p><button type="button" (click)="check()" [disabled]="pending()">{{text.refresh}}</button></main>',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeletionStatus {
-  readonly message = signal('確認しています…');
+  protected readonly text = messages[locale].web.settings.deletionStatus;
+  readonly message = signal(this.text.checking);
   readonly pending = signal(false);
   private readonly receipt = location.hash.slice(1);
   constructor() {
+    document.documentElement.lang = locale;
     void this.check();
   }
   async check(): Promise<void> {
@@ -22,12 +26,10 @@ export class DeletionStatus {
         body: { receipt: this.receipt },
       });
       this.message.set(
-        result.data?.status === 'complete'
-          ? '退会処理が完了しました。'
-          : '削除を受け付けました。処理が完了するまでお待ちください。',
+        result.data?.status === 'complete' ? this.text.complete : this.text.accepted,
       );
     } catch (e: unknown) {
-      this.message.set(errorMessage(e));
+      this.message.set(errorMessage(e, messages[locale].shared));
     } finally {
       this.pending.set(false);
     }

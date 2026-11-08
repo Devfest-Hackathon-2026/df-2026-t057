@@ -4,7 +4,6 @@
 // - 報告は先に chrome.storage.local へ書いてから送る。送れなければ残し、次の操作や同期のときに同じ受付の ID で送り直す。
 import type { Viewing } from '@dopagaki/contract';
 import { z } from 'zod';
-import { extensionCopy } from '@dopagaki/messages';
 import type { Request } from '../lib/protocol';
 import {
   enqueue,
@@ -120,7 +119,7 @@ function senderTab(sender: chrome.runtime.MessageSender, kind: 'choose' | 'repor
   const tab = sender.tab;
   const url = sender.url ?? '';
   const allowed = kind === 'choose' ? isShortsUrl(url) && tab?.active === true : isYouTubeUrl(url);
-  if (tab?.id === undefined || !allowed) throw new ExtensionError(extensionCopy.fromShorts);
+  if (tab?.id === undefined || !allowed) throw new ExtensionError('fromShorts');
   return tab.id;
 }
 
@@ -130,7 +129,7 @@ async function requireOwner(tabId: number, sessionId: string | undefined): Promi
   if (state?.viewing && !state.viewing.requiresSession) return;
   const owner = await getOwner();
   if (owner?.tabId !== tabId || owner.sessionId !== sessionId) {
-    throw new ExtensionError(extensionCopy.claimFirst);
+    throw new ExtensionError('claimFirst');
   }
 }
 
@@ -149,7 +148,7 @@ export function handleViewing(
 ): Promise<ViewingOutcome> {
   return serialize(async () => {
     const version = connectionVersion();
-    if (!(await getConnection())) throw new ExtensionError(extensionCopy.connectFromApp);
+    if (!(await getConnection())) throw new ExtensionError('connectFromApp');
     switch (request.type) {
       case 'START_VIEWING': {
         const tabId = senderTab(sender, 'choose');
@@ -159,7 +158,7 @@ export function handleViewing(
           request.seconds,
           request.extendFrom,
         );
-        if (version !== connectionVersion()) throw new ExtensionError(extensionCopy.accountChanged);
+        if (version !== connectionVersion()) throw new ExtensionError('accountChanged');
         if (viewing.session) await setOwner({ tabId, sessionId: viewing.session.id });
         await patchState(version, { viewing });
         return { ownsViewing: true };
@@ -171,7 +170,7 @@ export function handleViewing(
         await patchState(version, { viewing });
         const session = viewing.session;
         if (session?.id !== request.sessionId || session.endedAt) {
-          throw new ExtensionError(extensionCopy.sessionEnded);
+          throw new ExtensionError('sessionEnded');
         }
         await setOwner({ tabId, sessionId: session.id });
         return { ownsViewing: true };
@@ -189,7 +188,7 @@ export function handleViewing(
         await requireOwner(tabId, request.sessionId);
         const accountId = (await getConnection())?.accountId;
         if (!accountId || version !== connectionVersion()) {
-          throw new ExtensionError(extensionCopy.accountChanged);
+          throw new ExtensionError('accountChanged');
         }
         await savePending(
           enqueue(await loadPending(), {

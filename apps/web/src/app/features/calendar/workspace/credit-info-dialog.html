@@ -1,6 +1,12 @@
 <div class="heading">
-  <h2 mat-dialog-title>視聴時間について</h2>
-  <button mat-icon-button type="button" class="close" aria-label="閉じる" mat-dialog-close>
+  <h2 mat-dialog-title>{{ text().calendar.creditInfoDialog.title }}</h2>
+  <button
+    mat-icon-button
+    type="button"
+    class="close"
+    mat-dialog-close
+    [aria-label]="text().calendar.creditInfoDialog.close"
+  >
     <mat-icon>close</mat-icon>
   </button>
 </div>
@@ -8,21 +14,31 @@
   @if (wallet.value(); as current) {
     <div class="balance">
       <div>
-        <p class="label">{{ wallet.unlimited() ? '視聴の支援' : '今日 視聴できる時間' }}</p>
+        <p class="label">
+          {{
+            wallet.unlimited()
+              ? text().calendar.common.support
+              : text().calendar.common.availableToday
+          }}
+        </p>
         <strong class="value">
-          {{ wallet.unlimited() ? '制限なし' : (current.availableSeconds | duration) }}
+          {{
+            wallet.unlimited()
+              ? text().calendar.common.unlimited
+              : (current.availableSeconds | duration)
+          }}
         </strong>
       </div>
       <p class="label">
-        持っている時間 {{ current.balanceSeconds | duration }}
+        {{ text().calendar.creditInfoDialog.balance(current.balanceSeconds | duration) }}
         <br />
-        今日の視聴 {{ current.policy.viewedSeconds | duration }}
+        {{ text().calendar.creditInfoDialog.viewedToday(current.policy.viewedSeconds | duration) }}
         @if (!wallet.unlimited()) {
           / {{ current.policy.dailyLimitSeconds | duration }}
         }
         @if (current.deferredSeconds > 0) {
           <br />
-          朝に受け取る予定 {{ current.deferredSeconds | duration }}
+          {{ text().calendar.creditInfoDialog.deferred(current.deferredSeconds | duration) }}
         }
       </p>
     </div>
@@ -32,21 +48,17 @@
       <div class="rule">
         <mat-icon>calendar_today</mat-icon>
         <div>
-          <h3>毎日の補充</h3>
-          <p>
-            初回{{ labels().dailyRefill }}。残高が少ない日は{{
-              labels().dailyRefill
-            }}まで。受け取り操作は不要です。
-          </p>
+          <h3>{{ text().calendar.creditInfoDialog.dailyRefillTitle }}</h3>
+          <p>{{ text().calendar.creditInfoDialog.dailyRefillBody(labels().dailyRefill) }}</p>
         </div>
       </div>
       <div class="rule">
         <mat-icon>timer</mat-icon>
         <div>
-          <h3>作業を記録すると、{{ labels().work }}につき視聴{{ labels().reward }}</h3>
-          <p>
-            作業による追加は1日{{ labels().dailyRewardCap }}まで。タイマーの終了だけでは増えません。
-          </p>
+          <h3>
+            {{ text().calendar.creditInfoDialog.workRewardTitle(labels().work, labels().reward) }}
+          </h3>
+          <p>{{ text().calendar.creditInfoDialog.workRewardBody(labels().dailyRewardCap) }}</p>
         </div>
       </div>
     }
@@ -54,10 +66,8 @@
       <div class="rule">
         <mat-icon>calendar_today</mat-icon>
         <div>
-          <h3>自分で決めた固定枠</h3>
-          <p>
-            毎日、残高を{{ labels().dailyLimit }}まで補充します。作業時間に応じた追加はありません。
-          </p>
+          <h3>{{ text().calendar.creditInfoDialog.fixedTitle }}</h3>
+          <p>{{ text().calendar.creditInfoDialog.fixedBody(labels().dailyLimit) }}</p>
         </div>
       </div>
     }
@@ -65,8 +75,8 @@
       <div class="rule">
         <mat-icon>notifications</mat-icon>
         <div>
-          <h3>区切りの通知だけ</h3>
-          <p>1日の上限と作業報酬を止め、{{ labels().choices }}の区切りを知らせます。</p>
+          <h3>{{ text().calendar.creditInfoDialog.reminderTitle }}</h3>
+          <p>{{ text().calendar.creditInfoDialog.reminderBody(labels().choices) }}</p>
         </div>
       </div>
     }
@@ -74,8 +84,8 @@
       <div class="rule">
         <mat-icon>person</mat-icon>
         <div>
-          <h3>自分で管理する</h3>
-          <p>視聴枠と区切りの表示はありません。課題の開始通知と作業タイマーは使えます。</p>
+          <h3>{{ text().calendar.creditInfoDialog.selfTitle }}</h3>
+          <p>{{ text().calendar.creditInfoDialog.selfBody }}</p>
         </div>
       </div>
     }
@@ -83,19 +93,19 @@
   <div class="rule">
     <mat-icon>add_task</mat-icon>
     <div>
-      <h3>新しい課題の登録で＋{{ labels().registration }}</h3>
-      <p>残高の上限{{ labels().balanceCap }}まで。編集・再送では増えません。</p>
+      <h3>{{ text().calendar.creditInfoDialog.registrationTitle(labels().registration) }}</h3>
+      <p>{{ text().calendar.creditInfoDialog.registrationBody(labels().balanceCap) }}</p>
     </div>
   </div>
   @if (!wallet.unlimited()) {
-    <p class="note">
-      残高は翌日に繰り越せます。今日使える時間は、残高と1日の残り枠の小さい方です。
-    </p>
+    <p class="note">{{ text().calendar.creditInfoDialog.carryOver }}</p>
   }
   <details class="disclosure">
-    <summary>夜の報酬・支援の段階</summary>
-    <p>就寝の予定を設定すると、就寝1時間前から起床までの課題・作業報酬は翌朝に受け取ります。</p>
-    <p>支援の段階と1日の上限は、設定の「視聴ルール」で変更できます。</p>
-    <button mat-button type="button" (click)="openSettings()">視聴ルールの設定を開く</button>
+    <summary>{{ text().calendar.creditInfoDialog.nightTitle }}</summary>
+    <p>{{ text().calendar.creditInfoDialog.nightBody }}</p>
+    <p>{{ text().calendar.creditInfoDialog.levelsBody }}</p>
+    <button mat-button type="button" (click)="openSettings()">
+      {{ text().calendar.creditInfoDialog.openSettings }}
+    </button>
   </details>
 </mat-dialog-content>

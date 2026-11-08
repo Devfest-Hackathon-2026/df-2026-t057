@@ -23,6 +23,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { AssistantTurn, Task } from '@dopagaki/contract';
 import { ConfigStore } from '../../core/config/config.store';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { TimePipe } from '../../shared/ui/format';
 import { CalendarStore } from '../calendar/calendar.store';
 import { ProfileStore } from '../settings/profile.store';
@@ -70,14 +71,14 @@ export class AssistantPanel {
   private readonly tasks = inject(TasksStore);
   private readonly injector = inject(Injector);
   private readonly thread = viewChild<ElementRef<HTMLElement>>('thread');
+  protected readonly text = inject(LocaleStore).web;
 
-  protected readonly starters = ['予定を見直す', '課題を追加する', '作業の傾向を覚える'];
   protected readonly maxLength = maxLength;
   protected readonly aiEnabled = computed(() => this.config.config()?.features.ai === true);
-  protected readonly text = computed(() => this.store.draft(this.composer()));
+  protected readonly draft = computed(() => this.store.draft(this.composer()));
   protected readonly sending = this.store.send.pending;
   protected readonly canSend = computed(() => {
-    const text = this.text().trim();
+    const text = this.draft().trim();
     return this.aiEnabled() && !this.sending() && text !== '' && text.length <= maxLength;
   });
   protected readonly firstLoad = computed(() => !this.store.loaded() && this.store.load.pending());
@@ -112,7 +113,7 @@ export class AssistantPanel {
   }
 
   protected taskTitle(taskId: string): string {
-    return this.tasks.find(taskId)?.title ?? '削除された課題';
+    return this.tasks.find(taskId)?.title ?? this.text().assistant.panel.deletedTask;
   }
 
   protected setText(value: string): void {
@@ -127,7 +128,7 @@ export class AssistantPanel {
     if (event instanceof KeyboardEvent && event.isComposing) return;
     event?.preventDefault();
     if (!this.canSend()) return;
-    void this.store.sendMessage(this.text().trim(), this.selectedTask()?.id, this.composer());
+    void this.store.sendMessage(this.draft().trim(), this.selectedTask()?.id, this.composer());
   }
 
   protected retry(turn: AssistantTurn): void {
@@ -147,6 +148,7 @@ export class AssistantPanel {
     const outcome = await this.profile.update({
       name: profile.name,
       timeZone: profile.timeZone,
+      locale: profile.locale,
       context: this.memory.value,
     });
     if (outcome.ok) this.editingMemory.set(false);

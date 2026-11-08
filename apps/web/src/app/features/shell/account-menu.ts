@@ -6,6 +6,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { AuthService } from '../../core/auth/auth.service';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { CalendarStore } from '../calendar/calendar.store';
 import { Tutorial } from '../onboarding/tutorial.service';
 
@@ -28,6 +29,7 @@ export class AccountMenu {
   protected readonly auth = inject(AuthService);
   protected readonly calendar = inject(CalendarStore);
   protected readonly tutorial = inject(Tutorial);
+  protected readonly text = inject(LocaleStore).web;
   /** 読み込めなかった写真の URL。 */
   protected readonly photoError = signal('');
 
@@ -43,7 +45,8 @@ export class AccountMenu {
     return url && url !== this.photoError() ? url : '';
   });
   protected readonly calendarLabel = computed(() => {
-    if (!this.calendar.loaded()) return '連携状態を確認中…';
-    return this.calendar.connected() ? '連携済み' : '連携する';
+    const text = this.text().shell.accountMenu;
+    if (!this.calendar.loaded()) return text.calendarChecking;
+    return this.calendar.connected() ? text.calendarConnected : text.calendarConnect;
   });
 }

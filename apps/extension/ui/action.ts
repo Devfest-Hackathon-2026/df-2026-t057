@@ -2,7 +2,7 @@
 // 失敗したら理由を role="alert" で表示する。入力は消さない。
 // 送信中にほかの操作が押されたときは何もせず undefined を返す。
 import { send } from '../content/messaging';
-import { extensionCopy } from '@dopagaki/messages';
+import { currentMessages } from '../lib/locale';
 import type { Reply, Request } from '../lib/protocol';
 import { el } from './dom';
 
@@ -30,7 +30,7 @@ export async function runAction(
   container.setAttribute('aria-busy', 'true');
   const status = el('p', {
     className: 'loading',
-    text: extensionCopy.pending,
+    text: currentMessages().extension.pending,
     attrs: { role: 'status' },
   });
   container.append(status);

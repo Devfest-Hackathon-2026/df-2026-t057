@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 )
 
 // 入力と計画の上限。
@@ -531,12 +532,19 @@ func Commit(tasks []Task, changes []ChangeInput) []string {
 	return ids
 }
 
-// SampleInputs はデモのサンプルの課題（本人のデータとして保存する題名）。
-func SampleInputs(now time.Time) []Input {
+// sampleTitles はデモのサンプルの課題の題名（本人のデータとして保存するので、本人の言語で作る）。
+var sampleTitles = map[locale.Locale][3]string{
+	locale.Ja: {"レポートの構成をまとめる", "演習問題を解く", "見直して提出する"},
+	locale.En: {"Outline the report", "Work through the exercises", "Review and submit"},
+}
+
+// SampleInputs はデモのサンプルの課題。
+func SampleInputs(now time.Time, lang locale.Locale) []Input {
 	deadline := now.Add(90 * time.Minute)
+	titles := sampleTitles[lang]
 	return []Input{
-		{Title: "レポートの構成をまとめる", Deadline: deadline, Minutes: 30},
-		{Title: "演習問題を解く", Deadline: deadline, Minutes: 30},
-		{Title: "見直して提出する", Deadline: deadline, Minutes: 15},
+		{Title: titles[0], Deadline: deadline, Minutes: 30},
+		{Title: titles[1], Deadline: deadline, Minutes: 30},
+		{Title: titles[2], Deadline: deadline, Minutes: 15},
 	}
 }

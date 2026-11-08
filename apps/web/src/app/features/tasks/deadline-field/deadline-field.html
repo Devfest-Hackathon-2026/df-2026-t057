@@ -1,7 +1,7 @@
 <fieldset [disabled]="disabled()">
-  <legend>締切</legend>
-  <div class="quick" role="group" aria-label="締切の日付をすばやく選ぶ">
-    @for (option of quick; track option.label) {
+  <legend>{{ text().tasks.deadlineField.legend }}</legend>
+  <div class="quick" role="group" [attr.aria-label]="text().tasks.deadlineField.quickLabel">
+    @for (option of quick(); track option.label) {
       <button
         type="button"
         [matButton]="option.key === date() ? 'tonal' : 'outlined'"
@@ -15,7 +15,7 @@
   </div>
   <div class="pickers">
     <mat-form-field appearance="outline">
-      <mat-label>締切日</mat-label>
+      <mat-label>{{ text().tasks.deadlineField.dateLabel }}</mat-label>
       <input
         matInput
         class="date-input"
@@ -32,7 +32,7 @@
       <mat-datepicker #picker />
     </mat-form-field>
     <mat-form-field appearance="outline">
-      <mat-label>締切時刻</mat-label>
+      <mat-label>{{ text().tasks.deadlineField.timeLabel }}</mat-label>
       <input
         matInput
         #timeInput
@@ -49,7 +49,7 @@
         mat-icon-button
         matIconSuffix
         type="button"
-        aria-label="締切時刻の候補を開く"
+        [attr.aria-label]="text().tasks.deadlineField.openTimeOptions"
         [attr.aria-expanded]="timeTrigger.panelOpen"
         [disabled]="disabled()"
         (click)="timeInput.focus(); timeTrigger.openPanel()"
@@ -67,8 +67,8 @@
           </mat-option>
         }
       </mat-autocomplete>
-      <mat-hint>1分単位で入力できます</mat-hint>
-      <mat-error>00:00〜23:59で入力してください</mat-error>
+      <mat-hint>{{ text().tasks.deadlineField.timeHint }}</mat-hint>
+      <mat-error>{{ text().tasks.deadlineField.timeError }}</mat-error>
     </mat-form-field>
   </div>
   @if (summary(); as summary) {

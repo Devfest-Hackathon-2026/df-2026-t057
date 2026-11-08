@@ -14,6 +14,7 @@ import (
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/id"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/profile"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
@@ -30,9 +31,9 @@ func (noCalendar) TaskRemoved(context.Context, *store.Tx, string, string) error 
 func (noCalendar) LinkedTasks(context.Context, *store.Tx, string) (map[string]bool, error) {
 	return nil, nil
 }
-func (noCalendar) ProfileZoneChanged(context.Context, *store.Tx, string) error { return nil }
-func (noCalendar) SleepChanged(context.Context, *store.Tx, string) error       { return nil }
-func (noCalendar) SleepCleared(context.Context, *store.Tx, string) error       { return nil }
+func (noCalendar) ProfileFormatChanged(context.Context, *store.Tx, string) error { return nil }
+func (noCalendar) SleepChanged(context.Context, *store.Tx, string) error         { return nil }
+func (noCalendar) SleepCleared(context.Context, *store.Tx, string) error         { return nil }
 func (noCalendar) SleepPending(context.Context, *store.Tx, string) (bool, error) {
 	return false, nil
 }
@@ -241,7 +242,7 @@ func TestForgottenContextIsNotSentButStillShown(t *testing.T) {
 	}
 	w.clock.Advance(time.Minute)
 	_, rev, _ := w.profiles.Get(t.Context(), "u")
-	if _, _, err := w.profiles.Update(t.Context(), "u", profile.Input{Name: "本人", TimeZone: "Asia/Tokyo"}, rev); err != nil {
+	if _, _, err := w.profiles.Update(t.Context(), "u", profile.Input{Name: "本人", TimeZone: "Asia/Tokyo", Locale: locale.Ja}, rev); err != nil {
 		t.Fatal(err)
 	}
 	w.clock.Advance(time.Minute)
@@ -544,7 +545,7 @@ func TestContextChangedDuringConsultationFailsTurn(t *testing.T) {
 	w.model.script = func(ConsultInput, int, []ToolResult) (Step, error) {
 		w.clock.Advance(time.Second)
 		_, rev, _ := w.profiles.Get(context.Background(), "u")
-		if _, _, err := w.profiles.Update(context.Background(), "u", profile.Input{Context: "新しい傾向", TimeZone: "Asia/Tokyo"}, rev); err != nil {
+		if _, _, err := w.profiles.Update(context.Background(), "u", profile.Input{Context: "新しい傾向", TimeZone: "Asia/Tokyo", Locale: locale.Ja}, rev); err != nil {
 			t.Error(err)
 		}
 		return Step{Reply: "ok"}, nil

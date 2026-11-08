@@ -180,9 +180,9 @@ func (e *Enqueuer) SleepPending(ctx context.Context, tx *store.Tx, uid string) (
 	return jobPending(ctx, tx, uid, c.SleepJob)
 }
 
-// ProfileZoneChanged は、タイムゾーンで決まる就寝の予定と、予定の説明の時刻を書き直すジョブを積む。
+// ProfileFormatChanged は、タイムゾーンか言語が変わったときに、就寝の予定と、予定の説明の時刻・見出しを書き直すジョブを積む。
 // 就寝の予定のジョブは、睡眠を設定していなければ予定を消す（無ければ何もしない）。
-func (e *Enqueuer) ProfileZoneChanged(ctx context.Context, tx *store.Tx, uid string) error {
+func (e *Enqueuer) ProfileFormatChanged(ctx context.Context, tx *store.Tx, uid string) error {
 	c, err := loadConnection(ctx, tx, uid)
 	if err != nil || !c.Connected {
 		return err
@@ -212,7 +212,7 @@ func (Disabled) SleepCleared(context.Context, *store.Tx, string) error { return 
 func (Disabled) SleepPending(context.Context, *store.Tx, string) (bool, error) {
 	return false, nil
 }
-func (Disabled) ProfileZoneChanged(context.Context, *store.Tx, string) error { return nil }
+func (Disabled) ProfileFormatChanged(context.Context, *store.Tx, string) error { return nil }
 
 // Info はトランザクションの中で連携の状態を返す（相談の get_calendar 用）。カレンダーを使わない環境では Disabled が答える。
 func (e *Enqueuer) Info(ctx context.Context, tx *store.Tx, uid string) (connected bool, lastSync *time.Time, linked map[string]bool, err error) {

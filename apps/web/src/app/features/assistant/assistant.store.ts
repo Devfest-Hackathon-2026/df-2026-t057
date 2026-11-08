@@ -1,8 +1,8 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { newIdempotencyKey, type AssistantTurn, type Resource } from '@dopagaki/contract';
-import { problemMessages } from '@dopagaki/messages';
 import { idempotent, requireData } from '../../core/http/api-client';
 import { Operation, type Outcome } from '../../core/http/operation';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { ResourceStore } from '../../core/store/resource-store';
 
 /** 画面に出す相談。サーバーの相談に、送信中・送信に失敗した手元の相談を重ねる。 */
@@ -24,6 +24,7 @@ export type ComposerKey = 'workspace' | 'dialog';
 export class AssistantStore extends ResourceStore<readonly AssistantTurn[]> {
   protected readonly resources: readonly Resource[] = ['assistant'];
   readonly send = new Operation(this.scope);
+  private readonly shared = inject(LocaleStore).shared;
 
   /** 手元にだけある相談（送信中、または通信に失敗したもの）。 */
   private readonly local = signal<readonly DisplayTurn[]>([]);
@@ -40,7 +41,7 @@ export class AssistantStore extends ResourceStore<readonly AssistantTurn[]> {
     return [
       ...server.map((turn) => ({
         turn,
-        failureMessage: turn.failure ? problemMessages[turn.failure] : undefined,
+        failureMessage: turn.failure ? this.shared().problems[turn.failure] : undefined,
       })),
       ...this.local().filter((item) => !ids.has(item.turn.id)),
     ];
@@ -119,7 +120,7 @@ export class AssistantStore extends ResourceStore<readonly AssistantTurn[]> {
         (turn) => {
           this.putLocal({
             turn,
-            failureMessage: turn.failure ? problemMessages[turn.failure] : undefined,
+            failureMessage: turn.failure ? this.shared().problems[turn.failure] : undefined,
           });
           this.value.update((turns) =>
             turns ? [...turns.filter((item) => item.id !== turn.id), turn] : turns,

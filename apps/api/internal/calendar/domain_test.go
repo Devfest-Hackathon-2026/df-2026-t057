@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 )
@@ -82,10 +83,15 @@ func TestRenderDescription(t *testing.T) {
 	}
 	tokyo, _ := time.LoadLocation("Asia/Tokyo")
 	want := "メモ\n\n[DOPAGAKI]\n13:15–13:45 調べる\n13:45–14:00 書く\n締切: 12/01 14:00\n[/DOPAGAKI]"
-	if got := RenderDescription("メモ", tk, tokyo); got != want {
+	if got := RenderDescription("メモ", tk, tokyo, locale.Ja); got != want {
 		t.Fatalf("got %q\nwant %q", got, want)
 	}
-	if got := RenderDescription("", tk, tokyo); !strings.HasPrefix(got, "[DOPAGAKI]") {
+	// 英語でも、ブロックの区切りは同じにする（言語を変えても前のブロックを見つけられるように）。
+	wantEn := "メモ\n\n[DOPAGAKI]\n13:15–13:45 調べる\n13:45–14:00 書く\nDeadline: 12/01 14:00\n[/DOPAGAKI]"
+	if got := RenderDescription("メモ", tk, tokyo, locale.En); got != wantEn {
+		t.Fatalf("got %q\nwant %q", got, wantEn)
+	}
+	if got := RenderDescription("", tk, tokyo, locale.Ja); !strings.HasPrefix(got, "[DOPAGAKI]") {
 		t.Fatalf("empty notes should start with the block: %q", got)
 	}
 }
@@ -95,7 +101,7 @@ func TestContentPatchAndPlanOnlyPatch(t *testing.T) {
 	tk := sampleTask(end, 45)
 	ev := Event{Summary: "変更前", Description: "Google側のメモ", Start: EventTime{DateTime: end.Add(-30 * time.Minute).Format(time.RFC3339)}, End: EventTime{DateTime: end.Format(time.RFC3339)}}
 
-	planOnly := PlanPatch(tk, ev, time.UTC)
+	planOnly := PlanPatch(tk, ev, time.UTC, locale.Ja)
 	if planOnly.Summary != nil || planOnly.Start != nil || planOnly.End != nil || StripBlock(planOnly.Description) != "Google側のメモ" {
 		t.Fatalf("plan edit changed original event fields: %+v", planOnly)
 	}
@@ -103,7 +109,7 @@ func TestContentPatchAndPlanOnlyPatch(t *testing.T) {
 		t.Fatal("plan-only patch changed the content hash")
 	}
 
-	content := ContentPatch(tk, time.UTC)
+	content := ContentPatch(tk, time.UTC, locale.Ja)
 	if *content.Summary != tk.Title || StripBlock(content.Description) != tk.Notes ||
 		content.Start.DateTime != tk.Plan.Start.Format(time.RFC3339) || content.End.DateTime != end.Format(time.RFC3339) {
 		t.Fatalf("content patch did not update the event: %+v", content)
@@ -113,17 +119,17 @@ func TestContentPatchAndPlanOnlyPatch(t *testing.T) {
 		t.Fatal("content change hidden from the hash")
 	}
 	// 書き込んだ後に再試行しても、ブロックが重複せず、変更なしと判定される。
-	if retry := PlanPatch(tk, updated, time.UTC); retry.Description != content.Description || retry.Changes(updated) {
+	if retry := PlanPatch(tk, updated, time.UTC, locale.Ja); retry.Description != content.Description || retry.Changes(updated) {
 		t.Fatal("retry duplicated the plan text")
 	}
-	if ContentPatch(tk, time.UTC).Changes(updated) {
+	if ContentPatch(tk, time.UTC, locale.Ja).Changes(updated) {
 		t.Fatal("content patch should be a no-op after it was applied")
 	}
 	// 同じ時刻の別の表記は変更とみなさない。
 	tokyo, _ := time.LoadLocation("Asia/Tokyo")
 	rendered := updated
 	rendered.Start.DateTime = tk.Plan.Start.In(tokyo).Format(time.RFC3339)
-	if ContentPatch(tk, time.UTC).Changes(rendered) {
+	if ContentPatch(tk, time.UTC, locale.Ja).Changes(rendered) {
 		t.Fatal("equivalent time rendering treated as a change")
 	}
 }
@@ -290,7 +296,7 @@ func TestSameContent(t *testing.T) {
 func TestSleepEvent(t *testing.T) {
 	tokyo, _ := time.LoadLocation("Asia/Tokyo")
 	now := at("2026-12-01T03:00:00Z") // 12:00 JST
-	ev := SleepEvent("u1", sleep.Schedule{Bedtime: "23:30", Wake: "07:00"}, now, tokyo)
+	ev := SleepEvent("u1", sleep.Schedule{Bedtime: "23:30", Wake: "07:00"}, now, tokyo, locale.Ja)
 	if ev.ID != SleepEventID("u1") || ev.Start.DateTime != "2026-12-01T23:30:00+09:00" || ev.End.DateTime != "2026-12-02T07:00:00+09:00" {
 		t.Fatalf("times: %+v %+v", ev.Start, ev.End)
 	}
@@ -300,8 +306,12 @@ func TestSleepEvent(t *testing.T) {
 	if !strings.Contains(ev.Description, "23:30") || !strings.Contains(ev.Description, "07:00") {
 		t.Fatalf("description: %q", ev.Description)
 	}
+	en := SleepEvent("u1", sleep.Schedule{Bedtime: "23:30", Wake: "07:00"}, now, tokyo, locale.En)
+	if en.Summary != "🌙 Bedtime (DOPAGAKI)" || !strings.Contains(en.Description, "sleep at 23:30 and wake up at 07:00") {
+		t.Fatalf("english: %q %q", en.Summary, en.Description)
+	}
 	// 正午より前の就寝は、前の晩の夜として翌日に置く。
-	early := SleepEvent("u1", sleep.Schedule{Bedtime: "01:00", Wake: "08:00"}, now, tokyo)
+	early := SleepEvent("u1", sleep.Schedule{Bedtime: "01:00", Wake: "08:00"}, now, tokyo, locale.Ja)
 	if early.Start.DateTime != "2026-12-02T01:00:00+09:00" {
 		t.Fatalf("early bedtime: %s", early.Start.DateTime)
 	}

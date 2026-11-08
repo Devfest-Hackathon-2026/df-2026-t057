@@ -17,11 +17,15 @@ import (
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/assistant"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/companion"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 )
 
-// CompanionName はどの場面でも話す、ひとりの相棒の名前。
-const CompanionName = "相棒"
+// companionNames はどの場面でも話す、ひとりの相棒の名前。本人の言語で呼ぶ。
+var companionNames = map[locale.Locale]string{locale.Ja: "相棒", locale.En: "Buddy"}
+
+// languageNames は、本人に向けた文を書く言語の名前（AI への指示に使う）。
+var languageNames = map[locale.Locale]string{locale.Ja: "日本語", locale.En: "英語（English）"}
 
 //go:embed companion_persona.md
 var companionPersona string
@@ -76,8 +80,9 @@ func New(ctx context.Context, cfg Config, quota Quota) (*Client, error) {
 	return &Client{models: client.Models, model: cfg.Model, quota: quota}, nil
 }
 
-func persona() *genai.Content {
-	return genai.NewContentFromText(strings.ReplaceAll(companionPersona, "{NAME}", CompanionName), genai.RoleUser)
+func persona(lang locale.Locale) *genai.Content {
+	text := strings.NewReplacer("{NAME}", companionNames[lang], "{LANGUAGE}", languageNames[lang]).Replace(companionPersona)
+	return genai.NewContentFromText(text, genai.RoleUser)
 }
 
 // generate は利用回数を1回分確保してから Gemini を1回呼ぶ。
