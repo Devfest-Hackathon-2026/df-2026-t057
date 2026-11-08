@@ -5,7 +5,7 @@ export function workspace(page: Page) {
   const summary = page.getByRole('region', { name: '視聴できる時間と次の課題' });
   return {
     summary,
-    /** 「今日、視聴できる時間」の値（意味のある役割を持たない強調表示なので、クラスで探す）。 */
+    /** 「今日 視聴できる時間」の値（意味のある役割を持たない強調表示なので、クラスで探す）。 */
     credit: summary.locator('.credit-number'),
     creditHelp: summary.getByRole('button', { name: '視聴時間について', exact: true }),
     calendar: page.getByRole('region', { name: '予定カレンダー' }),

@@ -33,11 +33,42 @@
     </mat-form-field>
     <mat-form-field appearance="outline">
       <mat-label>締切時刻</mat-label>
-      <mat-select [value]="time()" (valueChange)="setTime($event)" [disabled]="disabled()">
+      <input
+        matInput
+        #timeInput
+        #timeTrigger="matAutocompleteTrigger"
+        [matAutocomplete]="timeOptions"
+        [formControl]="timeControl"
+        (blur)="onTouched()"
+        [pattern]="timePattern.source"
+        placeholder="HH:mm"
+        maxlength="5"
+        required
+      />
+      <button
+        mat-icon-button
+        matIconSuffix
+        type="button"
+        aria-label="締切時刻の候補を開く"
+        [attr.aria-expanded]="timeTrigger.panelOpen"
+        [disabled]="disabled()"
+        (click)="timeInput.focus(); timeTrigger.openPanel()"
+      >
+        <mat-icon>arrow_drop_down</mat-icon>
+      </button>
+      <mat-autocomplete #timeOptions="matAutocomplete" (opened)="scrollToTime()">
         @for (option of times(); track option) {
-          <mat-option [value]="option">{{ option }}</mat-option>
+          <mat-option
+            [value]="option"
+            [attr.data-time]="option"
+            [class.current-time]="option === time()"
+          >
+            {{ option }}
+          </mat-option>
         }
-      </mat-select>
+      </mat-autocomplete>
+      <mat-hint>1分単位で入力できます</mat-hint>
+      <mat-error>00:00〜23:59で入力してください</mat-error>
     </mat-form-field>
   </div>
   @if (summary(); as summary) {
