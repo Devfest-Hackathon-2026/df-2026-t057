@@ -1,5 +1,5 @@
 import { hoursFromNow } from '../support/api';
-import { expect, test } from '../support/fixtures';
+import { expect, test, tokyoDate } from '../support/fixtures';
 import { expectNoHorizontalScroll } from '../support/layout';
 import { workspace } from '../support/pages';
 import { fulfillProblem, Gate } from '../support/routes';
@@ -78,9 +78,12 @@ test('snooze commit, settings and responsive layout', async ({ page, api }) => {
   const home = workspace(page);
   await page.getByRole('button', { name: 'サンプル3件で試す', exact: true }).click();
   await expect.poll(async () => (await api.tasks()).items.length).toBe(3);
-  for (const title of ['レポートの構成をまとめる', '演習問題を解く', '見直して提出する']) {
-    await expect(home.calendar.getByText(title)).toBeVisible();
+  // 夜に実行すると、サンプルの予定が翌日や翌週になる。それぞれの予定の日を開いて確かめる。
+  for (const task of (await api.tasks()).items) {
+    await page.goto(`/calendar?date=${tokyoDate(task.plan.start)}`);
+    await expect(home.calendar.getByText(task.title)).toBeVisible();
   }
+  await page.goto('/calendar');
   await expect(home.credit).toHaveText('25分');
 
   await home.summary.getByRole('button', { name: '通知を試す' }).click();
