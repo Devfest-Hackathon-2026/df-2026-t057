@@ -9,6 +9,12 @@
 !apps/web/**
 !packages/
 !packages/**
+!apps/extension/
+!apps/extension/package.json
+!e2e/
+!e2e/package.json
+!deploy/
+!deploy/package.json
 apps/**/node_modules
 packages/**/node_modules
 apps/web/dist

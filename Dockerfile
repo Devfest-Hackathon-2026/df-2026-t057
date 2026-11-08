@@ -3,10 +3,16 @@ FROM node:24.22.1-bookworm-slim AS web
 WORKDIR /src
 RUN npm install --global pnpm@12.15.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json ./
+# ロックファイルと突き合わせるため、ワークスペースの全パッケージの package.json を先に置く。
+COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY apps/extension/package.json apps/extension/
+COPY packages/bridge/package.json packages/bridge/
 COPY packages/contract/package.json packages/contract/
 COPY packages/tokens/package.json packages/tokens/
 COPY packages/messages/package.json packages/messages/
+COPY e2e/package.json e2e/
+COPY deploy/package.json deploy/
 RUN pnpm install --frozen-lockfile --filter @dopagaki/web...
 COPY packages packages
 COPY apps/web apps/web
