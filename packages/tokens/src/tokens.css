@@ -139,36 +139,24 @@
   --mat-sys-display-small-size: 2.25rem;
   --mat-sys-display-small-tracking: 0;
   --mat-sys-display-small-weight: 400;
-  --mat-sys-headline-large:
-    400 2rem / 2.5rem Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI, Meiryo,
-    system-ui, sans-serif;
   --mat-sys-headline-large-font:
     Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI, Meiryo, system-ui,
     sans-serif;
   --mat-sys-headline-large-line-height: 2.5rem;
   --mat-sys-headline-large-size: 2rem;
   --mat-sys-headline-large-tracking: 0;
-  --mat-sys-headline-large-weight: 400;
-  --mat-sys-headline-medium:
-    400 1.75rem / 2.25rem Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI,
-    Meiryo, system-ui, sans-serif;
   --mat-sys-headline-medium-font:
     Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI, Meiryo, system-ui,
     sans-serif;
   --mat-sys-headline-medium-line-height: 2.25rem;
   --mat-sys-headline-medium-size: 1.75rem;
   --mat-sys-headline-medium-tracking: 0;
-  --mat-sys-headline-medium-weight: 400;
-  --mat-sys-headline-small:
-    400 1.5rem / 2rem Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI, Meiryo,
-    system-ui, sans-serif;
   --mat-sys-headline-small-font:
     Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI, Meiryo, system-ui,
     sans-serif;
   --mat-sys-headline-small-line-height: 2rem;
   --mat-sys-headline-small-size: 1.5rem;
   --mat-sys-headline-small-tracking: 0;
-  --mat-sys-headline-small-weight: 400;
   --mat-sys-label-large:
     500 0.875rem / 1.25rem Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI,
     Meiryo, system-ui, sans-serif;
@@ -201,16 +189,12 @@
   --mat-sys-label-small-size: 0.688rem;
   --mat-sys-label-small-tracking: 0.031rem;
   --mat-sys-label-small-weight: 500;
-  --mat-sys-title-large:
-    400 1.375rem / 1.75rem Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI,
-    Meiryo, system-ui, sans-serif;
   --mat-sys-title-large-font:
     Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI, Meiryo, system-ui,
     sans-serif;
   --mat-sys-title-large-line-height: 1.75rem;
   --mat-sys-title-large-size: 1.375rem;
   --mat-sys-title-large-tracking: 0;
-  --mat-sys-title-large-weight: 400;
   --mat-sys-title-medium:
     500 1rem / 1.5rem Noto Sans JP, Hiragino Sans, Hiragino Kaku Gothic ProN, Yu Gothic UI, Meiryo,
     system-ui, sans-serif;
@@ -232,6 +216,21 @@
   --mat-sys-title-small-tracking: 0.006rem;
   --mat-sys-title-small-weight: 500;
   --mat-sys-display-large-tracking: 0;
+  --mat-sys-headline-large-weight: 700;
+  --mat-sys-headline-large: var(--mat-sys-headline-large-weight)
+    var(--mat-sys-headline-large-size) / var(--mat-sys-headline-large-line-height)
+    var(--mat-sys-headline-large-font);
+  --mat-sys-headline-medium-weight: 700;
+  --mat-sys-headline-medium: var(--mat-sys-headline-medium-weight)
+    var(--mat-sys-headline-medium-size) / var(--mat-sys-headline-medium-line-height)
+    var(--mat-sys-headline-medium-font);
+  --mat-sys-headline-small-weight: 700;
+  --mat-sys-headline-small: var(--mat-sys-headline-small-weight)
+    var(--mat-sys-headline-small-size) / var(--mat-sys-headline-small-line-height)
+    var(--mat-sys-headline-small-font);
+  --mat-sys-title-large-weight: 700;
+  --mat-sys-title-large: var(--mat-sys-title-large-weight) var(--mat-sys-title-large-size) /
+    var(--mat-sys-title-large-line-height) var(--mat-sys-title-large-font);
 
   /* Elevation */
   --mat-sys-level0:

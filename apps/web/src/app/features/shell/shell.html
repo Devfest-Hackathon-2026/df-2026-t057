@@ -4,8 +4,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="/" [attr.aria-label]="t.layout.home">
-      <img src="/logo.png" alt="" width="40" height="40" />
-      <span class="brand-name">DOPAGAKI</span>
+      <img src="/logo.png" alt="" width="460" height="120" />
     </a>
     <nav [attr.aria-label]="t.layout.mainMenu">
       <ul>
@@ -30,7 +29,7 @@
     <header class="topbar">
       <!-- スマホではサイドバーを隠すので、ロゴを上部に出す -->
       <a class="brand mobile-brand" href="/" [attr.aria-label]="t.layout.home">
-        <img src="/logo.png" alt="" width="32" height="32" />
+        <img src="/logo.png" alt="" width="460" height="120" />
       </a>
       <div class="topbar-right" data-tour="settings">
         @if (auth.mode() === 'demo') {

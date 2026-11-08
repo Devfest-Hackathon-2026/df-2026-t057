@@ -196,6 +196,19 @@ $extension-roles: (
     )
   );
 
+  // 見出しは M3 の既定（400）だと日本語では細く、本文と区別しにくいので太くする。
+  // mat.theme のショートハンドは太さを値で埋め込むので、ショートハンドも書き直す。
+  @each $level in (headline-large, headline-medium, headline-small, title-large) {
+    @include mat.theme-overrides(
+      (
+        #{$level}-weight: 700,
+        $level: unquote(
+            'var(--mat-sys-#{$level}-weight) var(--mat-sys-#{$level}-size) / var(--mat-sys-#{$level}-line-height) var(--mat-sys-#{$level}-font)'
+          )
+      )
+    );
+  }
+
   @each $name, $value in $extension-roles {
     --dpg-sys-#{$name}: #{$value};
   }
