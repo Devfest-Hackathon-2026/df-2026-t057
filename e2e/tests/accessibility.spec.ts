@@ -164,8 +164,8 @@ test.describe('dialogs', () => {
 
   test('tutorial', async ({ page }) => {
     await page.goto('/calendar?tutorial');
-    await page.getByRole('button', { name: '案内を見る', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'まずは課題を1つ登録' })).toBeVisible();
+    await page.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'まずは課題を登録' })).toBeVisible();
     await expectAccessibleInBothSchemes(page);
   });
 });

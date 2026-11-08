@@ -48,15 +48,15 @@ describe('TutorialOverlay', () => {
     expect(element.querySelector('[role="dialog"] h2')?.textContent).toContain(
       'DOPAGAKIへようこそ',
     );
-    expect(element.textContent).toContain('1 / 8');
-    button(element, '案内を見る').click();
+    expect(element.textContent).toContain('1 / 10');
+    button(element, 'チュートリアルを開始').click();
     await detect();
-    expect(element.querySelector('h2')?.textContent).toContain('まずは課題を1つ登録');
+    expect(element.querySelector('h2')?.textContent).toContain('まずは課題を登録');
     button(element, '戻る').click();
     await detect();
     expect(element.querySelector('h2')?.textContent).toContain('DOPAGAKIへようこそ');
-    for (let step = 0; step < 7; step += 1) {
-      button(element, step === 0 ? '案内を見る' : '次へ').click();
+    for (let step = 0; step < 9; step += 1) {
+      button(element, step === 0 ? 'チュートリアルを開始' : '次へ').click();
       await detect();
     }
     expect(element.querySelector('h2')?.textContent).toContain('準備できました');

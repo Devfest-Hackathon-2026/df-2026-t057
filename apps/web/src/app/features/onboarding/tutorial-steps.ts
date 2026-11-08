@@ -8,7 +8,10 @@ export interface TutorialStep {
   readonly body: readonly string[];
 }
 
-/** 使い方の案内（8段階）。報酬の数はサーバーのルールから表示する。 */
+/**
+ * 使い方の案内（10段階）。1段階の説明はカードの中で3行までにする（e2e で確かめる）。
+ * 報酬の数はサーバーのルールから表示する。
+ */
 export function tutorialSteps(
   rules: Wallet['rules'] | undefined,
   text: WebMessages['onboarding']['steps'],
@@ -25,11 +28,9 @@ export function tutorialSteps(
       body: [text.add.fields, text.add.reward(registration)],
     },
     { target: 'next', title: text.next.title, body: text.next.body },
-    {
-      target: 'credit',
-      title: text.credit.title,
-      body: [text.credit.reward(work, reward), text.credit.extension],
-    },
+    { target: 'next', title: text.notify.title, body: text.notify.body },
+    { target: 'credit', title: text.credit.title, body: [text.credit.reward(work, reward)] },
+    { target: 'credit', title: text.extension.title, body: text.extension.body },
     { target: 'calendar', title: text.calendar.title, body: text.calendar.body },
     { target: 'assistant', title: text.assistant.title, body: text.assistant.body },
     { target: 'settings', title: text.settings.title, body: text.settings.body },
@@ -37,4 +38,4 @@ export function tutorialSteps(
   ];
 }
 
-export const tutorialStepCount = 8;
+export const tutorialStepCount = 10;
