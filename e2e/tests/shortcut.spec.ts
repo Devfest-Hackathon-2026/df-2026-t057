@@ -34,7 +34,7 @@ test('a Shortcuts key is shown once, answers like the iPhone automation, and can
       stop: string;
       minutesLeft?: number;
     };
-    expect(body.title).toBe('相棒');
+    expect(body.title).toContain('DOPAGAKI');
     expect(body.stop).toBe('no');
     expect(body.message).toMatch(/^今日あと\d+分。/);
     expect(body.message.length).toBeGreaterThan(0);
@@ -46,7 +46,7 @@ test('a Shortcuts key is shown once, answers like the iPhone automation, and can
     });
     expect(closed.status()).toBe(200);
     const closedBody = (await closed.json()) as { title: string; message: string };
-    expect(closedBody.title).toBe('相棒');
+    expect(closedBody.title).toContain('DOPAGAKI');
     expect(closedBody.message).toMatch(/^YouTube、/);
 
     // キーは発行したときにだけ表示する。開き直すと見えない。

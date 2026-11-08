@@ -12,7 +12,6 @@ import (
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/memory"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/calendar"
-	"github.com/a-sumikawa/devfest-2026/apps/api/internal/companion"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/id"
@@ -85,9 +84,8 @@ func (p *FakePlanner) Adjust(context.Context, string, task.AdjustRequest) ([]tas
 
 type lines struct{}
 
-func (lines) ShortcutLine(context.Context, string, companion.Moment, string) (string, error) {
-	return "", nil
-}
+func (lines) AppOpenLine(context.Context, string, string) (string, error)     { return "", nil }
+func (lines) BalanceZeroLine(context.Context, string, string) (string, error) { return "", nil }
 
 // New は now の時点の、メモリの保存先で組み立てた World を作る。AI は使えない（逆算の計画になる）。
 func New(t testing.TB, now time.Time) *World {

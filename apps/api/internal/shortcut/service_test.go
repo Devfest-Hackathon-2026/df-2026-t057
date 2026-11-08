@@ -31,7 +31,7 @@ func TestShortcutKeyLifecycle(t *testing.T) {
 		t.Fatalf("key %q %v", key, err)
 	}
 	n, err := w.Shortcut.Open(ctx, key)
-	if err != nil || !strings.Contains(n.Message, "単位のため") || n.URL != "http://app.test/?notification=t1" || n.Title != "相棒" {
+	if err != nil || !strings.Contains(n.Message, "単位のため") || n.URL != "http://app.test/?notification=t1" || !strings.Contains(n.Title, "DOPAGAKI") {
 		t.Fatalf("%+v %v", n, err)
 	}
 	err = w.Runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
@@ -169,7 +169,7 @@ func TestCloseRecordsUseWithoutTouchingTheBalance(t *testing.T) {
 	before, _, _ := w.Wallet.Get(ctx, uid)
 	w.Clock.Advance(12 * time.Minute)
 	n, err := w.Shortcut.Close(ctx, key)
-	if err != nil || n.Title != "相棒" || n.Message != "YouTube、12分だったね。次は「レポート」の一手、いってみよっか。" {
+	if err != nil || !strings.Contains(n.Title, "DOPAGAKI") || n.Message != "YouTube、12分だったね。次は「レポート」の一手、いってみよっか。" {
 		t.Fatalf("close %+v %v", n, err)
 	}
 	after, _, _ := w.Wallet.Get(ctx, uid)

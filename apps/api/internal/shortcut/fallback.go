@@ -2,12 +2,12 @@ package shortcut
 
 // このファイルは「サーバーは表示用の文言を返さない」（AGENTS.md）の唯一の例外。
 // iPhone のショートカットは応答の message をそのまま通知に出し、文言を引くクライアントの UI が無い。
-// そのため、通知の題名、AI が使えないときの相棒の一言、残り時間の前置き、閉じたときの一言だけを、ここでサーバーが組み立てる。
+// そのため、AI が使えないときの相棒の一言と通知の題名（旧実装の文言のまま）、残り時間の前置き、閉じたときの一言だけを、ここでサーバーが組み立てる。
 
 import "strconv"
 
 // notificationTitle は通知の題名。
-const notificationTitle = "相棒"
+const notificationTitle = "DOPAGAKI · 相棒"
 
 // fallbackLine は AI が使えないときの app_open の一言。
 func fallbackLine(title, why string) string {

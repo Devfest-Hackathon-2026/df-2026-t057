@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/a-sumikawa/devfest-2026/apps/api/internal/companion"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
@@ -157,7 +156,6 @@ func (s *Service) notificationURL(next *task.Task) string {
 func (s *Service) Open(ctx context.Context, key string) (Notification, error) {
 	now := s.clock.Now()
 	var next *task.Task
-	var account *wallet.Account
 	uid, err := s.authorize(ctx, key, now, func(ctx context.Context, tx *store.Tx, uid string) error {
 		var err error
 		if next, err = s.tasks.NextPending(ctx, tx, uid); err != nil {
@@ -167,12 +165,16 @@ func (s *Service) Open(ctx context.Context, key string) (Notification, error) {
 		if err != nil {
 			return err
 		}
-		if account, err = s.wallet.Open(ctx, tx, uid, now); err != nil {
-			return err
-		}
 		return tx.Set(opensRef(uid), opens.Record(store.Truncate(now)))
 	})
 	if err != nil {
+		return Notification{}, err
+	}
+	var account wallet.Account
+	if err := s.wallet.Read(ctx, uid, func(_ context.Context, _ *store.Tx, a *wallet.Account) error {
+		account = *a
+		return nil
+	}); err != nil {
 		return Notification{}, err
 	}
 	n := Notification{Title: notificationTitle, URL: s.notificationURL(next)}
@@ -184,10 +186,10 @@ func (s *Service) Open(ctx context.Context, key string) (Notification, error) {
 	if limited && account.Available() <= 0 {
 		zero := 0
 		n.Stop, n.MinutesLeft = true, &zero
-		n.Message = s.line(ctx, uid, companion.MomentBalanceZero, taskID, fallbackBalanceZeroLine())
+		n.Message = s.line(ctx, s.lines.BalanceZeroLine, uid, taskID, fallbackBalanceZeroLine())
 		return n, nil
 	}
-	n.Message = s.line(ctx, uid, companion.MomentAppOpen, taskID, fallbackLine(title, why))
+	n.Message = s.line(ctx, s.lines.AppOpenLine, uid, taskID, fallbackLine(title, why))
 	if limited {
 		minutes := max(1, account.Available()/60)
 		n.MinutesLeft = &minutes
@@ -197,10 +199,10 @@ func (s *Service) Open(ctx context.Context, key string) (Notification, error) {
 }
 
 // line は相棒の一言。AI が使えないときや失敗したときは fallback を返す。
-func (s *Service) line(ctx context.Context, uid string, moment companion.Moment, taskID, fallback string) string {
-	line, err := s.lines.ShortcutLine(ctx, uid, moment, taskID)
+func (s *Service) line(ctx context.Context, get func(ctx context.Context, uid, taskID string) (string, error), uid, taskID, fallback string) string {
+	line, err := get(ctx, uid, taskID)
 	if err != nil {
-		s.log.WarnContext(ctx, "shortcut line failed", "moment", string(moment), "code", apperr.As(err).Code)
+		s.log.WarnContext(ctx, "shortcut line failed", "code", apperr.As(err).Code)
 	}
 	if line == "" {
 		return fallback
