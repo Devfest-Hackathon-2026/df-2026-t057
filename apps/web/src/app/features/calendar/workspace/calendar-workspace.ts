@@ -1,4 +1,5 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
+import type { ElementRef } from '@angular/core';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,6 +7,7 @@ import {
   effect,
   inject,
   input,
+  linkedSignal,
   signal,
   untracked,
   viewChild,
@@ -81,6 +83,8 @@ export class CalendarWorkspace {
   readonly date = input<string>();
   readonly view = input<string>();
 
+  private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
+  private scrolledToNow = false;
   protected readonly tasks = inject(TasksStore);
   protected readonly wallet = inject(WalletStore);
   protected readonly work = inject(WorkSessionStore);
@@ -95,8 +99,6 @@ export class CalendarWorkspace {
   protected readonly stylesReady = signal(false);
   protected readonly rendered = signal(false);
   protected readonly title = signal('');
-  protected readonly panel = signal<'assistant' | 'detail'>('assistant');
-  protected readonly mobilePart = signal<'calendar' | 'panel'>('calendar');
   protected readonly timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   private readonly compact = toSignal(
@@ -114,6 +116,17 @@ export class CalendarWorkspace {
   protected readonly selected = computed(() => {
     const id = this.task();
     return id ? (this.tasks.find(id) ?? null) : null;
+  });
+  private readonly selectedId = computed(() => this.selected()?.id);
+  /** 課題が選ばれたら詳細を開く。選択が外れたら相談に戻す。その後の切り替えは利用者に任せる。 */
+  protected readonly panel = linkedSignal<string | undefined, 'assistant' | 'detail'>({
+    source: this.selectedId,
+    computation: (id) => (id ? 'detail' : 'assistant'),
+  });
+  /** 狭い画面では、課題が選ばれたらパネル側を表示する。 */
+  protected readonly mobilePart = linkedSignal<string | undefined, 'calendar' | 'panel'>({
+    source: this.selectedId,
+    computation: (id, previous) => (id ? 'panel' : (previous?.value ?? 'calendar')),
   });
   protected readonly next = this.tasks.next;
   protected readonly creditLabel = computed(() =>
@@ -145,13 +158,13 @@ export class CalendarWorkspace {
     initialDate: validDate(this.date()) ?? this.selected()?.plan.start ?? new Date(),
     headerToolbar: false,
     firstDay: 1,
-    height: 650,
+    // 高さは中身に合わせ、スクロールは外側の .calendar-scroll で行う（テンプレートのコメントを参照）。
+    height: 'auto',
     allDaySlot: false,
     nowIndicator: true,
     editable: false,
     eventInteractive: true,
     slotDuration: '00:30:00',
-    scrollTime: `${String(Math.max(0, new Date().getHours() - 1)).padStart(2, '0')}:00:00`,
     eventMinHeight: 36,
     slotEventOverlap: false,
     eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
@@ -163,6 +176,17 @@ export class CalendarWorkspace {
     datesSet: (info) => {
       this.title.set(info.view.title);
       this.rendered.set(true);
+    },
+    // 開いたときは、現在時刻の1時間前あたりから表示する。
+    nowIndicatorLineDidMount: (info) => {
+      if (this.scrolledToNow) return;
+      this.scrolledToNow = true;
+      requestAnimationFrame(() => {
+        const scroller = this.scroller()?.nativeElement;
+        if (!scroller) return;
+        const offset = info.el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+        scroller.scrollTop += Math.max(0, offset - scroller.clientHeight / 4);
+      });
     },
   };
 
@@ -180,17 +204,6 @@ export class CalendarWorkspace {
         if (api.view.type !== view) api.changeView(view);
         if (date && localDateKey(api.getDate()) !== date) api.gotoDate(date);
       });
-    });
-    // 新しく課題が選ばれたら、詳細を開く。
-    let lastSelected: string | undefined;
-    effect(() => {
-      const id = this.selected()?.id;
-      if (id && id !== lastSelected) {
-        this.panel.set('detail');
-        this.mobilePart.set('panel');
-      }
-      if (!id && this.panel() === 'detail') this.panel.set('assistant');
-      lastSelected = id;
     });
   }
 

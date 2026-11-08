@@ -35,7 +35,7 @@ test('next task card starts the earliest plan and keeps a long title readable', 
     expectInsideViewport(page, await next.boundingBox());
   }
 
-  const start = summary.getByRole('button', { name: '次の課題を開始', exact: true });
+  const start = summary.getByRole('button', { name: '次の課題をはじめる', exact: true });
   await start.click();
   await expect.poll(async () => (await api.workSession())?.taskId).toBe('summary-first');
   await expect(start).toBeDisabled();

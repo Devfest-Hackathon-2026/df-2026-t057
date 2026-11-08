@@ -56,7 +56,7 @@
           <button
             mat-flat-button
             type="button"
-            aria-label="次の課題を開始"
+            aria-label="次の課題をはじめる"
             (click)="actions.start(task)"
             [disabled]="tasks.start.pending() || work.session() !== null"
           >
@@ -111,12 +111,24 @@
         <p class="calendar-loading" role="status">カレンダーを準備しています…</p>
       }
       @if (stylesReady()) {
-        <full-calendar class="workspace-calendar" [options]="options" [events]="events()">
-          <ng-template #eventContent let-info>
-            <span class="event-name">{{ info.event.title }}</span>
-            <span class="event-clock">{{ info.event.start | time }}</span>
-          </ng-template>
-        </full-calendar>
+        <!--
+          スクロールは FullCalendar の内側ではなく、この領域で行う。
+          内側のスクロール領域は表（grid）の途中にあり、キーボードで操作できるようにすると表の構造が崩れるため。
+        -->
+        <div
+          #scroller
+          class="calendar-scroll"
+          tabindex="0"
+          role="region"
+          [attr.aria-label]="title() + 'の予定'"
+        >
+          <full-calendar class="workspace-calendar" [options]="options" [events]="events()">
+            <ng-template #eventContent let-info>
+              <span class="event-name">{{ info.event.title }}</span>
+              <span class="event-clock">{{ info.event.start | time }}</span>
+            </ng-template>
+          </full-calendar>
+        </div>
       }
       @if (tasks.tasks().length === 0) {
         <div class="calendar-empty">

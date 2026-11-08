@@ -19,7 +19,9 @@ describe('CalendarWorkspace', () => {
   }
 
   function startButton(element: HTMLElement): HTMLButtonElement {
-    const found = element.querySelector<HTMLButtonElement>('button[aria-label="次の課題を開始"]');
+    const found = element.querySelector<HTMLButtonElement>(
+      'button[aria-label="次の課題をはじめる"]',
+    );
     if (!found) throw new Error('開始ボタンがない');
     return found;
   }

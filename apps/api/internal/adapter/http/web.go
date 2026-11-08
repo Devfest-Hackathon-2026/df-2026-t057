@@ -66,7 +66,19 @@ func APIOnly(api http.Handler) http.Handler {
 }
 
 // WithWeb は API と、管理画面の静的ファイル（SPA）を同じオリジンから配信する。
-func WithWeb(api http.Handler, staticDir, authDomain string) (http.Handler, error) {
+// WebOption は管理画面の配信の設定。
+type WebOption func(*webOptions)
+
+type webOptions struct{ demoSession bool }
+
+// WithDemoSession は、デモモードで管理画面のページを返すときに利用者の Cookie を発行する。
+func WithDemoSession() WebOption { return func(o *webOptions) { o.demoSession = true } }
+
+func WithWeb(api http.Handler, staticDir, authDomain string, opts ...WebOption) (http.Handler, error) {
+	var options webOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
 	index, err := os.ReadFile(filepath.Join(staticDir, "index.html")) //nolint:gosec // STATIC_DIR は起動時の設定で、利用者の入力ではない。
 	if err != nil {
 		return nil, fmt.Errorf("管理画面のファイルを読めません（STATIC_DIR=%s）: %w", staticDir, err)
@@ -103,6 +115,9 @@ func WithWeb(api http.Handler, staticDir, authDomain string) (http.Handler, erro
 		nonce := hex.EncodeToString(b[:])
 		w.Header().Set("Content-Security-Policy", pageCSP(nonce, authDomain))
 		w.Header().Set("Cache-Control", "no-store")
+		if options.demoSession {
+			ensureDemoCookie(w, r)
+		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(bytes.ReplaceAll(index, []byte(NoncePlaceholder), []byte(nonce))))
 	}), nil

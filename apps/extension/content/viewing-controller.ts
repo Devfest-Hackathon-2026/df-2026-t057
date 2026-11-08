@@ -79,6 +79,7 @@ export class ViewingController {
         void this.stop(container);
       },
       resumed: () => {
+        this.#meter.retryNow();
         this.#meter.interrupt();
         this.host.resumePlayback();
       },
@@ -203,6 +204,8 @@ export class ViewingController {
     if (this.#stopping || !session || session.endedAt || actionPending()) return;
     this.#stopping = session.id;
     this.#pause();
+    // 利用者が終えると決めたので、再試行の待ち時間を待たずに残りを送る。
+    this.#meter.retryNow();
     try {
       if (!(await this.#flush())) {
         showError(container, copy.transportFailed);

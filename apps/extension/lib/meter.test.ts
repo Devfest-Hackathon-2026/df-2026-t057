@@ -85,6 +85,17 @@ describe('ViewingMeter reports', () => {
     expect(meter.begin(id, 's1', 40).id).toBe('receipt-2');
   });
 
+  it('retries immediately with the same receipt after retryNow', () => {
+    const meter = new ViewingMeter();
+    play(meter, 31);
+    const first = meter.begin(() => 'receipt-1', 's1', 0);
+    meter.fail(1000);
+    expect(meter.shouldReport(2000, true)).toBe(false);
+    meter.retryNow();
+    expect(meter.shouldReport(2000, true)).toBe(true);
+    expect(meter.begin(() => 'receipt-2', 's1', 0)).toBe(first);
+  });
+
   it('keeps a partially charged remainder but drops an uncharged report', () => {
     const meter = new ViewingMeter();
     play(meter, 31);

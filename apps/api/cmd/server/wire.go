@@ -170,7 +170,11 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (*app, erro
 		a.handler = apihttp.APIOnly(api)
 		return a, nil
 	}
-	if a.handler, err = apihttp.WithWeb(api, cfg.StaticDir, cfg.AuthDomain); err != nil {
+	var webOpts []apihttp.WebOption
+	if cfg.Mode == config.ModeDemo {
+		webOpts = append(webOpts, apihttp.WithDemoSession())
+	}
+	if a.handler, err = apihttp.WithWeb(api, cfg.StaticDir, cfg.AuthDomain, webOpts...); err != nil {
 		return nil, err
 	}
 	return a, nil

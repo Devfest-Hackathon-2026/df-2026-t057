@@ -49,3 +49,33 @@ func TestWebServesSPAWithFreshNonce(t *testing.T) {
 		t.Fatal("missing index accepted")
 	}
 }
+
+func TestWebIssuesDemoCookieOnPageOnlyWhenMissing(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "index.html"), []byte(`<app-root ngCspNonce="__DOPAGAKI_CSP_NONCE__"></app-root>`), 0o600)
+	_ = os.WriteFile(filepath.Join(dir, "app.js"), []byte(`1`), 0o600)
+	h, err := apihttp.WithWeb(http.NotFoundHandler(), dir, "", apihttp.WithDemoSession())
+	if err != nil {
+		t.Fatal(err)
+	}
+	serve := func(path string, cookie *http.Cookie) *httptest.ResponseRecorder {
+		req := httptest.NewRequestWithContext(context.Background(), "GET", path, nil)
+		if cookie != nil {
+			req.AddCookie(cookie)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+	page := serve("/calendar", nil)
+	cookies := page.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "dopagaki_demo" || !cookies[0].HttpOnly {
+		t.Fatalf("ページで Cookie を発行していない: %v", cookies)
+	}
+	if again := serve("/", cookies[0]).Result().Cookies(); len(again) != 0 {
+		t.Fatalf("Cookie があるのに発行し直した: %v", again)
+	}
+	if asset := serve("/app.js", nil).Result().Cookies(); len(asset) != 0 {
+		t.Fatalf("静的ファイルでは発行しない: %v", asset)
+	}
+}

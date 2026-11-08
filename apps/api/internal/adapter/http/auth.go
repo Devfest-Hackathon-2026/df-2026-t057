@@ -94,15 +94,22 @@ func (a authenticator) demoPrincipal(w http.ResponseWriter, r *http.Request, hea
 		}
 		return Principal{UID: demoUIDPrefix + token}, nil
 	}
+	return Principal{UID: demoUIDPrefix + ensureDemoCookie(w, r)}, nil
+}
+
+// ensureDemoCookie はデモの利用者の Cookie を返す。無ければ発行する。
+// 管理画面のページを返すときにも呼ぶ。最初の API リクエストが並行して届くと、
+// それぞれに別の利用者が作られてしまうため、ページの時点で Cookie を決めておく。
+func ensureDemoCookie(w http.ResponseWriter, r *http.Request) string {
 	if c, err := r.Cookie(demoCookie); err == nil && demoTokenPattern.MatchString(c.Value) {
-		return Principal{UID: demoUIDPrefix + c.Value}, nil
+		return c.Value
 	}
 	var b [16]byte
 	_, _ = rand.Read(b[:])
 	token := hex.EncodeToString(b[:])
 	//nolint:gosec // Secure は TLS のときだけ付ける（ローカルのデモは http）。HttpOnly と SameSite=Lax は常に付ける。
 	http.SetCookie(w, &http.Cookie{Name: demoCookie, Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: demoCookieAge, Secure: secureRequest(r)})
-	return Principal{UID: demoUIDPrefix + token}, nil
+	return token
 }
 
 func secureRequest(r *http.Request) bool {

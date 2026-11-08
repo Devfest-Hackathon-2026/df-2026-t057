@@ -71,6 +71,8 @@ test('calendar selection, routes and chat preserve the chosen task and draft', a
   expect((await api.wallet()).balanceSeconds).toBe(balance);
 
   await page.getByRole('link', { name: '課題', exact: true }).click();
+  // 画面の切り替えを待たずに戻ると、1つ前のカレンダーの URL へ戻ってしまう。
+  await expect(page).toHaveURL(/\/tasks/);
   await page.goBack();
   await expect(page).toHaveURL(/calendar.*task=calendar-b/);
   await expect(home.detail).toBeVisible();

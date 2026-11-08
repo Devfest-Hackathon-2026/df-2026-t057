@@ -143,6 +143,14 @@ export class ViewingMeter {
     this.#retryAt = now + retryDelayMs(this.#failures);
   }
 
+  /**
+   * 再試行までの待ち時間をなくす。接続が戻ったときや、利用者が操作したときに使う。
+   * 再送は同じ receipt（同じ Idempotency-Key）なので、サーバーで二重に数えられることはない。
+   */
+  retryNow(): void {
+    this.#retryAt = 0;
+  }
+
   /** サーバーが受け付けない報告だった（区切りが終わったなど）。捨てて数え直す。 */
   discard(): void {
     this.#inFlight = false;

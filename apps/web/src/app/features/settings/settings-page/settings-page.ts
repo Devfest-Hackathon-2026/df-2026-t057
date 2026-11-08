@@ -226,9 +226,10 @@ export class SettingsPage {
     this.shortcut.ensureLoaded();
     this.sleep.ensureLoaded();
     const destroyRef = inject(DestroyRef);
+    // 利用者が編集したときだけ、前回の保存の失敗表示を消す。
+    // store の値に合わせる patch は emitEvent: false で行うので、ここには来ない。
     this.mainForm.valueChanges.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
-      this.main.set(this.mainForm.getRawValue());
-      this.mainValid.set(this.mainForm.valid);
+      this.refreshMain();
       this.profileFailed.set(false);
     });
     this.policyForm.valueChanges.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
@@ -279,16 +280,25 @@ export class SettingsPage {
     });
   }
 
+  private refreshMain(): void {
+    this.main.set(this.mainForm.getRawValue());
+    this.mainValid.set(this.mainForm.valid);
+  }
+
   private syncSettings(saved: Settings): void {
     const current = this.mainForm.getRawValue();
     if (!this.syncedSettings || sameKeys(current, this.syncedSettings, settingKeys)) {
-      this.mainForm.patchValue({
-        mode: saved.mode,
-        snoozeMinutes: saved.snoozeMinutes,
-        sound: saved.sound,
-        reducedMotion: saved.reducedMotion,
-        grime: saved.grime,
-      });
+      this.mainForm.patchValue(
+        {
+          mode: saved.mode,
+          snoozeMinutes: saved.snoozeMinutes,
+          sound: saved.sound,
+          reducedMotion: saved.reducedMotion,
+          grime: saved.grime,
+        },
+        { emitEvent: false },
+      );
+      this.refreshMain();
     }
     this.syncedSettings = saved;
   }
@@ -296,7 +306,8 @@ export class SettingsPage {
   private syncProfile(saved: Profile): void {
     const current = this.mainForm.getRawValue();
     if (!this.syncedProfile || sameKeys(current, this.syncedProfile, profileKeys)) {
-      this.mainForm.patchValue({ name: saved.name, context: saved.context });
+      this.mainForm.patchValue({ name: saved.name, context: saved.context }, { emitEvent: false });
+      this.refreshMain();
     }
     this.syncedProfile = saved;
   }
