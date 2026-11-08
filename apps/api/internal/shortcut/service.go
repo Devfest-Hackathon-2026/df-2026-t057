@@ -105,26 +105,21 @@ func (s *Service) Revoke(ctx context.Context, uid string) error {
 	})
 }
 
-// Notification は通知に出す内容。
-type Notification struct {
-	Title   string
-	Message string
-	URL     string
-	// Stop は今日の視聴時間が0分で、ショートカットが DOPAGAKI を開くとき true（閉じたときは常に false）。
-	Stop bool
-	// MinutesLeft は今日あと何分見られるか。残高を使わないモード（reminder・self）と閉じたときは nil。
-	MinutesLeft *int
-}
+// 呼び出しの上限を数える枠。聞き直しは別に数え、開閉を連打しても通知が抜けないようにする。
+const (
+	bucketOpenClose = "open"
+	bucketCheck     = "check"
+)
 
 // authorize は呼び出しの上限とキーを確かめ、アカウントの uid を返す。アカウントを作らない。
 // 全体の上限 → キーの照合 → アカウントごとの上限の順に確かめる（不正なキーでほかの人の上限を使い切れないように）。
 // キーの照合とアカウントごとの上限は、fn と同じトランザクションの中で行う。
-func (s *Service) authorize(ctx context.Context, key string, now time.Time, fn func(ctx context.Context, tx *store.Tx, uid string) error) (string, error) {
+func (s *Service) authorize(ctx context.Context, bucket, key string, now time.Time, fn func(ctx context.Context, tx *store.Tx, uid string) error) (string, error) {
 	uid, hash, ok := ParseKey(key)
 	if !ok || !store.ValidUID(uid) {
 		return "", apperr.Unauthenticated("shortcut.key_malformed")
 	}
-	if !s.limiter.allow("*", TotalPerMinute, now) {
+	if !s.limiter.allow(bucket+":*", TotalPerMinute, now) {
 		return "", apperr.RateLimited("shortcut.rate_limited", time.Minute)
 	}
 	err := s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
@@ -135,7 +130,7 @@ func (s *Service) authorize(ctx context.Context, key string, now time.Time, fn f
 		if !found || !k.Matches(hash) {
 			return apperr.Unauthenticated("shortcut.key_invalid")
 		}
-		if !s.limiter.allow(uid, PerAccountPerMinute, now) {
+		if !s.limiter.allow(bucket+":"+uid, PerAccountPerMinute, now) {
 			return apperr.RateLimited("shortcut.rate_limited", time.Minute)
 		}
 		return fn(ctx, tx, uid)
@@ -143,80 +138,35 @@ func (s *Service) authorize(ctx context.Context, key string, now time.Time, fn f
 	return uid, err
 }
 
-// notificationURL は通知から開く管理画面。次の課題があれば、その課題の通知画面を開く。
-func (s *Service) notificationURL(next *task.Task) string {
-	if next == nil {
-		return s.appURL + "/"
-	}
-	return s.appURL + "/?notification=" + url.QueryEscape(next.ID)
-}
-
-// Open は YouTube アプリが前面に来たときにショートカットから呼ばれる。
-// 今日の残り時間と相棒の一言を返す。残り0分なら Stop を立て、ショートカットが DOPAGAKI を開く（YouTube は止めない）。
-func (s *Service) Open(ctx context.Context, key string) (Notification, error) {
-	now := s.clock.Now()
-	var next *task.Task
-	uid, err := s.authorize(ctx, key, now, func(ctx context.Context, tx *store.Tx, uid string) error {
-		var err error
-		if next, err = s.tasks.NextPending(ctx, tx, uid); err != nil {
-			return err
-		}
-		opens, _, err := store.Get[AppOpens](ctx, tx, opensRef(uid))
-		if err != nil {
-			return err
-		}
-		return tx.Set(opensRef(uid), opens.Record(store.Truncate(now)))
-	})
-	if err != nil {
-		return Notification{}, err
-	}
+// due は、開いた時刻と今の口座・次の課題から、通知する時刻を決める。
+func (s *Service) due(ctx context.Context, uid string, opened time.Time, next *task.Task) (Due, bool, error) {
 	var account wallet.Account
 	if err := s.wallet.Read(ctx, uid, func(_ context.Context, _ *store.Tx, a *wallet.Account) error {
 		account = *a
 		return nil
 	}); err != nil {
-		return Notification{}, err
+		return Due{}, false, err
 	}
-	n := Notification{Title: notificationTitle, URL: s.notificationURL(next)}
-	taskID, title, why := "", "", ""
+	var start time.Time
 	if next != nil {
-		taskID, title, why = next.ID, next.Title, next.Why
+		start = next.Plan.Start
 	}
-	limited := account.Mode.Limited()
-	if limited && account.Available() <= 0 {
-		zero := 0
-		n.Stop, n.MinutesLeft = true, &zero
-		n.Message = s.line(ctx, s.lines.BalanceZeroLine, uid, taskID, fallbackBalanceZeroLine())
-		return n, nil
-	}
-	n.Message = s.line(ctx, s.lines.AppOpenLine, uid, taskID, fallbackLine(title, why))
-	if limited {
-		minutes := max(1, account.Available()/60)
-		n.MinutesLeft = &minutes
-		n.Message = minutesLeftPrefix(minutes) + n.Message
-	}
-	return n, nil
+	due, found := NextDue(opened, account.Available(), account.Mode.Limited(), start)
+	return due, found, nil
 }
 
-// line は相棒の一言。AI が使えないときや失敗したときは fallback を返す。
-func (s *Service) line(ctx context.Context, get func(ctx context.Context, uid, taskID string) (string, error), uid, taskID, fallback string) string {
-	line, err := get(ctx, uid, taskID)
-	if err != nil {
-		s.log.WarnContext(ctx, "shortcut line failed", "code", apperr.As(err).Code)
-	}
-	if line == "" {
-		return fallback
-	}
-	return line
+// Opened は YouTube アプリを開いたときの応答。Wait が 0 なら、ショートカットは待たずに終わる。
+type Opened struct {
+	OpenID string
+	Wait   time.Duration
 }
 
-// Close は YouTube アプリが前面から外れたときにショートカットから呼ばれる。
-// 直前に開いてから使った時間を記録し、振り返りの一言を返す。視聴時間の残高は変えない。
-func (s *Service) Close(ctx context.Context, key string) (Notification, error) {
-	now := s.clock.Now()
+// Open は YouTube アプリが前面に来たときにショートカットから呼ばれる。開いた時刻を記録するだけで、通知はしない。
+// 通知する時刻（持ち時間を使い切る時刻か、課題を始める時刻）があれば、聞き直すまでの待ち時間を返す。
+func (s *Service) Open(ctx context.Context, key string) (Opened, error) {
+	now := store.Truncate(s.clock.Now())
 	var next *task.Task
-	var use *AppUse
-	_, err := s.authorize(ctx, key, now, func(ctx context.Context, tx *store.Tx, uid string) error {
+	uid, err := s.authorize(ctx, bucketOpenClose, key, now, func(ctx context.Context, tx *store.Tx, uid string) error {
 		var err error
 		if next, err = s.tasks.NextPending(ctx, tx, uid); err != nil {
 			return err
@@ -225,21 +175,125 @@ func (s *Service) Close(ctx context.Context, key string) (Notification, error) {
 		if err != nil {
 			return err
 		}
-		updated, recorded, ok := opens.RecordClose(store.Truncate(now))
+		return tx.Set(opensRef(uid), opens.Record(now))
+	})
+	if err != nil {
+		return Opened{}, err
+	}
+	due, found, err := s.due(ctx, uid, now, next)
+	if err != nil {
+		return Opened{}, err
+	}
+	return Opened{OpenID: FormatOpenID(now), Wait: FirstWait(due, found, now)}, nil
+}
+
+// Notification は通知に出す内容。OpenApp が true なら、ショートカットは URL（DOPAGAKI）も開く。
+type Notification struct {
+	Title   string
+	Message string
+	URL     string
+	OpenApp bool
+}
+
+// Checked は聞き直したときの応答。Action が ActionNotify なら Notification、ActionWait なら Wait が入る。
+type Checked struct {
+	Action       Action
+	Wait         time.Duration
+	Notification Notification
+}
+
+// Check は、開いてから待ち終わったショートカットから呼ばれる。
+// その「開いた」がまだ続いていて通知の時刻になっていれば、相棒の一言を返す。時刻が後ろにずれていれば待ち直させる。
+// もう閉じた、もっと新しい「開いた」がある、もう通知した、のどれかなら何もしない（AI も使わない）。
+func (s *Service) Check(ctx context.Context, key, openID string) (Checked, error) {
+	opened, ok := ParseOpenID(openID)
+	if !ok {
+		return Checked{}, apperr.Invalid("request.invalid", apperr.Field("openId", "not_allowed"))
+	}
+	now := s.clock.Now()
+	var next *task.Task
+	watching := false
+	uid, err := s.authorize(ctx, bucketCheck, key, now, func(ctx context.Context, tx *store.Tx, uid string) error {
+		opens, _, err := store.Get[AppOpens](ctx, tx, opensRef(uid))
+		if err != nil || !opens.Watching(opened) {
+			return err
+		}
+		watching = true
+		next, err = s.tasks.NextPending(ctx, tx, uid)
+		return err
+	})
+	if err != nil || !watching {
+		return Checked{Action: ActionNone}, err
+	}
+	due, found, err := s.due(ctx, uid, opened, next)
+	if err != nil {
+		return Checked{}, err
+	}
+	action, wait := Decide(due, found, now)
+	if action != ActionNotify {
+		return Checked{Action: action, Wait: wait}, nil
+	}
+	// 同じ回の聞き直しが重なっても、通知は1回だけにする。
+	err = s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
+		opens, _, err := store.Get[AppOpens](ctx, tx, opensRef(uid))
+		if err != nil || !opens.Watching(opened) {
+			watching = false
+			return err
+		}
+		return tx.Set(opensRef(uid), opens.MarkNotified(opened))
+	})
+	if err != nil || !watching {
+		return Checked{Action: ActionNone}, err
+	}
+	return Checked{Action: ActionNotify, Notification: s.notification(ctx, uid, due.Reason, next)}, nil
+}
+
+// notification は通知の内容。持ち時間を使い切ったときは DOPAGAKI も開く。
+func (s *Service) notification(ctx context.Context, uid string, reason DueReason, next *task.Task) Notification {
+	n := Notification{Title: notificationTitle, URL: s.appURL + "/"}
+	taskID := ""
+	if next != nil {
+		taskID = next.ID
+		n.URL += "?notification=" + url.QueryEscape(next.ID)
+	}
+	var line string
+	var err error
+	switch reason {
+	case DueBalance:
+		n.OpenApp = true
+		line, err = s.lines.BalanceZeroLine(ctx, uid, taskID)
+		if line == "" {
+			line = fallbackBalanceZeroLine()
+		}
+	case DueTask:
+		line, err = s.lines.NoticeLine(ctx, uid, taskID)
+		if line == "" {
+			line = fallbackTaskLine(next.Title, next.Why)
+		}
+	}
+	if err != nil {
+		s.log.WarnContext(ctx, "shortcut line failed", "reason", string(reason), "code", apperr.As(err).Code)
+	}
+	n.Message = line
+	return n
+}
+
+// Close は YouTube アプリが前面から外れたときにショートカットから呼ばれる。
+// 直前に開いてから使った時間を振り返り用に記録するだけで、通知はしない。視聴時間の残高は変えない。
+func (s *Service) Close(ctx context.Context, key string) error {
+	now := store.Truncate(s.clock.Now())
+	_, err := s.authorize(ctx, bucketOpenClose, key, now, func(ctx context.Context, tx *store.Tx, uid string) error {
+		opens, _, err := store.Get[AppOpens](ctx, tx, opensRef(uid))
+		if err != nil {
+			return err
+		}
+		updated, _, ok := opens.RecordClose(now)
 		if !ok {
 			return nil
 		}
-		use = &recorded
 		return tx.Set(opensRef(uid), updated)
 	})
-	if err != nil {
-		return Notification{}, err
-	}
-	title := ""
-	if next != nil {
-		title = next.Title
-	}
-	return Notification{Title: notificationTitle, Message: closeLine(use, title), URL: s.notificationURL(next)}, nil
+	return err
 }
 
 // AppOpenCounts は YouTube を開いた回数（今日と直近7日）。相棒の一言と相談の参考にする。

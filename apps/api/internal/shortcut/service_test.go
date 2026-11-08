@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/shortcut"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/testkit"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/wallet"
@@ -30,9 +30,9 @@ func TestShortcutKeyLifecycle(t *testing.T) {
 	if err != nil || !regexp.MustCompile(`^[\w-]+\.[a-f0-9]{64}$`).MatchString(key) {
 		t.Fatalf("key %q %v", key, err)
 	}
-	n, err := w.Shortcut.Open(ctx, key)
-	if err != nil || !strings.Contains(n.Message, "単位のため") || n.URL != "http://app.test/?notification=t1" || !strings.Contains(n.Title, "DOPAGAKI") {
-		t.Fatalf("%+v %v", n, err)
+	o, err := w.Shortcut.Open(ctx, key)
+	if err != nil || o.OpenID == "" || o.Wait < shortcut.FirstWaitMin || o.Wait > shortcut.MaxWait {
+		t.Fatalf("%+v %v", o, err)
 	}
 	err = w.Runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
 		today, week, configured, err := w.Shortcut.AppOpenCounts(ctx, tx, uid, w.Clock.Now())
@@ -107,39 +107,109 @@ func TestUnknownAccountIsNotCreated(t *testing.T) {
 	}
 }
 
-func viewAll(t *testing.T, w *testkit.World, seconds int) {
+// world は、締切が遠い課題を1つ登録し、接続キーを発行した World。
+func world(t *testing.T, deadline time.Duration) (*testkit.World, string) {
 	t.Helper()
-	err := w.Runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
-		_, err := w.Wallet.RecordViewing(ctx, tx, uid, "r1", seconds, w.Clock.Now())
-		return err
-	})
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, testkit.JST)
+	w := testkit.New(t, now)
+	if _, err := w.Tasks.Create(ctx, uid, task.CreateRequest{ID: "t1", Input: task.Input{Title: "レポート", Minutes: 30, Deadline: now.Add(deadline)}}); err != nil {
+		t.Fatal(err)
+	}
+	key, err := w.Shortcut.Issue(ctx, uid)
 	if err != nil {
 		t.Fatal(err)
+	}
+	return w, key
+}
+
+func available(t *testing.T, w *testkit.World) time.Duration {
+	t.Helper()
+	a, _, err := w.Wallet.Get(ctx, uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return time.Duration(a.Available()) * time.Second
+}
+
+func check(t *testing.T, w *testkit.World, key, openID string) shortcut.Checked {
+	t.Helper()
+	c, err := w.Shortcut.Check(ctx, key, openID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func TestCheckNotifiesOnceWhenTimeRunsOut(t *testing.T) {
+	w, key := world(t, 6*time.Hour)
+	left := available(t, w)
+	o, err := w.Shortcut.Open(ctx, key)
+	if err != nil || o.Wait != left {
+		t.Fatalf("open %+v %v (left %v)", o, err, left)
+	}
+	w.Clock.Advance(left - time.Minute)
+	if c := check(t, w, key, o.OpenID); c.Action != shortcut.ActionWait || c.Wait != time.Minute {
+		t.Fatalf("early %+v", c)
+	}
+	w.Clock.Advance(time.Minute)
+	c := check(t, w, key, o.OpenID)
+	if c.Action != shortcut.ActionNotify || !c.Notification.OpenApp || c.Notification.URL != "http://app.test/?notification=t1" ||
+		!strings.Contains(c.Notification.Title, "DOPAGAKI") || !strings.Contains(c.Notification.Message, "区切ろう") {
+		t.Fatalf("due %+v", c)
+	}
+	if c := check(t, w, key, o.OpenID); c.Action != shortcut.ActionNone {
+		t.Fatalf("second notification %+v", c)
 	}
 }
 
-func TestOpenTellsTimeLeftAndStopsAtZero(t *testing.T) {
-	now := time.Date(2026, 11, 8, 12, 0, 0, 0, testkit.JST)
-	w := testkit.New(t, now)
-	if _, err := w.Tasks.Create(ctx, uid, task.CreateRequest{ID: "t1", Input: task.Input{Title: "レポート", Minutes: 30, Deadline: now.Add(3 * time.Hour)}}); err != nil {
+func TestCheckWaitsAgainWhenTimeWasEarnedMeanwhile(t *testing.T) {
+	w, key := world(t, 6*time.Hour)
+	left := available(t, w)
+	o, _ := w.Shortcut.Open(ctx, key)
+	// 待っている間に課題をもう1つ登録して、持ち時間が増えた。
+	if _, err := w.Tasks.Create(ctx, uid, task.CreateRequest{ID: "t2", Input: task.Input{Title: "演習", Minutes: 30, Deadline: w.Clock.Now().Add(8 * time.Hour)}}); err != nil {
 		t.Fatal(err)
 	}
-	key, _ := w.Shortcut.Issue(ctx, uid)
-	// 初めの付与と、課題を登録した付与の合計。
-	account, _, err := w.Wallet.Get(ctx, uid)
-	if err != nil {
+	earned := available(t, w) - left
+	if earned <= 0 {
+		t.Fatalf("earned %v", earned)
+	}
+	w.Clock.Advance(left)
+	if c := check(t, w, key, o.OpenID); c.Action != shortcut.ActionWait || c.Wait != earned {
+		t.Fatalf("after earning %+v (earned %v)", c, earned)
+	}
+}
+
+func TestCheckStaysSilentAfterCloseOrReopen(t *testing.T) {
+	w, key := world(t, 6*time.Hour)
+	left := available(t, w)
+	first, _ := w.Shortcut.Open(ctx, key)
+	w.Clock.Advance(time.Minute)
+	if err := w.Shortcut.Close(ctx, key); err != nil {
 		t.Fatal(err)
 	}
-	left := account.Available()
-	n, err := w.Shortcut.Open(ctx, key)
-	if err != nil || n.Stop || n.MinutesLeft == nil || *n.MinutesLeft != left/60 || !strings.HasPrefix(n.Message, "今日あと"+strconv.Itoa(left/60)+"分。") {
-		t.Fatalf("first open %+v %v", n, err)
+	w.Clock.Advance(left)
+	if c := check(t, w, key, first.OpenID); c.Action != shortcut.ActionNone {
+		t.Fatalf("closed %+v", c)
 	}
-	viewAll(t, w, left)
-	n, err = w.Shortcut.Open(ctx, key)
-	if err != nil || !n.Stop || n.MinutesLeft == nil || *n.MinutesLeft != 0 || strings.Contains(n.Message, "今日あと") || n.URL != "http://app.test/?notification=t1" {
-		t.Fatalf("zero %+v %v", n, err)
+	older, _ := w.Shortcut.Open(ctx, key)
+	w.Clock.Advance(time.Second)
+	newer, _ := w.Shortcut.Open(ctx, key)
+	w.Clock.Advance(left)
+	if c := check(t, w, key, older.OpenID); c.Action != shortcut.ActionNone {
+		t.Fatalf("reopened %+v", c)
 	}
+	if c := check(t, w, key, newer.OpenID); c.Action != shortcut.ActionNotify {
+		t.Fatalf("newer %+v", c)
+	}
+	if _, err := w.Shortcut.Check(ctx, key, "x"); !errors.Is(err, apperr.Invalid("request.invalid")) {
+		t.Fatalf("bad id = %v", err)
+	}
+}
+
+func TestTaskStartNotifiesWithoutOpeningTheApp(t *testing.T) {
+	// 締切40分前・30分の課題は、10分後に始める計画になる。
+	w, key := world(t, 40*time.Minute)
 	_, rev, err := w.Wallet.Get(ctx, uid)
 	if err != nil {
 		t.Fatal(err)
@@ -147,59 +217,91 @@ func TestOpenTellsTimeLeftAndStopsAtZero(t *testing.T) {
 	if _, _, err := w.Wallet.UpdatePolicy(ctx, uid, wallet.ModeSelf, 1800, rev); err != nil {
 		t.Fatal(err)
 	}
-	n, err = w.Shortcut.Open(ctx, key)
-	if err != nil || n.Stop || n.MinutesLeft != nil || strings.Contains(n.Message, "今日あと") {
-		t.Fatalf("self %+v %v", n, err)
+	o, _ := w.Shortcut.Open(ctx, key)
+	if o.Wait != 10*time.Minute {
+		t.Fatalf("open %+v", o)
+	}
+	w.Clock.Advance(10 * time.Minute)
+	c := check(t, w, key, o.OpenID)
+	if c.Action != shortcut.ActionNotify || c.Notification.OpenApp || !strings.Contains(c.Notification.Message, "レポート") {
+		t.Fatalf("task %+v", c)
+	}
+}
+
+func TestOpenDoesNotWaitWithNothingToWatch(t *testing.T) {
+	w := testkit.New(t, time.Date(2026, 11, 8, 12, 0, 0, 0, testkit.JST))
+	key, _ := w.Shortcut.Issue(ctx, uid)
+	_, rev, err := w.Wallet.Get(ctx, uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := w.Wallet.UpdatePolicy(ctx, uid, wallet.ModeSelf, 1800, rev); err != nil {
+		t.Fatal(err)
+	}
+	if o, err := w.Shortcut.Open(ctx, key); err != nil || o.Wait != 0 {
+		t.Fatalf("%+v %v", o, err)
+	}
+}
+
+func TestChecksAreCountedApartFromOpens(t *testing.T) {
+	w, key := world(t, 6*time.Hour)
+	var last shortcut.Opened
+	for i := range shortcut.PerAccountPerMinute {
+		var err error
+		if last, err = w.Shortcut.Open(ctx, key); err != nil {
+			t.Fatalf("%d: %v", i, err)
+		}
+		w.Clock.Advance(time.Millisecond)
+	}
+	if err := w.Shortcut.Close(ctx, key); !errors.Is(err, apperr.RateLimited("shortcut.rate_limited", 0)) {
+		t.Fatalf("close = %v", err)
+	}
+	if _, err := w.Shortcut.Check(ctx, key, last.OpenID); err != nil {
+		t.Fatalf("check = %v", err)
 	}
 }
 
 func TestCloseRecordsUseWithoutTouchingTheBalance(t *testing.T) {
-	now := time.Date(2026, 11, 8, 12, 0, 0, 0, testkit.JST)
-	w := testkit.New(t, now)
-	if _, err := w.Tasks.Create(ctx, uid, task.CreateRequest{ID: "t1", Input: task.Input{Title: "レポート", Minutes: 30, Deadline: now.Add(3 * time.Hour)}}); err != nil {
-		t.Fatal(err)
-	}
-	key, _ := w.Shortcut.Issue(ctx, uid)
-	if n, err := w.Shortcut.Close(ctx, key); err != nil || n.Message != "おつかれ。次は「レポート」の一手、いってみよっか。" {
-		t.Fatalf("close without open %+v %v", n, err)
+	w, key := world(t, 6*time.Hour)
+	if err := w.Shortcut.Close(ctx, key); err != nil {
+		t.Fatalf("close without open %v", err)
 	}
 	if _, err := w.Shortcut.Open(ctx, key); err != nil {
 		t.Fatal(err)
 	}
 	before, _, _ := w.Wallet.Get(ctx, uid)
 	w.Clock.Advance(12 * time.Minute)
-	n, err := w.Shortcut.Close(ctx, key)
-	if err != nil || !strings.Contains(n.Title, "DOPAGAKI") || n.Message != "YouTube、12分だったね。次は「レポート」の一手、いってみよっか。" {
-		t.Fatalf("close %+v %v", n, err)
+	if err := w.Shortcut.Close(ctx, key); err != nil {
+		t.Fatal(err)
 	}
 	after, _, _ := w.Wallet.Get(ctx, uid)
 	if after.Balance != before.Balance || after.Today.Viewed != before.Today.Viewed {
 		t.Fatalf("balance changed %+v -> %+v", before, after)
 	}
-	// 同じ「開いた」に2回目の「閉じた」が来ても数えない。
+	// 一瞬だけ通った回は、回数にも時間にも数えない。
 	w.Clock.Advance(time.Minute)
-	if n, err := w.Shortcut.Close(ctx, key); err != nil || !strings.HasPrefix(n.Message, "おつかれ。") {
-		t.Fatalf("duplicate close %+v %v", n, err)
-	}
-	// 閉じたのを取りこぼして3時間を超えたら数えない。
 	if _, err := w.Shortcut.Open(ctx, key); err != nil {
 		t.Fatal(err)
 	}
-	w.Clock.Advance(4 * time.Hour)
-	if n, err := w.Shortcut.Close(ctx, key); err != nil || !strings.HasPrefix(n.Message, "おつかれ。") {
-		t.Fatalf("missed close %+v %v", n, err)
+	w.Clock.Advance(10 * time.Second)
+	if err := w.Shortcut.Close(ctx, key); err != nil {
+		t.Fatal(err)
 	}
-	err = w.Runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
+	err := w.Runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
+		opens, _, _, err := w.Shortcut.AppOpenCounts(ctx, tx, uid, w.Clock.Now())
+		if err != nil {
+			return err
+		}
 		today, week, err := w.Shortcut.AppUseMinutes(ctx, tx, uid, w.Clock.Now())
-		if today != 12 || week != 12 {
-			t.Fatalf("minutes %d %d", today, week)
+		if opens != 1 || today != 12 || week != 12 {
+			t.Fatalf("opens %d minutes %d %d", opens, today, week)
 		}
 		return err
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := w.Shortcut.Close(ctx, "bad"); !errors.Is(err, apperr.Unauthenticated("shortcut.key_malformed")) {
+	if err := w.Shortcut.Close(ctx, "bad"); !errors.Is(err, apperr.Unauthenticated("shortcut.key_malformed")) {
 		t.Fatalf("malformed = %v", err)
 	}
 }

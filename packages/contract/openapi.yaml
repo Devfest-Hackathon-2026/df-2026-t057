@@ -763,27 +763,45 @@ paths:
     post:
       tags: [shortcut]
       operationId: openFromShortcut
-      description: iPhone で YouTube アプリが前面に来たときにショートカットが呼ぶ。アカウントを作らない。今日の視聴時間が0分なら stop が yes になり、ショートカットが url を開く（YouTube は止めない）。
+      description: iPhone で YouTube アプリが前面に来たときにショートカットが呼ぶ。開いた時刻を記録するだけで、通知はしない。action が wait なら、ショートカットは waitSeconds だけ待ってから /shortcut/check を呼ぶ。アカウントを作らない。
       security: [{ shortcut: [] }]
       responses:
         '200':
-          description: 通知に表示する内容
+          description: 聞き直すまでの待ち時間
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ShortcutOpen' }
+        default: { $ref: '#/components/responses/Problem' }
+  /shortcut/check:
+    post:
+      tags: [shortcut]
+      operationId: checkFromShortcut
+      description: 待ち終わったショートカットが呼ぶ。その回がまだ開いたままで、持ち時間を使い切ったか課題を始める時刻になっていれば、通知する内容を返す。時刻が後ろにずれていれば待ち直させる。閉じた・新しく開き直した・通知済みなら何もしない。
+      security: [{ shortcut: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [openId]
+              properties:
+                openId: { type: string, maxLength: 32 }
+      responses:
+        '200':
+          description: ショートカットがすること
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShortcutCheck' }
         default: { $ref: '#/components/responses/Problem' }
   /shortcut/close:
     post:
       tags: [shortcut]
       operationId: closeFromShortcut
-      description: iPhone で YouTube アプリが前面から外れたときにショートカットが呼ぶ。直前に開いてから使った時間を振り返り用に記録する。視聴時間の残高は変えない。アカウントを作らない。
+      description: iPhone で YouTube アプリが前面から外れたときにショートカットが呼ぶ。直前に開いてから使った時間を振り返り用に記録するだけで、通知はしない。視聴時間の残高は変えない。アカウントを作らない。
       security: [{ shortcut: [] }]
       responses:
-        '200':
-          description: 通知に表示する内容
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ShortcutClose' }
+        '204': { description: 記録した }
         default: { $ref: '#/components/responses/Problem' }
 
   # ───────────────────────── companion ─────────────────────────
@@ -1615,26 +1633,31 @@ components:
         createdAt: { type: string, format: date-time }
     ShortcutOpen:
       type: object
-      required: [title, message, url, stop]
+      required: [openId, action, waitSeconds]
       properties:
+        openId: { type: string, description: この「開いた」の番号。/shortcut/check に渡す }
+        action:
+          type: string
+          enum: [wait, none]
+          description: ショートカットの「もし」は文字列で比べるので文字列にする。none なら待たずに終わる
+        waitSeconds:
+          { type: integer, minimum: 0, description: 聞き直すまでの秒数（60〜900）。none なら 0 }
+    ShortcutCheck:
+      type: object
+      required: [action, waitSeconds, openApp]
+      properties:
+        action:
+          type: string
+          enum: [notify, wait, none]
+          description: notify なら title・message を通知する。wait なら waitSeconds だけ待って聞き直す
+        waitSeconds: { type: integer, minimum: 0 }
         title: { type: string }
         message: { type: string }
         url: { type: string, format: uri }
-        stop:
+        openApp:
           type: string
           enum: ['yes', 'no']
-          description: ショートカットの「もし」は文字列で比べるので、真偽値ではなく文字列にする。yes なら url を開く
-        minutesLeft:
-          type: integer
-          minimum: 0
-          description: 今日あと何分見られるか。残高を使わないモード（reminder・self）では返さない
-    ShortcutClose:
-      type: object
-      required: [title, message, url]
-      properties:
-        title: { type: string }
-        message: { type: string }
-        url: { type: string, format: uri }
+          description: yes なら通知のあとに url（DOPAGAKI）を開く。持ち時間を使い切ったとき
 
     # ── companion ──
     CompanionMoment:

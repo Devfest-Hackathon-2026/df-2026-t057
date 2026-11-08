@@ -581,8 +581,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description iPhone で YouTube アプリが前面に来たときにショートカットが呼ぶ。アカウントを作らない。今日の視聴時間が0分なら stop が yes になり、ショートカットが url を開く（YouTube は止めない）。 */
+        /** @description iPhone で YouTube アプリが前面に来たときにショートカットが呼ぶ。開いた時刻を記録するだけで、通知はしない。action が wait なら、ショートカットは waitSeconds だけ待ってから /shortcut/check を呼ぶ。アカウントを作らない。 */
         post: operations["openFromShortcut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shortcut/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description 待ち終わったショートカットが呼ぶ。その回がまだ開いたままで、持ち時間を使い切ったか課題を始める時刻になっていれば、通知する内容を返す。時刻が後ろにずれていれば待ち直させる。閉じた・新しく開き直した・通知済みなら何もしない。 */
+        post: operations["checkFromShortcut"];
         delete?: never;
         options?: never;
         head?: never;
@@ -598,7 +615,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description iPhone で YouTube アプリが前面から外れたときにショートカットが呼ぶ。直前に開いてから使った時間を振り返り用に記録する。視聴時間の残高は変えない。アカウントを作らない。 */
+        /** @description iPhone で YouTube アプリが前面から外れたときにショートカットが呼ぶ。直前に開いてから使った時間を振り返り用に記録するだけで、通知はしない。視聴時間の残高は変えない。アカウントを作らない。 */
         post: operations["closeFromShortcut"];
         delete?: never;
         options?: never;
@@ -1173,23 +1190,32 @@ export interface components {
             createdAt?: string;
         };
         ShortcutOpen: {
-            title: string;
-            message: string;
-            /** Format: uri */
-            url: string;
+            /** @description この「開いた」の番号。/shortcut/check に渡す */
+            openId: string;
             /**
-             * @description ショートカットの「もし」は文字列で比べるので、真偽値ではなく文字列にする。yes なら url を開く
+             * @description ショートカットの「もし」は文字列で比べるので文字列にする。none なら待たずに終わる
              * @enum {string}
              */
-            stop: "yes" | "no";
-            /** @description 今日あと何分見られるか。残高を使わないモード（reminder・self）では返さない */
-            minutesLeft?: number;
+            action: "wait" | "none";
+            /** @description 聞き直すまでの秒数（60〜900）。none なら 0 */
+            waitSeconds: number;
         };
-        ShortcutClose: {
-            title: string;
-            message: string;
+        ShortcutCheck: {
+            /**
+             * @description notify なら title・message を通知する。wait なら waitSeconds だけ待って聞き直す
+             * @enum {string}
+             */
+            action: "notify" | "wait" | "none";
+            waitSeconds: number;
+            title?: string;
+            message?: string;
             /** Format: uri */
-            url: string;
+            url?: string;
+            /**
+             * @description yes なら通知のあとに url（DOPAGAKI）を開く。持ち時間を使い切ったとき
+             * @enum {string}
+             */
+            openApp: "yes" | "no";
         };
         /** @enum {string} */
         CompanionMoment: "notice" | "snooze" | "complete" | "balance_zero" | "app_open" | "night" | "morning";
@@ -2363,13 +2389,40 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 通知に表示する内容 */
+            /** @description 聞き直すまでの待ち時間 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ShortcutOpen"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    checkFromShortcut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    openId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description ショートカットがすること */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortcutCheck"];
                 };
             };
             default: components["responses"]["Problem"];
@@ -2384,14 +2437,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 通知に表示する内容 */
-            200: {
+            /** @description 記録した */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["ShortcutClose"];
-                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

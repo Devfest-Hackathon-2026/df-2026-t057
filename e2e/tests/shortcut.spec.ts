@@ -27,27 +27,30 @@ test('a Shortcuts key is shown once, answers like the iPhone automation, and can
       headers: { Authorization: `Shortcut ${key}` },
     });
     expect(opened.status()).toBe(200);
-    const body = (await opened.json()) as {
-      title: string;
-      message: string;
-      url: string;
-      stop: string;
-      minutesLeft?: number;
-    };
-    expect(body.title).toContain('DOPAGAKI');
-    expect(body.stop).toBe('no');
-    expect(body.message).toMatch(/^今日あと\d+分。/);
-    expect(body.message.length).toBeGreaterThan(0);
-    expect(body.url).toContain('?notification=');
+    // 開いたときは記録だけで、通知する内容は返さない。聞き直すまでの待ち時間を返す。
+    const body = (await opened.json()) as { openId: string; action: string; waitSeconds: number };
+    expect(body.action).toBe('wait');
+    expect(body.waitSeconds).toBeGreaterThanOrEqual(60);
+    expect(body.waitSeconds).toBeLessThanOrEqual(900);
 
-    // 閉じたときは、開いてから使った時間を振り返る一言を返す（視聴時間は変えない）。
+    // まだ時刻ではないので、待ち直させる。
+    const checked = await phone.post('/api/shortcut/check', {
+      headers: { Authorization: `Shortcut ${key}` },
+      data: { openId: body.openId },
+    });
+    expect(checked.status()).toBe(200);
+    expect(((await checked.json()) as { action: string }).action).toBe('wait');
+
+    // 閉じたときは記録だけ。閉じたあとの聞き直しは何もしない。
     const closed = await phone.post('/api/shortcut/close', {
       headers: { Authorization: `Shortcut ${key}` },
     });
-    expect(closed.status()).toBe(200);
-    const closedBody = (await closed.json()) as { title: string; message: string };
-    expect(closedBody.title).toContain('DOPAGAKI');
-    expect(closedBody.message).toMatch(/^YouTube、/);
+    expect(closed.status()).toBe(204);
+    const afterClose = await phone.post('/api/shortcut/check', {
+      headers: { Authorization: `Shortcut ${key}` },
+      data: { openId: body.openId },
+    });
+    expect(((await afterClose.json()) as { action: string }).action).toBe('none');
 
     // キーは発行したときにだけ表示する。開き直すと見えない。
     await page.reload();

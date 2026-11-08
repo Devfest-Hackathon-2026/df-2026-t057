@@ -10,7 +10,7 @@ import (
 
 // Lines は相棒の一言（AI）。AI が使えなければ空文字を返す。
 type Lines interface {
-	AppOpenLine(ctx context.Context, uid, taskID string) (string, error)
+	NoticeLine(ctx context.Context, uid, taskID string) (string, error)
 	BalanceZeroLine(ctx context.Context, uid, taskID string) (string, error)
 }
 
