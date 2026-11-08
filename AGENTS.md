@@ -219,6 +219,7 @@ Material Design 3に従う。色・文字・角丸・余白・影は、すべて
 - 画面のSCSSと拡張のCSSは、**sysトークンだけを参照する**。16進数などの色の値、`px` の文字サイズ、独自の色変数を直接書かない。stylelintで禁止する。
 - パレットは、今の雰囲気（紙のような明るい背景、濃い文字、青、ライム）を元に、`ng generate @angular/material:theme-color` で生成する。M3の役割どおりに使う（例：補足の文字は `on-surface-variant`、区切り線は `outline-variant`、入力欄の枠は `outline`）。
 - ライトとダークの両方に対応する。`color-scheme: light dark` を指定し、トークンの切り替えで対応する。
+- サイドバーはライトでも暗く保つ。`color-scheme: dark` をサイドバーにだけ指定し、中はダークのsysトークンで塗る。選択中の項目は `tertiary-container`（ライム）で示す。
 - Angular Materialのコンポーネントを、内部のクラス名を指定して上書きしない。
 
 ### 文字
@@ -226,6 +227,7 @@ Material Design 3に従う。色・文字・角丸・余白・影は、すべて
 - M3のタイプスケールのトークン（`--mat-sys-body-large` など）を使う。文字サイズの単位は `rem`。
 - 日本語の本文は `body-large`（16px / 24px）を基準にする。`label-small`（11px）は、バッジなど補助的な表示だけに使う。
 - 日本語に負の `letter-spacing` を付けない。
+- 見出し（`headline-*`、`title-large`）は太さを700にする。M3の既定の400は日本語では細すぎる。値は `packages/tokens/scripts/generate.cjs` で上書きする。
 
 ## アクセシビリティ
 
