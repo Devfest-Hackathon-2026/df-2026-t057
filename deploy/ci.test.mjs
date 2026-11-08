@@ -451,5 +451,5 @@ test('E2E sets up Go before node_modules exist and builds the API and web togeth
 
 test('E2E runs several browsers at once on the two-core CI runner', () => {
   const config = readFileSync(new URL('../e2e/playwright.config.ts', import.meta.url), 'utf8');
-  assert.match(config, /workers: process\.env\['CI'\] \? 3 : undefined/);
+  assert.match(config, /process\.env\['CI'\] \? \{ workers: 3 \} : \{\}/);
 });
