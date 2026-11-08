@@ -1,30 +1,30 @@
 @if (work.session(); as session) {
-  <section class="focus-bar" aria-label="作業タイマー">
+  <section class="focus-bar" [attr.aria-label]="text().work.focusBar.label">
     <div class="summary">
       <span class="status-dot" [class.paused]="!session.running" aria-hidden="true"></span>
-      <strong class="title">{{ task()?.title ?? '作業中の課題' }}</strong>
+      <strong class="title">{{ task()?.title ?? text().work.focusBar.untitled }}</strong>
       <span class="clock" role="timer" aria-live="off">{{ clock() }}</span>
-      <span class="limit">/ {{ work.limitMinutes() }}分</span>
+      <span class="limit">{{ text().work.focusBar.limit(work.limitMinutes()) }}</span>
       @if (!session.running) {
-        <span class="paused-label">一時停止中</span>
+        <span class="paused-label">{{ text().work.focusBar.paused }}</span>
       }
     </div>
     <div class="actions">
       <button mat-button type="button" (click)="toggle()" [disabled]="busy()">
-        {{ session.running ? '一時停止' : '再開' }}
+        {{ session.running ? text().work.focusBar.pause : text().work.focusBar.resume }}
       </button>
       <button mat-button type="button" (click)="actions.confirmWork()" [disabled]="busy()">
-        ここまで取り組んだ
+        {{ text().work.focusBar.confirm }}
       </button>
       <button mat-flat-button type="button" (click)="complete()" [disabled]="busy() || !task()">
-        課題を完了
+        {{ text().work.focusBar.complete }}
       </button>
     </div>
     <mat-progress-bar
       class="progress"
       mode="determinate"
       [value]="work.progress()"
-      aria-label="作業の進捗"
+      [attr.aria-label]="text().work.focusBar.progress"
     />
     @if (error(); as error) {
       <p class="error" role="alert">{{ error.message }}</p>

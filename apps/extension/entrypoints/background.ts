@@ -15,7 +15,6 @@ import { handleRequest, syncAll } from '../background/router';
 import { getState, onStateChange } from '../background/store';
 import { forgetTab, onOwnerChange } from '../background/viewing';
 import { getConnection } from '../background/connection';
-import { extensionCopy } from '@dopagaki/messages';
 import { requestSchema } from '../lib/protocol';
 import { workSiteScriptId } from '../lib/urls';
 
@@ -42,12 +41,13 @@ export default defineBackground(() => {
   chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
     if (sender.id !== chrome.runtime.id) return false;
     const parsed = requestSchema.safeParse(message);
+    // 返事の文言は利用者の言語で引くため、断るときも非同期で返す。
     if (!parsed.success) {
-      sendResponse(errorReply(new ExtensionError(extensionCopy.operationUnknown)));
-      return false;
+      void errorReply(new ExtensionError('operationUnknown')).then(sendResponse);
+      return true;
     }
-    handleRequest(parsed.data, sender).then(sendResponse, (error: unknown) => {
-      sendResponse(errorReply(error));
+    handleRequest(parsed.data, sender).then(sendResponse, async (error: unknown) => {
+      sendResponse(await errorReply(error));
     });
     return true;
   });

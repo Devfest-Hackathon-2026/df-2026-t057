@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import type { Task } from '@dopagaki/contract';
+import { LocaleStore } from '../../../core/i18n/locale.store';
 import { DateTimePipe, localDateKey, planMinutes } from '../../../shared/ui/format';
 import { TaskActions } from '../task-actions';
 import { TasksStore } from '../tasks.store';
@@ -39,6 +40,7 @@ export class TasksPage {
   protected readonly store = inject(TasksStore);
   protected readonly actions = inject(TaskActions);
   private readonly dialog = inject(MatDialog);
+  protected readonly text = inject(LocaleStore).web;
 
   protected readonly filter = signal<Filter>('pending');
   protected readonly tasks = computed(() => filterTasks(this.store.tasks(), this.filter()));

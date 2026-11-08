@@ -1,8 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AccountScope } from './account-scope';
-import { authErrorMessage, firebaseConfigMissingMessage } from './auth-errors';
+import { authErrorMessage } from './auth-errors';
 import { FIREBASE_AUTH_LOADER, type FirebaseAuthPort, type FirebaseUser } from './firebase-auth';
 import { ConfigStore } from '../config/config.store';
+import { LocaleStore } from '../i18n/locale.store';
 
 export type AuthStatus =
   /** 設定とログイン状態を確認している */
@@ -32,6 +33,7 @@ export class AuthService {
   private readonly configStore = inject(ConfigStore);
   private readonly scope = inject(AccountScope);
   private readonly loadFirebase = inject(FIREBASE_AUTH_LOADER);
+  private readonly localeStore = inject(LocaleStore);
   private firebase: FirebaseAuthPort | undefined;
   private started = false;
 
@@ -78,7 +80,7 @@ export class AuthService {
     try {
       this.firebase = await this.loadFirebase(firebaseConfig);
     } catch (error: unknown) {
-      this.error.set(authErrorMessage(error));
+      this.error.set(authErrorMessage(error, this.localeStore.locale()));
       this.status.set('signedOut');
       return;
     }
@@ -112,7 +114,7 @@ export class AuthService {
       this.idToken.set(token);
       this.status.set('signedIn');
     } catch (error: unknown) {
-      this.error.set(authErrorMessage(error));
+      this.error.set(authErrorMessage(error, this.localeStore.locale()));
     }
   }
 
@@ -128,7 +130,7 @@ export class AuthService {
     if (this.status() === 'signingIn') return;
     this.error.set(undefined);
     if (!this.firebase) {
-      this.error.set(firebaseConfigMissingMessage);
+      this.error.set(this.localeStore.web().app.auth.firebaseConfigMissing);
       return;
     }
     const previous = this.status();
@@ -136,7 +138,7 @@ export class AuthService {
     try {
       await this.firebase.signInWithGoogle();
     } catch (error: unknown) {
-      this.error.set(authErrorMessage(error));
+      this.error.set(authErrorMessage(error, this.localeStore.locale()));
     } finally {
       // 成功したときは onIdTokenChanged が状態を決める。
       if (this.status() === 'signingIn') {
@@ -153,7 +155,7 @@ export class AuthService {
     try {
       await this.firebase.signOut();
     } catch (error: unknown) {
-      this.error.set(authErrorMessage(error));
+      this.error.set(authErrorMessage(error, this.localeStore.locale()));
     }
   }
 

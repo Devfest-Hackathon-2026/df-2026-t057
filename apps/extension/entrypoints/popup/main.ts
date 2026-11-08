@@ -1,15 +1,10 @@
 // ポップアップ。接続の状態、視聴できる時間、作業中の課題か次の課題、作業サイトでのタイマーの許可。
 import '@dopagaki/tokens/tokens.css';
 import './style.css';
-import {
-  clockLabel,
-  durationLabel,
-  extensionCopy,
-  timeLabel,
-  workRewardMessage,
-} from '@dopagaki/messages';
+import { clockLabel } from '@dopagaki/messages';
 import { send } from '../../content/messaging';
 import { MANAGEMENT_ORIGIN } from '../../lib/config';
+import { currentLocale, currentMessages, followLocale } from '../../lib/locale';
 import type { OkReply, Request } from '../../lib/protocol';
 import type { ExtensionState } from '../../lib/schemas';
 import { workSitePattern, workSiteScriptId } from '../../lib/urls';
@@ -30,10 +25,18 @@ const workActions = byId('work-actions', HTMLElement);
 const status = byId('status', HTMLElement);
 const openButton = byId('open', HTMLButtonElement);
 const permissionButton = byId('permission', HTMLButtonElement);
-byId('balance-label', HTMLElement).textContent = extensionCopy.popupAvailable;
-focus.textContent = extensionCopy.popupChecking;
-openButton.textContent = extensionCopy.popupOpenApp;
-permissionButton.textContent = extensionCopy.popupWorkSite;
+
+/** 状態によらない文言。プロフィールの言語を受け取ったら書き直す。 */
+function renderLabels(): void {
+  const copy = currentMessages().extension;
+  document.documentElement.lang = currentLocale();
+  byId('balance-label', HTMLElement).textContent = copy.popupAvailable;
+  openButton.textContent = copy.popupOpenApp;
+  permissionButton.textContent = copy.popupWorkSite;
+}
+
+renderLabels();
+focus.textContent = currentMessages().extension.popupChecking;
 
 let state: ExtensionState | undefined;
 
@@ -42,10 +45,10 @@ function renderBalance(current: ExtensionState): void {
   const available = current.viewing?.availableSeconds ?? current.wallet?.availableSeconds;
   balance.textContent =
     mode === 'self' || mode === 'reminder'
-      ? extensionCopy.popupUnlimited
+      ? currentMessages().extension.popupUnlimited
       : available === undefined
         ? '—'
-        : durationLabel(Math.max(0, available));
+        : currentMessages().shared.durationLabel(Math.max(0, available));
 }
 
 function act(request: Request, after?: (reply: OkReply) => void): void {
@@ -57,29 +60,30 @@ function act(request: Request, after?: (reply: OkReply) => void): void {
 }
 
 function renderWork(current: ExtensionState): void {
+  const copy = currentMessages().extension;
   workActions.replaceChildren();
   const session = current.workSession;
   if (session) {
     const task = current.tasks.find((item) => item.id === session.taskId);
-    focus.textContent = extensionCopy.popupWorking(
+    focus.textContent = copy.popupWorking(
       task?.title ?? '',
       clockLabel(workElapsedSeconds(session, current.workSyncedAt, Date.now())),
     );
     workActions.append(
-      button(session.running ? extensionCopy.pause : extensionCopy.resume, () => {
+      button(session.running ? copy.pause : copy.resume, () => {
         act({ type: session.running ? 'PAUSE_WORK' : 'RESUME_WORK' });
       }),
-      button(extensionCopy.confirmWork, () => {
+      button(copy.confirmWork, () => {
         act({ type: 'CONFIRM_WORK', sessionId: session.id }, (reply) => {
           if (reply.work)
-            status.textContent = workRewardMessage(reply.work.rewardSeconds, reply.work.deferred);
+            status.textContent = copy.workReward(reply.work.rewardSeconds, reply.work.deferred);
         });
       }),
       button(
-        extensionCopy.complete,
+        copy.complete,
         () => {
           act({ type: 'COMPLETE_TASK', taskId: session.taskId }, (reply) => {
-            status.textContent = workRewardMessage(
+            status.textContent = copy.workReward(
               reply.work?.rewardSeconds ?? 0,
               reply.work?.deferred ?? false,
             );
@@ -94,13 +98,13 @@ function renderWork(current: ExtensionState): void {
     .filter((task) => task.status === 'pending')
     .sort((a, b) => Date.parse(a.plan.start) - Date.parse(b.plan.start))[0];
   if (!next) {
-    focus.textContent = extensionCopy.popupIdle;
+    focus.textContent = copy.popupIdle;
     return;
   }
-  focus.textContent = extensionCopy.popupNext(next.title, timeLabel(next.plan.start));
+  focus.textContent = copy.popupNext(next.title, copy.timeLabel(next.plan.start));
   workActions.append(
     button(
-      extensionCopy.popupStartNext,
+      copy.popupStartNext,
       () => {
         act({ type: 'START_TASK', taskId: next.id });
       },
@@ -111,6 +115,8 @@ function renderWork(current: ExtensionState): void {
 
 function render(current: ExtensionState): void {
   state = current;
+  followLocale(current);
+  renderLabels();
   renderBalance(current);
   renderWork(current);
 }
@@ -119,7 +125,7 @@ setInterval(() => {
   const session = state?.workSession;
   if (!state || !session) return;
   const task = state.tasks.find((item) => item.id === session.taskId);
-  focus.textContent = extensionCopy.popupWorking(
+  focus.textContent = currentMessages().extension.popupWorking(
     task?.title ?? '',
     clockLabel(workElapsedSeconds(session, state.workSyncedAt, Date.now())),
   );
@@ -147,18 +153,18 @@ permissionButton.addEventListener('click', () => {
   const tab = tabNow;
   const pattern = workSitePattern(tab?.url);
   if (!tab || !pattern) {
-    status.textContent = extensionCopy.popupOpenWorkPage;
+    status.textContent = currentMessages().extension.popupOpenWorkPage;
     return;
   }
   if (alreadyCovered(pattern)) {
-    status.textContent = extensionCopy.popupWorkSiteEnabled;
+    status.textContent = currentMessages().extension.popupWorkSiteEnabled;
     return;
   }
   void chrome.permissions
     .request({ origins: [pattern] })
     .then(async (granted) => {
       if (!granted) {
-        status.textContent = extensionCopy.popupPermissionUnchanged;
+        status.textContent = currentMessages().extension.popupPermissionUnchanged;
         return;
       }
       const id = workSiteScriptId(pattern);
@@ -177,26 +183,27 @@ permissionButton.addEventListener('click', () => {
       }
       if (tab.id !== undefined)
         await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [file] });
-      status.textContent = extensionCopy.popupWorkSiteEnabled;
+      status.textContent = currentMessages().extension.popupWorkSiteEnabled;
     })
     .catch(() => {
-      status.textContent = extensionCopy.popupWorkSiteFailed;
+      status.textContent = currentMessages().extension.popupWorkSiteFailed;
     });
 });
 
 void send({ type: 'GET_STATE', refresh: false }).then((reply) => {
   if (!reply.ok) {
     status.textContent = reply.retryable
-      ? extensionCopy.popupConnectFrom(MANAGEMENT_ORIGIN)
+      ? currentMessages().extension.popupConnectFrom(MANAGEMENT_ORIGIN)
       : reply.error;
-    focus.textContent = extensionCopy.popupIdle;
+    focus.textContent = currentMessages().extension.popupIdle;
     return;
   }
   if (!reply.connected || !reply.state) {
-    status.textContent = extensionCopy.popupOpenToConnect;
-    focus.textContent = extensionCopy.popupIdle;
+    status.textContent = currentMessages().extension.popupOpenToConnect;
+    focus.textContent = currentMessages().extension.popupIdle;
     return;
   }
-  status.textContent = extensionCopy.popupConnected;
+  // 先に状態を反映して、プロフィールの言語に切り替えてから書く。
   render(reply.state);
+  status.textContent = currentMessages().extension.popupConnected;
 });

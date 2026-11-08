@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 )
 
@@ -52,7 +53,17 @@ func (s *Service) ProfileTx(ctx context.Context, tx *store.Tx, uid string) (Prof
 	if !found {
 		return Default(), nil
 	}
+	// 言語を足す前に保存したプロフィールには locale が無い。
+	if p.Locale == "" {
+		p.Locale = DefaultLocale
+	}
 	return p, nil
+}
+
+// Locale は本人の言語。サーバーが作る文（カレンダーの予定、AI の返答、通知）をこの言語にする。
+func (s *Service) Locale(ctx context.Context, tx *store.Tx, uid string) (locale.Locale, error) {
+	p, err := s.ProfileTx(ctx, tx, uid)
+	return p.Locale, err
 }
 
 // Location は本人のタイムゾーン。日付の区切りはすべてこれで決める。
@@ -94,8 +105,8 @@ func (s *Service) Update(ctx context.Context, uid string, in Input, ifMatch int6
 		if err := tx.Set(profileRef(uid), p); err != nil {
 			return err
 		}
-		if p.TimeZone != current.TimeZone {
-			if err := s.calendar.ProfileZoneChanged(ctx, tx, uid); err != nil {
+		if p.TimeZone != current.TimeZone || p.Locale != current.Locale {
+			if err := s.calendar.ProfileFormatChanged(ctx, tx, uid); err != nil {
 				return err
 			}
 		}

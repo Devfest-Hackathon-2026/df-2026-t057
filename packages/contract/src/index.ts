@@ -10,6 +10,7 @@ export type ProfileInput = Schemas['ProfileInput'];
 export type Settings = Schemas['Settings'];
 export type SettingsInput = Schemas['SettingsInput'];
 export type NoticeMode = Schemas['NoticeMode'];
+export type Locale = Schemas['Locale'];
 export type Task = Schemas['Task'];
 export type TaskInput = Schemas['TaskInput'];
 export type TaskCreateInput = Schemas['TaskCreateInput'];

@@ -33,7 +33,7 @@ func date(day string) openapi_types.Date {
 }
 
 func profileOut(p profile.Profile, rev int64) oapi.Profile {
-	return oapi.Profile{Name: p.Name, Context: p.Context, TimeZone: p.TimeZone, Revision: int(rev)}
+	return oapi.Profile{Name: p.Name, Context: p.Context, TimeZone: p.TimeZone, Locale: oapi.Locale(p.Locale), Revision: int(rev)}
 }
 
 func settingsOut(s profile.Settings, rev int64) oapi.Settings {

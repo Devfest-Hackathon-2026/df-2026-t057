@@ -4,6 +4,7 @@
 import type {
   CompanionMoment,
   Draft,
+  Locale,
   Morning,
   NoticeMode,
   Plan,
@@ -55,6 +56,7 @@ const policyModes = [
   'reminder',
   'self',
 ] as const satisfies readonly TimePolicyMode[];
+const localeValues = ['ja', 'en'] as const satisfies readonly Locale[];
 export const companionMoments = [
   'notice',
   'snooze',
@@ -175,6 +177,12 @@ export const settingsSchema: z.ZodType<Settings> = z.object({
   revision: z.number().int().min(0),
 });
 
+/** API の Profile から、拡張が使う項目（画面の言語）だけを取り出したもの。 */
+export const profileSchema = z.object({
+  locale: z.enum(localeValues),
+  revision: z.number().int().min(0),
+});
+
 /** API の Wallet から、拡張が使う項目だけを取り出したもの。 */
 export const walletSchema = z.object({
   revision: z.number().int().min(0),
@@ -221,7 +229,7 @@ export const changeEventSchema = z.object({
 
 /**
  * 拡張が保持する状態。content script とポップアップへはこの形で渡す。
- * プロフィールや台帳は持たない（必要な項目だけを残す）。
+ * プロフィールは言語だけを持ち、台帳は持たない（必要な項目だけを残す）。
  * `workSyncedAt` はタイマーを数え上げる基準にする、作業の状態を受け取った時点の端末の時刻（ミリ秒）。
  */
 export const extensionStateSchema = z.object({
@@ -234,6 +242,7 @@ export const extensionStateSchema = z.object({
   viewing: viewingSchema.nullable(),
   settings: settingsSchema.nullable(),
   sleep: sleepSchema.nullable(),
+  profile: profileSchema.nullable(),
 });
 export type ExtensionState = z.infer<typeof extensionStateSchema>;
 
@@ -247,6 +256,7 @@ export const emptyState: ExtensionState = {
   viewing: null,
   settings: null,
   sleep: null,
+  profile: null,
 };
 
 /** 設定を読み込む前に使う、表示の既定値。 */

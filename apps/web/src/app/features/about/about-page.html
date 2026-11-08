@@ -1,56 +1,47 @@
 <app-page-heading
   eyebrow="OWN THE WHY"
-  heading="このアプリについて"
-  lead="DOPAGAKIが目指していること。"
+  [heading]="text().about.page.heading"
+  [lead]="text().about.page.lead"
 />
 
 <article class="about">
   <section class="about-hero" aria-labelledby="about-lead">
     <h2 id="about-lead">
-      <span>禁止ではなく、</span>
-      <span>距離感を。</span>
+      <span>{{ text().about.page.heroHeadingFirst }}</span>
+      <span>{{ text().about.page.heroHeadingSecond }}</span>
     </h2>
-    <p>
-      DOPAGAKIは、締切から逆算して始める時間を決め、Shortsを見ているその瞬間に「そろそろ、やるか」と知らせるアプリです。
-      ショート動画を取り上げるのではなく、自分の「なぜ」で手を止め、自分の時間を取り戻す練習の場をつくります。
-    </p>
+    <p>{{ text().about.page.heroBody }}</p>
   </section>
 
   <section class="about-section" aria-labelledby="about-why">
-    <h2 id="about-why">目的</h2>
+    <h2 id="about-why">{{ text().about.page.purposeHeading }}</h2>
     <div class="about-purpose">
       <div>
-        <h3>やめられないのは、意志のせいじゃない</h3>
-        <p>
-          次に見る動画はアルゴリズムが決め、終わりのないフィードは止まる理由をくれません。計画する、時間を見積もる、切り替えるといった力には誰にでも個人差があります。やりたいのにやれないのは、意志ではなく仕組みの問題です。だから、仕組みで支えます。
-        </p>
+        <h3>{{ text().about.page.purposes.notWillpower.title }}</h3>
+        <p>{{ text().about.page.purposes.notWillpower.body }}</p>
       </div>
       <div>
-        <h3>取り上げるのは、優しさじゃない</h3>
-        <p>
-          スマホを取り上げたり時間を禁止したりしても、自由になった瞬間に止め方を知らないまま放り出されてしまいます。人に決められたルールは、その人がいなくなれば消えます。本人が書いた理由で手を止められるようになることを大切にしています。
-        </p>
+        <h3>{{ text().about.page.purposes.notTakingAway.title }}</h3>
+        <p>{{ text().about.page.purposes.notTakingAway.body }}</p>
       </div>
       <div>
-        <h3>最後は、このアプリがいらなくなる</h3>
-        <p>
-          最初はアプリが外から支え、できるようになるほど支えを減らし、最後はアプリがなくても自分で時間を管理できる状態を目指します。
-        </p>
+        <h3>{{ text().about.page.purposes.outgrow.title }}</h3>
+        <p>{{ text().about.page.purposes.outgrow.body }}</p>
       </div>
     </div>
   </section>
 
   <section class="about-section" aria-labelledby="about-who">
-    <h2 id="about-who">誰のためのアプリか</h2>
+    <h2 id="about-who">{{ text().about.page.whoHeading }}</h2>
     <p class="about-who">
-      「言われればやる人」にはいらず、「やる気がない人」は使っても続きません。DOPAGAKIが向き合うのは、その間にいる
-      <strong>「やりたいのに、やれない人」</strong>
-      です。頭の中だけで時間を管理するのは難しくても、画面の中で予定が整理され、次にやることが一つ決まっていれば、動ける人は多いはずです。
+      {{ text().about.page.whoBefore }}
+      <strong>{{ text().about.page.whoEmphasis }}</strong>
+      {{ text().about.page.whoAfter }}
     </p>
   </section>
 
   <section class="about-section" aria-labelledby="about-how">
-    <h2 id="about-how">しくみ</h2>
+    <h2 id="about-how">{{ text().about.page.howHeading }}</h2>
     <ol class="about-steps">
       @for (step of steps(); track step.title) {
         <li>
@@ -62,9 +53,9 @@
   </section>
 
   <section class="about-section" aria-labelledby="about-principles">
-    <h2 id="about-principles">大切にしていること</h2>
+    <h2 id="about-principles">{{ text().about.page.principlesHeading }}</h2>
     <div class="about-principles">
-      @for (item of principles; track item.title) {
+      @for (item of principles(); track item.title) {
         <div>
           <h3>{{ item.title }}</h3>
           <p>{{ item.body }}</p>
@@ -73,11 +64,11 @@
     </div>
   </section>
 
-  <p class="about-note">
-    DOPAGAKIは診断や治療のためのものではありません。毎日の時間の使い方を自分で整えるための、セルフケアの道具です。
-  </p>
+  <p class="about-note">{{ text().about.page.note }}</p>
 
   <div class="about-actions">
-    <button mat-flat-button type="button" (click)="actions.add()">課題を登録してみる</button>
+    <button mat-flat-button type="button" (click)="actions.add()">
+      {{ text().about.page.tryAdding }}
+    </button>
   </div>
 </article>

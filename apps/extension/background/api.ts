@@ -9,12 +9,12 @@ import {
   type Draft,
 } from '@dopagaki/contract';
 import type { z } from 'zod';
-import { extensionCopy } from '@dopagaki/messages';
 import { MANAGEMENT_ORIGIN } from '../lib/config';
 import {
   companionLineSchema,
   draftSchema,
   morningSchema,
+  profileSchema,
   settingsSchema,
   sleepStateSchema,
   taskListSchema,
@@ -38,9 +38,9 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
 /** 接続していることを確かめてから呼び、終わったときに接続が変わっていないことを確かめる。 */
 async function call<T>(request: (api: ApiClient) => Promise<T>): Promise<T> {
   const version = connectionVersion();
-  if (!(await getConnection())) throw new ExtensionError(extensionCopy.connectFromApp);
+  if (!(await getConnection())) throw new ExtensionError('connectFromApp');
   const result = await request(client);
-  if (version !== connectionVersion()) throw new ExtensionError(extensionCopy.accountChanged);
+  if (version !== connectionVersion()) throw new ExtensionError('accountChanged');
   return result;
 }
 
@@ -57,6 +57,7 @@ export const api = {
   viewing: () => call(async (c) => parse(viewingSchema, (await c.GET('/viewing')).data)),
   settings: () => call(async (c) => parse(settingsSchema, (await c.GET('/settings')).data)),
   sleep: () => call(async (c) => parse(sleepStateSchema, (await c.GET('/sleep')).data)),
+  profile: () => call(async (c) => parse(profileSchema, (await c.GET('/profile')).data)),
 
   startTask: (taskId: string) =>
     call(async (c) => {
@@ -170,7 +171,7 @@ export const api = {
 /** 変更通知（SSE）の購読を始める。fetch で Authorization を付ける。 */
 export async function openEventStream(signal: AbortSignal): Promise<Response> {
   const connection = await getConnection();
-  if (!connection) throw new ExtensionError(extensionCopy.connectFromApp);
+  if (!connection) throw new ExtensionError('connectFromApp');
   return fetch(`${MANAGEMENT_ORIGIN}/api/events`, {
     headers: { Accept: 'text/event-stream', Authorization: connection.authorization },
     cache: 'no-store',

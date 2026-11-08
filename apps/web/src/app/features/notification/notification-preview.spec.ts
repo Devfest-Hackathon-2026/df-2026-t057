@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import type { NoticeMode, Task } from '@dopagaki/contract';
-import { problemMessages } from '@dopagaki/messages';
+import { messages } from '@dopagaki/messages';
 import { FakeBackend, flush, provideFakeBackend } from '../../../testing/fake-backend';
 import { plan, settings, task, taskList, wallet } from '../../../testing/fixtures';
 import { SettingsStore } from '../settings/settings.store';
@@ -100,7 +100,7 @@ describe('NotificationPreview', () => {
     button(element, '作業をはじめる').click();
     await flush();
     expect(element.querySelector('[role=alert]')?.textContent).toContain(
-      problemMessages['work.active'],
+      messages.ja.shared.problems['work.active'],
     );
     expect(button(element, '作業をはじめる').disabled).toBe(false);
   });

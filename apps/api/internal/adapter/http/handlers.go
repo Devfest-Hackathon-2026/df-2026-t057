@@ -7,6 +7,7 @@ import (
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/http/oapi"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/config"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/profile"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
@@ -75,7 +76,7 @@ func (s *Server) UpdateProfile(ctx context.Context, req oapi.UpdateProfileReques
 	if err != nil {
 		return nil, err
 	}
-	p, rev, err := s.Profiles.Update(ctx, uidFrom(ctx), profile.Input{Name: req.Body.Name, Context: req.Body.Context, TimeZone: req.Body.TimeZone}, ifMatch)
+	p, rev, err := s.Profiles.Update(ctx, uidFrom(ctx), profile.Input{Name: req.Body.Name, Context: req.Body.Context, TimeZone: req.Body.TimeZone, Locale: locale.Locale(req.Body.Locale)}, ifMatch)
 	if err != nil {
 		return nil, err
 	}

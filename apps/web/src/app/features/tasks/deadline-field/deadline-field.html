@@ -1,7 +1,7 @@
 <fieldset [disabled]="disabled()">
-  <legend>締切</legend>
-  <div class="quick" role="group" aria-label="締切の日付をすばやく選ぶ">
-    @for (option of quick; track option.label) {
+  <legend>{{ text().tasks.deadlineField.legend }}</legend>
+  <div class="quick" role="group" [attr.aria-label]="text().tasks.deadlineField.quickLabel">
+    @for (option of quick(); track option.label) {
       <button
         type="button"
         [matButton]="option.key === date() ? 'tonal' : 'outlined'"
@@ -15,7 +15,7 @@
   </div>
   <div class="pickers">
     <mat-form-field appearance="outline">
-      <mat-label>締切日</mat-label>
+      <mat-label>{{ text().tasks.deadlineField.dateLabel }}</mat-label>
       <input
         matInput
         class="date-input"
@@ -32,7 +32,7 @@
       <mat-datepicker #picker />
     </mat-form-field>
     <mat-form-field appearance="outline">
-      <mat-label>締切時刻</mat-label>
+      <mat-label>{{ text().tasks.deadlineField.timeLabel }}</mat-label>
       <mat-select [value]="time()" (valueChange)="setTime($event)" [disabled]="disabled()">
         @for (option of times(); track option) {
           <mat-option [value]="option">{{ option }}</mat-option>

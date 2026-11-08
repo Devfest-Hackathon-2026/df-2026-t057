@@ -10,6 +10,7 @@ import (
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/id"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/outbox"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
@@ -164,9 +165,13 @@ func (s *Service) callback(ctx context.Context, state, code, errParam string) er
 	}
 	var current Connection
 	var zone string
+	var lang locale.Locale
 	err = s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
 		var err error
 		if current, err = loadConnection(ctx, tx, uid); err != nil {
+			return err
+		}
+		if lang, err = s.Profiles.Locale(ctx, tx, uid); err != nil {
 			return err
 		}
 		loc, err := s.Profiles.Location(ctx, tx, uid)
@@ -178,7 +183,7 @@ func (s *Service) callback(ctx context.Context, state, code, errParam string) er
 	}
 	calendarID, replaced := current.CalendarID, false
 	if calendarID == "" {
-		if calendarID, err = client.CreateCalendar(ctx, calendarSummary, calendarDescription, zone); err != nil {
+		if calendarID, err = client.CreateCalendar(ctx, calendarSummary, texts[lang].calendarDescription, zone); err != nil {
 			return err
 		}
 		replaced = true
@@ -186,7 +191,7 @@ func (s *Service) callback(ctx context.Context, state, code, errParam string) er
 	ch, watch, err := s.startWatch(ctx, client, uid, calendarID, grant.Subject, replaced, now)
 	if errors.Is(err, ErrEventGone) && !replaced {
 		// 本人が DOPAGAKI のカレンダーを消していた。作り直して、予定の結び付きもやり直す。
-		if calendarID, err = client.CreateCalendar(ctx, calendarSummary, calendarDescription, zone); err != nil {
+		if calendarID, err = client.CreateCalendar(ctx, calendarSummary, texts[lang].calendarDescription, zone); err != nil {
 			return err
 		}
 		replaced = true
@@ -578,6 +583,7 @@ func (s *Service) upsertTask(ctx context.Context, job outbox.Job) error {
 	var exists, linked bool
 	var link Link
 	var loc *time.Location
+	var lang locale.Locale
 	err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
 		var err error
 		if c, err = loadConnection(ctx, tx, uid); err != nil || !c.Connected {
@@ -589,6 +595,9 @@ func (s *Service) upsertTask(ctx context.Context, job outbox.Job) error {
 		}
 		t, exists = findTask(tasks, taskID)
 		if link, linked, err = store.Get[Link](ctx, tx, linkRef(uid, taskID)); err != nil {
+			return err
+		}
+		if lang, err = s.Profiles.Locale(ctx, tx, uid); err != nil {
 			return err
 		}
 		loc, err = s.Profiles.Location(ctx, tx, uid)
@@ -606,7 +615,7 @@ func (s *Service) upsertTask(ctx context.Context, job outbox.Job) error {
 	needSync := false
 	var ev Event
 	if !linked || link.EventID == "" {
-		ev, err = client.InsertEvent(ctx, c.CalendarID, NewTaskEvent(uid, t, loc))
+		ev, err = client.InsertEvent(ctx, c.CalendarID, NewTaskEvent(uid, t, loc, lang))
 		switch {
 		case err == nil:
 			applied = seq
@@ -615,7 +624,7 @@ func (s *Service) upsertTask(ctx context.Context, job outbox.Job) error {
 			if ev, err = client.GetEvent(ctx, c.CalendarID, EventID(uid, taskID)); err != nil {
 				return err
 			}
-			if ev, err = s.patchContent(ctx, client, c.CalendarID, ev, t, loc); err != nil {
+			if ev, err = s.patchContent(ctx, client, c.CalendarID, ev, t, loc, lang); err != nil {
 				return err
 			}
 			applied = seq
@@ -634,14 +643,14 @@ func (s *Service) upsertTask(ctx context.Context, job outbox.Job) error {
 		}
 		switch {
 		case c.ContentPending(link):
-			if ev, err = s.patchContent(ctx, client, c.CalendarID, ev, t, loc); err != nil {
+			if ev, err = s.patchContent(ctx, client, c.CalendarID, ev, t, loc, lang); err != nil {
 				return err
 			}
 			applied = seq
 		case ExternallyEdited(link, ev):
 			needSync = true
 		default:
-			if patch := PlanPatch(t, ev, loc); patch.Changes(ev) {
+			if patch := PlanPatch(t, ev, loc, lang); patch.Changes(ev) {
 				updated, err := client.PatchEvent(ctx, c.CalendarID, ev.ID, ev.ETag, patch)
 				switch {
 				case errors.Is(err, ErrPreconditionFailed):
@@ -680,8 +689,8 @@ func (s *Service) upsertTask(ctx context.Context, job outbox.Job) error {
 }
 
 // patchContent は課題の内容で予定を書き直す。版が合わなければ（書き直しの間に編集された）、再試行させる。
-func (s *Service) patchContent(ctx context.Context, client Client, calendarID string, ev Event, t task.Task, loc *time.Location) (Event, error) {
-	patch := ContentPatch(t, loc)
+func (s *Service) patchContent(ctx context.Context, client Client, calendarID string, ev Event, t task.Task, loc *time.Location, lang locale.Locale) (Event, error) {
+	patch := ContentPatch(t, loc, lang)
 	if !patch.Changes(ev) {
 		return ev, nil
 	}
@@ -758,7 +767,11 @@ func (s *Service) reconcileSleep(ctx context.Context, job outbox.Job) error {
 		if err != nil {
 			return err
 		}
-		ev := SleepEvent(uid, st.Sleep.Schedule, now, loc)
+		lang, err := s.Profiles.Locale(ctx, tx, uid)
+		if err != nil {
+			return err
+		}
+		ev := SleepEvent(uid, st.Sleep.Schedule, now, loc, lang)
 		desired = &ev
 		return nil
 	})
@@ -808,6 +821,7 @@ func (s *Service) export(ctx context.Context, job outbox.Job) error {
 	var tasks []task.Task
 	var links []Link
 	var loc *time.Location
+	var lang locale.Locale
 	err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
 		var err error
 		if c, err = loadConnection(ctx, tx, uid); err != nil || !c.Connected {
@@ -817,6 +831,9 @@ func (s *Service) export(ctx context.Context, job outbox.Job) error {
 			return err
 		}
 		if links, err = store.List[Link](ctx, tx, store.Query{Collection: linksCollection(uid)}); err != nil {
+			return err
+		}
+		if lang, err = s.Profiles.Locale(ctx, tx, uid); err != nil {
 			return err
 		}
 		loc, err = s.Profiles.Location(ctx, tx, uid)
@@ -849,7 +866,7 @@ func (s *Service) export(ctx context.Context, job outbox.Job) error {
 			needSync = true
 			continue
 		}
-		if patch := PlanPatch(t, ev, loc); patch.Changes(ev) {
+		if patch := PlanPatch(t, ev, loc, lang); patch.Changes(ev) {
 			updated, err := client.PatchEvent(ctx, c.CalendarID, ev.ID, ev.ETag, patch)
 			switch {
 			case errors.Is(err, ErrPreconditionFailed):

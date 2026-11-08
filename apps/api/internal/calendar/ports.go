@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
@@ -98,5 +99,6 @@ type Sleeps interface {
 // Profiles は本人の情報（profile.Service が実装する）。
 type Profiles interface {
 	Location(ctx context.Context, tx *store.Tx, uid string) (*time.Location, error)
+	Locale(ctx context.Context, tx *store.Tx, uid string) (locale.Locale, error)
 	Context(ctx context.Context, tx *store.Tx, uid string) (string, *time.Time, error)
 }

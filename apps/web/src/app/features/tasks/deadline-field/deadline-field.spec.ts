@@ -2,7 +2,10 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { provideNativeDateAdapter } from '@angular/material/core';
+import { messages } from '@dopagaki/messages';
 import { DeadlineField, quickDates, remainingLabel } from './deadline-field';
+
+const text = messages.ja.web.tasks.deadlineField;
 
 @Component({
   imports: [DeadlineField, ReactiveFormsModule],
@@ -17,28 +20,34 @@ class Host {
 describe('quickDates', () => {
   it('月〜木曜は「今週末」（次の日曜）を出す', () => {
     const monday = new Date(2026, 10, 9);
-    expect(quickDates(monday).map((item) => item.label)).toEqual([
+    expect(quickDates(monday, text).map((item) => item.label)).toEqual([
       '今日',
       '明日',
       '明後日',
       '今週末',
       '1週間後',
     ]);
-    expect(quickDates(monday).find((item) => item.label === '今週末')?.key).toBe('2026-11-15');
+    expect(quickDates(monday, text).find((item) => item.label === '今週末')?.key).toBe(
+      '2026-11-15',
+    );
   });
 
   it('金〜日曜は「今週末」を出さない', () => {
-    expect(quickDates(new Date(2026, 10, 13)).some((item) => item.label === '今週末')).toBe(false);
-    expect(quickDates(new Date(2026, 10, 15)).some((item) => item.label === '今週末')).toBe(false);
+    expect(quickDates(new Date(2026, 10, 13), text).some((item) => item.label === '今週末')).toBe(
+      false,
+    );
+    expect(quickDates(new Date(2026, 10, 15), text).some((item) => item.label === '今週末')).toBe(
+      false,
+    );
   });
 });
 
 describe('remainingLabel', () => {
   it('日・時間・分で表す', () => {
-    expect(remainingLabel(26 * 3_600_000)).toBe('あと1日2時間');
-    expect(remainingLabel(48 * 3_600_000)).toBe('あと2日');
-    expect(remainingLabel(3 * 3_600_000 + 10)).toBe('あと3時間');
-    expect(remainingLabel(20_000)).toBe('あと1分');
+    expect(remainingLabel(26 * 3_600_000, text)).toBe('あと1日2時間');
+    expect(remainingLabel(48 * 3_600_000, text)).toBe('あと2日');
+    expect(remainingLabel(3 * 3_600_000 + 10, text)).toBe('あと3時間');
+    expect(remainingLabel(20_000, text)).toBe('あと1分');
   });
 });
 

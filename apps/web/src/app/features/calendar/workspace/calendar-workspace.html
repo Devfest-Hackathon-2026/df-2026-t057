@@ -1,12 +1,12 @@
 <div class="workspace-title">
-  <h1>カレンダー</h1>
+  <h1>{{ text().calendar.workspace.heading }}</h1>
   <button mat-flat-button type="button" data-tour="add" (click)="actions.add()">
     <mat-icon>add</mat-icon>
-    課題を登録
+    {{ text().calendar.workspace.addTask }}
   </button>
 </div>
 
-<section class="workspace-summary" aria-label="視聴できる時間と次の課題">
+<section class="workspace-summary" [attr.aria-label]="text().calendar.workspace.summaryRegion">
   <div class="tile credit" data-tour="credit">
     <p class="summary-label">{{ creditLabel() }}</p>
     <strong class="credit-number" [class.unlimited]="wallet.unlimited()">
@@ -20,13 +20,15 @@
       (click)="openCreditInfo()"
     >
       <mat-icon>info</mat-icon>
-      視聴時間について
+      {{ text().calendar.workspace.creditInfo }}
     </button>
   </div>
 
   <div class="tile next" data-tour="next">
     @if (next(); as task) {
-      <p class="summary-label">次の課題 · {{ task.plan.start | monthDay }}</p>
+      <p class="summary-label">
+        {{ text().calendar.workspace.nextWithDate(task.plan.start | monthDay) }}
+      </p>
       <button mat-button type="button" class="next-task" (click)="select(task)">
         <span class="next-task-title">{{ task.title }}</span>
         <mat-icon iconPositionEnd>chevron_right</mat-icon>
@@ -41,14 +43,14 @@
             }
             {{ task.plan.end | time }}
           </time>
-          <span>{{ task.plan | planMinutes }}分</span>
+          <span>{{ text().calendar.workspace.minutes(task.plan | planMinutes) }}</span>
         </p>
         <div class="next-actions">
           <button
             mat-icon-button
             type="button"
-            aria-label="通知を試す"
-            matTooltip="通知を試す"
+            [attr.aria-label]="text().calendar.workspace.previewNotice"
+            [matTooltip]="text().calendar.workspace.previewNotice"
             (click)="actions.preview(task)"
           >
             <mat-icon>notifications</mat-icon>
@@ -56,22 +58,22 @@
           <button
             mat-flat-button
             type="button"
-            aria-label="次の課題をはじめる"
+            [attr.aria-label]="text().calendar.workspace.startNext"
             (click)="start(task, 'next')"
             [disabled]="tasks.start.pending() || work.session() !== null"
           >
-            はじめる
+            {{ text().calendar.workspace.start }}
             <mat-icon iconPositionEnd>play_arrow</mat-icon>
           </button>
         </div>
       </div>
       @if (startOrigin() === 'next' && tasks.start.error(); as error) {
-        <p class="error" role="alert">はじめられませんでした。{{ error.message }}</p>
+        <p class="error" role="alert">{{ text().calendar.workspace.startFailed(error.message) }}</p>
       }
     } @else {
-      <p class="summary-label">次の課題</p>
-      <h2 class="next-empty">次の課題はまだありません</h2>
-      <p class="summary-note">課題を登録すると、取りかかる予定がここに並びます。</p>
+      <p class="summary-label">{{ text().calendar.workspace.next }}</p>
+      <h2 class="next-empty">{{ text().calendar.workspace.nextEmpty }}</h2>
+      <p class="summary-note">{{ text().calendar.workspace.nextEmptyNote }}</p>
     }
   </div>
 </section>
@@ -80,21 +82,39 @@
   class="mobile-switch"
   [value]="mobilePart()"
   (change)="mobilePart.set($event.value)"
-  aria-label="表示する領域"
+  [attr.aria-label]="text().calendar.workspace.mobileSwitch"
 >
-  <mat-button-toggle value="calendar">カレンダー</mat-button-toggle>
-  <mat-button-toggle value="panel">相談・詳細</mat-button-toggle>
+  <mat-button-toggle value="calendar">
+    {{ text().calendar.workspace.mobileCalendar }}
+  </mat-button-toggle>
+  <mat-button-toggle value="panel">{{ text().calendar.workspace.mobilePanel }}</mat-button-toggle>
 </mat-button-toggle-group>
 
 <div class="workspace-grid" [attr.data-mobile-part]="mobilePart()">
-  <section class="calendar-surface" aria-label="予定カレンダー" data-tour="calendar">
+  <section
+    class="calendar-surface"
+    [attr.aria-label]="text().calendar.workspace.calendarRegion"
+    data-tour="calendar"
+  >
     <div class="calendar-toolbar">
       <div class="calendar-navigation">
-        <button mat-stroked-button type="button" (click)="move(0)">今日</button>
-        <button mat-icon-button type="button" aria-label="前の期間" (click)="move(-1)">
+        <button mat-stroked-button type="button" (click)="move(0)">
+          {{ text().calendar.workspace.today }}
+        </button>
+        <button
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="text().calendar.workspace.previousPeriod"
+          (click)="move(-1)"
+        >
           <mat-icon>chevron_left</mat-icon>
         </button>
-        <button mat-icon-button type="button" aria-label="次の期間" (click)="move(1)">
+        <button
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="text().calendar.workspace.nextPeriod"
+          (click)="move(1)"
+        >
           <mat-icon>chevron_right</mat-icon>
         </button>
       </div>
@@ -102,16 +122,16 @@
       <mat-button-toggle-group
         [value]="currentView()"
         (change)="changeView($event.value)"
-        aria-label="カレンダーの表示期間"
+        [attr.aria-label]="text().calendar.workspace.viewSwitch"
       >
-        <mat-button-toggle value="day">日</mat-button-toggle>
-        <mat-button-toggle value="week">週</mat-button-toggle>
+        <mat-button-toggle value="day">{{ text().calendar.workspace.day }}</mat-button-toggle>
+        <mat-button-toggle value="week">{{ text().calendar.workspace.week }}</mat-button-toggle>
       </mat-button-toggle-group>
     </div>
 
     <div class="calendar-body">
       @if (!rendered()) {
-        <p class="calendar-loading" role="status">カレンダーを準備しています…</p>
+        <p class="calendar-loading" role="status">{{ text().calendar.workspace.loading }}</p>
       }
       @if (stylesReady()) {
         <!--
@@ -123,9 +143,9 @@
           class="calendar-scroll"
           tabindex="0"
           role="region"
-          [attr.aria-label]="title() + 'の予定'"
+          [attr.aria-label]="text().calendar.workspace.scrollRegion(title())"
         >
-          <full-calendar class="workspace-calendar" [options]="options" [events]="events()">
+          <full-calendar class="workspace-calendar" [options]="options()" [events]="events()">
             <ng-template #eventContent let-info>
               <span class="event-name">{{ info.event.title }}</span>
               <span class="event-clock">{{ info.event.start | time }}</span>
@@ -136,7 +156,7 @@
       @if (tasks.tasks().length === 0) {
         <div class="calendar-empty">
           <mat-icon>event_available</mat-icon>
-          <h3>予定はまだありません</h3>
+          <h3>{{ text().calendar.workspace.empty }}</h3>
           @if (auth.mode() === 'demo') {
             <button
               mat-stroked-button
@@ -144,7 +164,7 @@
               (click)="tasks.addSample()"
               [disabled]="tasks.sample.pending()"
             >
-              サンプル3件で試す
+              {{ text().calendar.workspace.trySample }}
             </button>
           }
           @if (tasks.sample.error(); as error) {
@@ -156,31 +176,45 @@
 
     <div class="calendar-caption">
       <details class="disclosure">
-        <summary>表示について</summary>
-        <p>確定した作業時間を表示しています。</p>
-        <p>時間帯：{{ timeZone }}</p>
-        <p>予定の変更は、連携した専用カレンダーにも反映します。</p>
+        <summary>{{ text().calendar.workspace.aboutDisplay }}</summary>
+        <p>{{ text().calendar.workspace.aboutConfirmed }}</p>
+        <p>{{ text().calendar.workspace.timeZone(timeZone) }}</p>
+        <p>{{ text().calendar.workspace.aboutSync }}</p>
       </details>
       <button mat-button type="button" (click)="sync()" [disabled]="syncing()">
-        {{ syncing() ? '更新中…' : calendar.connected() ? 'Googleと同期' : '予定を更新' }}
+        {{
+          syncing()
+            ? text().calendar.workspace.syncing
+            : calendar.connected()
+              ? text().calendar.workspace.syncGoogle
+              : text().calendar.workspace.refresh
+        }}
       </button>
     </div>
     @if (calendar.connected() && calendar.sync.error(); as error) {
-      <p class="error" role="alert">同期を確認できませんでした。{{ error.message }}</p>
+      <p class="error" role="alert">{{ text().calendar.workspace.syncFailed(error.message) }}</p>
     } @else if (!calendar.connected() && tasks.load.error(); as error) {
       <p class="error" role="alert">{{ error.message }}</p>
     }
   </section>
 
-  <aside class="workspace-panel" aria-label="予定の相談と詳細" data-tour="assistant">
+  <aside
+    class="workspace-panel"
+    [attr.aria-label]="text().calendar.workspace.panelRegion"
+    data-tour="assistant"
+  >
     <mat-button-toggle-group
       class="panel-switch"
       [value]="panel()"
       (change)="panel.set($event.value)"
-      aria-label="相談パネルの表示"
+      [attr.aria-label]="text().calendar.workspace.panelSwitch"
     >
-      <mat-button-toggle value="assistant">相談</mat-button-toggle>
-      <mat-button-toggle value="detail" [disabled]="!selected()">課題の詳細</mat-button-toggle>
+      <mat-button-toggle value="assistant">
+        {{ text().calendar.workspace.assistant }}
+      </mat-button-toggle>
+      <mat-button-toggle value="detail" [disabled]="!selected()">
+        {{ text().calendar.workspace.detail }}
+      </mat-button-toggle>
     </mat-button-toggle-group>
 
     <div [hidden]="panel() !== 'assistant'">
@@ -191,26 +225,35 @@
       />
     </div>
 
-    <section class="detail" [hidden]="panel() !== 'detail'" aria-label="選択した課題">
+    <section
+      class="detail"
+      [hidden]="panel() !== 'detail'"
+      [attr.aria-label]="text().calendar.workspace.selectedRegion"
+    >
       @if (selected(); as task) {
         <h2 class="detail-title">{{ task.title }}</h2>
         @if (task.why) {
-          <p class="detail-note">なぜ：{{ task.why }}</p>
+          <p class="detail-note">{{ text().calendar.workspace.why(task.why) }}</p>
         }
         @if (task.notes) {
           <p class="detail-text">{{ task.notes }}</p>
         }
         <p class="detail-time">{{ task.plan.start | dateTime }} — {{ task.plan.end | time }}</p>
         <p class="detail-note">
-          締切 {{ task.deadline | dateTime }} · 見積もり {{ task.minutes }}分 · 予定
-          {{ task.plan | planMinutes }}分
+          {{
+            text().calendar.workspace.detailSummary(
+              task.deadline | dateTime,
+              task.minutes,
+              task.plan | planMinutes
+            )
+          }}
         </p>
         @if (task.url) {
           <p class="detail-link">
             <a [href]="task.url" target="_blank" rel="noopener">{{ task.url }}</a>
           </p>
         }
-        <ul class="steps" aria-label="作業の手順">
+        <ul class="steps" [attr.aria-label]="text().calendar.workspace.steps">
           @for (step of task.plan.steps; track $index) {
             <li>
               <span class="step-time">{{ step.start | time }}–{{ step.end | time }}</span>
@@ -219,9 +262,7 @@
           }
         </ul>
         @if (calendar.needsRetry()) {
-          <p class="detail-note">
-            Googleカレンダーへの同期待ちです。カレンダーの「Googleと同期」から再試行できます。
-          </p>
+          <p class="detail-note">{{ text().calendar.workspace.syncPending }}</p>
         }
         <div class="selected-actions">
           <button
@@ -230,7 +271,7 @@
             (click)="actions.edit(task)"
             [disabled]="task.status !== 'pending'"
           >
-            編集
+            {{ text().calendar.workspace.edit }}
           </button>
           <button
             mat-stroked-button
@@ -238,9 +279,11 @@
             (click)="actions.plan(task, 'adjust')"
             [disabled]="task.status !== 'pending'"
           >
-            予定・手順を調整
+            {{ text().calendar.workspace.adjust }}
           </button>
-          <button mat-stroked-button type="button" (click)="panel.set('assistant')">相談</button>
+          <button mat-stroked-button type="button" (click)="panel.set('assistant')">
+            {{ text().calendar.workspace.assistant }}
+          </button>
           <button
             mat-flat-button
             type="button"
@@ -251,10 +294,12 @@
           </button>
         </div>
         @if (startOrigin() === 'detail' && tasks.start.error(); as error) {
-          <p class="error" role="alert">はじめられませんでした。{{ error.message }}</p>
+          <p class="error" role="alert">
+            {{ text().calendar.workspace.startFailed(error.message) }}
+          </p>
         }
       } @else {
-        <p>カレンダーから予定を選んでください。</p>
+        <p>{{ text().calendar.workspace.selectPrompt }}</p>
       }
     </section>
   </aside>

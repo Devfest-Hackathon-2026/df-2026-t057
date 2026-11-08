@@ -2,14 +2,12 @@ import { Injectable, effect, inject, untracked } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { CalendarStore } from '../calendar/calendar.store';
 import { Tutorial } from '../onboarding/tutorial.service';
 import { TaskActions } from '../tasks/task-actions';
 import { TasksStore } from '../tasks/tasks.store';
 import { Notices } from './notices';
-
-export const calendarErrorMessage =
-  'ログイン中と同じGoogleアカウントを選び、設定からカレンダーを連携し直してください。';
 
 /** 開いたときのクエリ（ページの読み込みごとに一度だけ読む）。 */
 export interface LaunchQuery {
@@ -46,14 +44,16 @@ export class LaunchParams {
   private readonly notices = inject(Notices);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
+  private readonly text = inject(LocaleStore).web;
   private readonly query = parseLaunchQuery(location.search);
   private handledTask = false;
   private handledTutorial = false;
 
   constructor() {
-    if (this.query.calendar === 'error') this.notices.push(calendarErrorMessage);
+    const text = this.text().shell;
+    if (this.query.calendar === 'error') this.notices.push(text.launch.calendarError);
     if (this.query.calendar === 'connected') {
-      this.snackBar.open('Googleカレンダーを連携しました。', '閉じる');
+      this.snackBar.open(text.launch.calendarConnected, text.common.close);
       void this.calendar.refresh();
     }
     effect(() => {

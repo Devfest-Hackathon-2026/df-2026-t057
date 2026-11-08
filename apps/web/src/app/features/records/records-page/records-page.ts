@@ -13,7 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import type { LedgerEntry, Records } from '@dopagaki/contract';
-import { durationLabel, ledgerKindLabels } from '@dopagaki/messages';
+import { LocaleStore } from '../../../core/i18n/locale.store';
 import { DateTimePipe, DurationPipe } from '../../../shared/ui/format';
 import { PageHeading } from '../../../shared/ui/page-heading';
 import { LedgerStore } from '../../wallet/ledger.store';
@@ -57,9 +57,10 @@ export function layoutDays(days: readonly RecordDay[]): (DayCell | null)[] {
   ];
 }
 
-function slashDate(date: string): string {
+/** 日付をその日のまま表示するため、UTC の0時として作り、UTC で書式にする（端末のタイムゾーンでずらさない）。 */
+function utcDate(date: string): Date {
   const { year, month, day } = dateParts(date);
-  return `${year}/${month}/${day}`;
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 /** 記録。集計はサーバーが行い、ここでは並べて表示するだけ。 */
@@ -82,7 +83,27 @@ export class RecordsPage {
   protected readonly records = inject(RecordsStore);
   protected readonly ledger = inject(LedgerStore);
   protected readonly wallet = inject(WalletStore);
-  protected readonly kindLabels = ledgerKindLabels;
+  protected readonly text = inject(LocaleStore).web;
+  protected readonly shared = inject(LocaleStore).shared;
+  private readonly intlLocale = inject(LocaleStore).intlLocale;
+  /** マスごとに作ると重いので、言語ごとに1組だけ作る。 */
+  private readonly dateFormats = computed(() => {
+    const locale = this.intlLocale();
+    return {
+      full: new Intl.DateTimeFormat(locale, {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        timeZone: 'UTC',
+      }),
+      monthDay: new Intl.DateTimeFormat(locale, {
+        month: 'numeric',
+        day: 'numeric',
+        timeZone: 'UTC',
+      }),
+      long: new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric', timeZone: 'UTC' }),
+    };
+  });
   private readonly grassScroll = viewChild<ElementRef<HTMLElement>>('grassScroll');
 
   protected readonly days = computed(() => this.records.value()?.days ?? []);
@@ -112,17 +133,19 @@ export class RecordsPage {
   }
 
   protected dayLabel(cell: DayCell): string {
-    return `${slashDate(cell.date)}: ${cell.completed}件完了、視聴時間 ＋${this.durationText(cell.earnedSeconds)}`;
+    return this.text().records.page.dayLabel(
+      this.dateFormats().full.format(utcDate(cell.date)),
+      cell.completed,
+      this.shared().durationLabel(cell.earnedSeconds),
+    );
   }
 
   protected monthDay(date: string): string {
-    const { month, day } = dateParts(date);
-    return `${month}/${day}`;
+    return this.dateFormats().monthDay.format(utcDate(date));
   }
 
   protected longDay(date: string): string {
-    const { month, day } = dateParts(date);
-    return `${month}月${day}日`;
+    return this.dateFormats().long.format(utcDate(date));
   }
 
   protected select(index: number): void {
@@ -149,14 +172,12 @@ export class RecordsPage {
   }
 
   protected entryTitle(entry: LedgerEntry): string {
-    return entry.taskTitle ?? ledgerKindLabels[entry.kind];
+    return entry.taskTitle ?? this.shared().ledgerKinds[entry.kind];
   }
 
   protected amount(entry: LedgerEntry): string {
-    return `${entry.seconds < 0 ? '−' : '＋'}${this.durationText(Math.abs(entry.seconds))}`;
-  }
-
-  private durationText(seconds: number): string {
-    return durationLabel(seconds);
+    const text = this.text().records.page;
+    const duration = this.shared().durationLabel(Math.abs(entry.seconds));
+    return entry.seconds < 0 ? text.loss(duration) : text.gain(duration);
   }
 }

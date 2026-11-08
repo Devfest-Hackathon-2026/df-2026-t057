@@ -71,7 +71,7 @@ func (s *Service) Line(ctx context.Context, uid string, moment Moment, taskID st
 		return Line{}, nil
 	}
 	loc := profile.LoadLocation(prof.TimeZone)
-	key := lineKey(uid, moment, current, now, loc)
+	key := lineKey(uid, moment, current, now, loc, prof.Locale)
 	if text, ok := s.cache.get(key, now); ok {
 		return Line{Text: text, Generated: true}, nil
 	}
@@ -79,7 +79,7 @@ func (s *Service) Line(ctx context.Context, uid string, moment Moment, taskID st
 	if err != nil {
 		return Line{}, err
 	}
-	req := LineRequest{Moment: moment, Progress: progress, ProfileContext: prof.Context}
+	req := LineRequest{Moment: moment, Progress: progress, ProfileContext: prof.Context, Locale: prof.Locale}
 	if current != nil {
 		summary := Describe(*current, false, loc)
 		req.Task = &summary
@@ -92,7 +92,7 @@ func (s *Service) Line(ctx context.Context, uid string, moment Moment, taskID st
 		slog.WarnContext(ctx, "companion line fell back", "moment", string(moment), "code", apperr.As(err).Code)
 		return Line{}, nil
 	}
-	text, ok := CleanLine(raw)
+	text, ok := CleanLine(raw, prof.Locale)
 	if !ok {
 		return Line{}, nil
 	}

@@ -266,7 +266,7 @@ func (s *Service) consult(ctx context.Context, uid string, turn Turn) (Snapshot,
 		return Snapshot{}, "", nil, err
 	}
 	in := ConsultInput{
-		TimeZone: snap.Loc.String(), History: History(history, snap.Profile.ContextSince, turn.ID),
+		Locale: snap.Profile.Locale, TimeZone: snap.Loc.String(), History: History(history, snap.Profile.ContextSince, turn.ID),
 		User: turn.Text, Now: snap.Now.In(snap.Loc).Format(time.RFC3339),
 	}
 	if turn.TaskID != "" {

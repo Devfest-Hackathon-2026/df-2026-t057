@@ -1,7 +1,7 @@
 // content script の中で共有する状態と、background とのやりとり。
 // 状態は background から受け取ったものを表示に使うだけで、ここでは書き換えない。
 import type { CompanionMoment } from '@dopagaki/contract';
-import { companionFallbacks } from '@dopagaki/messages';
+import { currentLocale, currentMessages, followLocale } from '../lib/locale';
 import type { OkReply, PortPush } from '../lib/protocol';
 import type { ExtensionState } from '../lib/schemas';
 import { showToast } from '../ui/toast';
@@ -31,6 +31,9 @@ export class ContentContext {
     this.#ownsViewing = ownsViewing;
     // 「動きを減らす」設定は、ダイアログだけでなくタイマーや読み込み中の表示にも効かせる。
     this.root.classList.toggle('reduced', state?.settings?.reducedMotion === true);
+    // 文言はプロフィールの言語で出す。ページ（YouTube など）の言語と違うことがあるので、読み上げ用に lang も付ける。
+    followLocale(state);
+    this.root.lang = currentLocale();
     for (const listener of this.#listeners) listener();
   }
 
@@ -71,6 +74,8 @@ export class ContentContext {
     const reply = await send(
       taskId ? { type: 'COMPANION_LINE', moment, taskId } : { type: 'COMPANION_LINE', moment },
     );
-    return reply.ok && reply.line ? reply.line : companionFallbacks[moment];
+    return reply.ok && reply.line
+      ? reply.line
+      : currentMessages().shared.companionFallbacks[moment];
   }
 }

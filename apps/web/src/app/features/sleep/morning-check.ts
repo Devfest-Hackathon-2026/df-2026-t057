@@ -1,7 +1,7 @@
 import { Injectable, effect, inject, untracked } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { durationLabel } from '@dopagaki/messages';
 import { AccountScope } from '../../core/auth/account-scope';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { CompanionService } from '../companion/companion.service';
 import { SleepStore } from './sleep.store';
 
@@ -14,6 +14,7 @@ export class MorningCheck {
   private readonly sleep = inject(SleepStore);
   private readonly companion = inject(CompanionService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly locale = inject(LocaleStore);
   private checkedEpoch: number | undefined;
 
   constructor() {
@@ -35,12 +36,14 @@ export class MorningCheck {
     if (!outcome.ok || !outcome.value) return;
     const morning = outcome.value;
     const line = await this.companion.line('morning');
+    const shared = this.locale.shared();
+    const text = this.locale.web().sleep.morning;
     const gains: string[] = [];
     if (morning.kept && morning.bonusSeconds > 0) {
-      gains.push(`早寝ボーナス ＋${durationLabel(morning.bonusSeconds)}`);
+      gains.push(text.bonus(shared.durationLabel(morning.bonusSeconds)));
     }
     if (morning.releasedSeconds > 0)
-      gains.push(`昨夜の報酬 ＋${durationLabel(morning.releasedSeconds)}`);
-    this.snackBar.open([line, ...gains].join(' ・ '), '閉じる', { duration: 8000 });
+      gains.push(text.released(shared.durationLabel(morning.releasedSeconds)));
+    this.snackBar.open([line, ...gains].join(text.separator), text.close, { duration: 8000 });
   }
 }

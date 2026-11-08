@@ -20,23 +20,24 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import type { Task } from '@dopagaki/contract';
-import { durationLabel } from '@dopagaki/messages';
+import type { Locale } from '@dopagaki/messages';
 import {
   FullCalendarComponent,
   FullCalendarModule,
   type CalendarOptions,
+  type LocaleSingularArg,
 } from '@fullcalendar/angular';
 import themePlugin from '@fullcalendar/angular/themes/classic';
 import timeGridPlugin from '@fullcalendar/angular/timegrid';
 import ja from 'fullcalendar/locales/ja';
 import { map } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { LocaleStore } from '../../../core/i18n/locale.store';
 import {
   DateTimePipe,
   MonthDayPipe,
   PlanMinutesPipe,
   TimePipe,
-  formatTime,
   localDateKey,
 } from '../../../shared/ui/format';
 import { AssistantPanel } from '../../assistant/assistant-panel';
@@ -52,6 +53,8 @@ type View = 'day' | 'week';
 /** 「はじめる」を押した場所。失敗はその近くに出す。 */
 type StartOrigin = 'next' | 'detail';
 const compactQuery = '(max-width: 1100px)';
+// 英語は FullCalendar に組み込まれているので、コードを渡すだけでよい。
+const calendarLocales: Record<Locale, LocaleSingularArg> = { ja, en: 'en' };
 
 /** `YYYY-MM-DD` として正しい日付なら返す。 */
 export function validDate(value: string | undefined): string | undefined {
@@ -93,6 +96,9 @@ export class CalendarWorkspace {
   protected readonly calendar = inject(CalendarStore);
   protected readonly actions = inject(TaskActions);
   protected readonly auth = inject(AuthService);
+  private readonly locale = inject(LocaleStore).locale;
+  protected readonly text = inject(LocaleStore).web;
+  private readonly shared = inject(LocaleStore).shared;
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -133,12 +139,14 @@ export class CalendarWorkspace {
   });
   protected readonly next = this.tasks.next;
   protected readonly creditLabel = computed(() =>
-    this.wallet.unlimited() ? '視聴の支援' : '今日、視聴できる時間',
+    this.wallet.unlimited()
+      ? this.text().calendar.common.support
+      : this.text().calendar.common.availableToday,
   );
   protected readonly creditValue = computed(() =>
     this.wallet.unlimited()
-      ? '制限なし'
-      : durationLabel(this.wallet.value()?.availableSeconds ?? 0),
+      ? this.text().calendar.common.unlimited
+      : this.shared().durationLabel(this.wallet.value()?.availableSeconds ?? 0),
   );
   protected readonly events = computed(() => {
     const selected = this.selected()?.id;
@@ -154,9 +162,8 @@ export class CalendarWorkspace {
     this.calendar.connected() ? this.calendar.sync.pending() : this.tasks.load.pending(),
   );
 
-  protected readonly options: CalendarOptions = {
+  private readonly baseOptions: CalendarOptions = {
     plugins: [themePlugin, timeGridPlugin],
-    locale: ja,
     initialView: this.currentView() === 'day' ? 'timeGridDay' : 'timeGridWeek',
     initialDate: validDate(this.date()) ?? this.selected()?.plan.start ?? new Date(),
     headerToolbar: false,
@@ -192,6 +199,14 @@ export class CalendarWorkspace {
       });
     },
   };
+  /**
+   * FullCalendar は options の各値を前回と比べ、変わったものだけを反映する。
+   * ほかの値は同じものを渡し、言語を切り替えたときは locale だけを変える（表示期間の見出しは datesSet で取り直される）。
+   */
+  protected readonly options = computed<CalendarOptions>(() => ({
+    ...this.baseOptions,
+    locale: calendarLocales[this.locale()],
+  }));
 
   constructor() {
     void loadFullCalendarStyles().then(() => {
@@ -230,7 +245,8 @@ export class CalendarWorkspace {
   protected select(task: Task): void {
     const api = this.fullCalendar()?.getApi();
     api?.gotoDate(task.plan.start);
-    api?.scrollToTime(formatTime(task.plan.start));
+    const start = new Date(task.plan.start);
+    api?.scrollToTime({ hours: start.getHours(), minutes: start.getMinutes() });
     this.updateQuery({ task: task.id, date: localDateKey(task.plan.start) });
     this.panel.set('detail');
     this.mobilePart.set('panel');
@@ -256,9 +272,10 @@ export class CalendarWorkspace {
   }
 
   protected startLabel(task: Task): string {
-    if (task.status === 'active') return '作業中';
-    if (task.status === 'completed') return '完了済み';
-    return 'はじめる';
+    const text = this.text().calendar.workspace;
+    if (task.status === 'active') return text.active;
+    if (task.status === 'completed') return text.completed;
+    return text.start;
   }
 
   protected sameDay(start: string, end: string): boolean {

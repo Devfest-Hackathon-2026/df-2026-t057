@@ -10,7 +10,13 @@ import { settings, taskList, wallet } from '../../../testing/fixtures';
 import { AboutPage } from '../about/about-page';
 import { Shell } from './shell';
 
-const profile: Profile = { name: '山田', context: '', timeZone: 'Asia/Tokyo', revision: 1 };
+const profile: Profile = {
+  name: '山田',
+  context: '',
+  timeZone: 'Asia/Tokyo',
+  locale: 'ja',
+  revision: 1,
+};
 const liveAccount: Account = {
   id: 'u1',
   email: 'taro@example.com',

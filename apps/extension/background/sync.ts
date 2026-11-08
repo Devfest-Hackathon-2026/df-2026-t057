@@ -44,6 +44,11 @@ const fetchers: Record<WatchedResource, Fetcher> = {
     rememberRevision('sleep', sleep.revision);
     await patchState(version, { sleep: sleep.sleep });
   },
+  profile: async (version) => {
+    const profile = await api.profile();
+    rememberRevision('profile', profile.revision);
+    await patchState(version, { profile });
+  },
 };
 
 /** 指定したリソースを取り直す。取れたものは反映し、1つでも失敗したら最初の失敗を投げる。 */

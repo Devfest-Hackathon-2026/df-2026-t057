@@ -137,14 +137,15 @@ func TestIdempotencyKey(t *testing.T) {
 
 func TestIfMatch(t *testing.T) {
 	srv, _ := newServer(t, config.ModeDemo)
-	body := `{"name":"","context":"","timeZone":"Asia/Tokyo"}`
+	body := `{"name":"","context":"","timeZone":"Asia/Tokyo","locale":"ja"}`
 	expectProblem(t, call(t, srv, "PUT", "/api/profile", body, "Idempotency-Key", "profile-01"), 428, "precondition.required")
 	expectProblem(t, call(t, srv, "PUT", "/api/profile", body, "Idempotency-Key", "profile-02", "If-Match", `"3"`), 412, "precondition.failed")
 	r := call(t, srv, "PUT", "/api/profile", body, "Idempotency-Key", "profile-03", "If-Match", `"0"`)
 	if r.status != 200 || r.header.Get("ETag") != `"1"` {
 		t.Fatalf("%d %s %v", r.status, r.raw, r.header)
 	}
-	expectProblem(t, call(t, srv, "PUT", "/api/profile", `{"name":"","context":"","timeZone":"Nowhere/X"}`, "Idempotency-Key", "profile-04", "If-Match", `"1"`), 400, "request.invalid")
+	expectProblem(t, call(t, srv, "PUT", "/api/profile", `{"name":"","context":"","timeZone":"Nowhere/X","locale":"ja"}`, "Idempotency-Key", "profile-04", "If-Match", `"1"`), 400, "request.invalid")
+	expectProblem(t, call(t, srv, "PUT", "/api/profile", `{"name":"","context":"","timeZone":"Asia/Tokyo","locale":"fr"}`, "Idempotency-Key", "profile-05", "If-Match", `"1"`), 400, "request.invalid")
 }
 
 func TestAuthAndOrigin(t *testing.T) {

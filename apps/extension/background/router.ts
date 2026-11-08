@@ -1,5 +1,4 @@
 // content script・ポップアップからのメッセージを処理する。メッセージは呼び出し元（background.ts）で検証済み。
-import { extensionCopy } from '@dopagaki/messages';
 import { MANAGEMENT_ORIGIN } from '../lib/config';
 import type { OkReply, Request } from '../lib/protocol';
 import { isShortsUrl } from '../lib/shorts';
@@ -69,7 +68,7 @@ export async function handleRequest(
         new URL(request.origin).origin !== MANAGEMENT_ORIGIN ||
         !AUTHORIZATION.test(request.authorization)
       ) {
-        throw new ExtensionError(extensionCopy.untrustedSender);
+        throw new ExtensionError('untrustedSender');
       }
       const result = await replaceConnection(
         { authorization: request.authorization, accountId: request.accountId },
@@ -82,7 +81,7 @@ export async function handleRequest(
       return stateReply(sender);
     }
     case 'DISCONNECT': {
-      if (!fromManagement(sender)) throw new ExtensionError(extensionCopy.untrustedSender);
+      if (!fromManagement(sender)) throw new ExtensionError('untrustedSender');
       await replaceConnection(undefined, clearAccount);
       restartStream();
       return { ok: true, connected: false };
@@ -156,7 +155,7 @@ export async function handleRequest(
     case 'CLOSE_TAB': {
       // 夜の声かけの「Shortsを閉じて寝る」だけで使う。Shorts 以外のタブは閉じない。
       if (sender.tab?.id === undefined || !sender.url || !isShortsUrl(sender.url)) {
-        throw new ExtensionError(extensionCopy.fromShorts);
+        throw new ExtensionError('fromShorts');
       }
       await chrome.tabs.remove(sender.tab.id);
       return { ok: true, connected: true };

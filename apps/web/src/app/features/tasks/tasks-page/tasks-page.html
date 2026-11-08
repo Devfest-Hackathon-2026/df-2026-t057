@@ -1,8 +1,8 @@
 <div class="page-title">
-  <h1>課題</h1>
+  <h1>{{ text().tasks.page.title }}</h1>
   <button mat-flat-button type="button" (click)="actions.add()">
     <mat-icon>add</mat-icon>
-    課題を登録
+    {{ text().tasks.page.add }}
   </button>
 </div>
 
@@ -10,38 +10,44 @@
   class="filter"
   [value]="filter()"
   (change)="filter.set($event.value)"
-  aria-label="課題の状態"
+  [attr.aria-label]="text().tasks.page.filterLabel"
 >
-  <mat-button-toggle value="pending">未完了</mat-button-toggle>
-  <mat-button-toggle value="completed">完了</mat-button-toggle>
+  <mat-button-toggle value="pending">{{ text().tasks.page.filterPending }}</mat-button-toggle>
+  <mat-button-toggle value="completed">{{ text().tasks.page.filterCompleted }}</mat-button-toggle>
 </mat-button-toggle-group>
 
 @if (store.start.error(); as error) {
   <p class="error" role="alert">{{ error.message }}</p>
 }
 
-<ul class="task-list" aria-label="課題一覧">
+<ul class="task-list" [attr.aria-label]="text().tasks.page.listLabel">
   @for (task of tasks(); track task.id) {
     <li class="task-row" [attr.aria-labelledby]="'task-' + task.id">
       <div class="task-main">
         <div class="task-title">
           <h2 [id]="'task-' + task.id">{{ task.title }}</h2>
           @if (task.status !== 'pending') {
-            <span class="tag">{{ task.status === 'active' ? '作業中' : '完了' }}</span>
+            <span class="tag">
+              {{
+                task.status === 'active'
+                  ? text().tasks.page.statusActive
+                  : text().tasks.page.statusCompleted
+              }}
+            </span>
           }
         </div>
         <p class="meta">
-          締切 {{ task.deadline | dateTime }} / 予定 {{ planMinutes(task.plan) }}分
+          {{ text().tasks.page.meta(task.deadline | dateTime, planMinutes(task.plan)) }}
           @if (planMinutes(task.plan) !== task.minutes) {
-            <span>（見積もり {{ task.minutes }}分）</span>
+            <span>{{ text().tasks.page.estimate(task.minutes) }}</span>
           }
         </p>
       </div>
       <div class="task-actions">
         <a
           mat-icon-button
-          aria-label="カレンダーで見る"
-          matTooltip="カレンダーで見る"
+          [attr.aria-label]="text().tasks.page.viewInCalendar"
+          [matTooltip]="text().tasks.page.viewInCalendar"
           routerLink="/calendar"
           [queryParams]="{ task: task.id, date: dateKey(task.plan.start) }"
         >
@@ -51,8 +57,8 @@
           <button
             mat-icon-button
             type="button"
-            aria-label="課題を編集"
-            matTooltip="課題を編集"
+            [attr.aria-label]="text().tasks.page.edit"
+            [matTooltip]="text().tasks.page.edit"
             (click)="actions.edit(task)"
           >
             <mat-icon>edit</mat-icon>
@@ -62,8 +68,8 @@
           <button
             mat-icon-button
             type="button"
-            aria-label="予定を調整"
-            matTooltip="予定を調整"
+            [attr.aria-label]="text().tasks.page.adjust"
+            [matTooltip]="text().tasks.page.adjust"
             (click)="actions.plan(task, 'adjust')"
           >
             <mat-icon>edit_calendar</mat-icon>
@@ -73,8 +79,8 @@
           <button
             mat-icon-button
             type="button"
-            aria-label="課題を削除"
-            matTooltip="課題を削除"
+            [attr.aria-label]="text().tasks.page.delete"
+            [matTooltip]="text().tasks.page.delete"
             (click)="confirmDelete(task)"
           >
             <mat-icon>delete</mat-icon>
@@ -87,7 +93,7 @@
             (click)="actions.start(task)"
             [disabled]="store.start.pending() || task.status === 'active'"
           >
-            はじめる
+            {{ text().tasks.page.start }}
           </button>
         }
       </div>
@@ -95,7 +101,7 @@
   } @empty {
     <li class="empty">
       <h2>
-        {{ filter() === 'completed' ? '完了した課題はまだありません' : 'まだ課題がありません' }}
+        {{ filter() === 'completed' ? text().tasks.page.emptyCompleted : text().tasks.page.empty }}
       </h2>
     </li>
   }

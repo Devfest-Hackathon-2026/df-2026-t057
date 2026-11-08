@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/wallet"
@@ -38,11 +39,12 @@ func (m Moment) Valid() bool {
 	}
 }
 
-// MaxLineRunes は表示できる一言の長さの上限。
-const MaxLineRunes = 60
+// MaxLineRunes は表示できる一言の長さの上限。英語は同じ内容でも文字数が多くなるので、上限を広げる。
+var MaxLineRunes = map[locale.Locale]int{locale.Ja: 60, locale.En: 140}
 
-// bannedWords は相棒が使わない言葉（診断や医学的な判断に聞こえるもの）。
-var bannedWords = []string{"依存症", "中毒", "治療", "病気", "意志が弱"}
+// bannedWords は相棒が使わない言葉（診断や医学的な判断に聞こえるもの）。英語は小文字にしてから比べる。
+// AI が指示と違う言語で返すこともあるので、言語によらずすべてを確かめる。
+var bannedWords = []string{"依存症", "中毒", "治療", "病気", "意志が弱", "addict", "treatment", "disease", "illness", "weak-willed", "weak willed"}
 
 // Speakable は AI の文が表示してよい長さで、使わない言葉を含まないか。
 func Speakable(text string, limit int) bool {
@@ -50,8 +52,9 @@ func Speakable(text string, limit int) bool {
 	if text == "" || utf8.RuneCountInString(text) > limit {
 		return false
 	}
+	lower := strings.ToLower(text)
 	for _, word := range bannedWords {
-		if strings.Contains(text, word) {
+		if strings.Contains(lower, word) {
 			return false
 		}
 	}
@@ -59,9 +62,9 @@ func Speakable(text string, limit int) bool {
 }
 
 // CleanLine は AI が返した一言を整える（前後の空白とかぎかっこ・引用符を除く）。表示できなければ ok は false。
-func CleanLine(raw string) (string, bool) {
-	line := strings.TrimSpace(strings.Trim(strings.TrimSpace(raw), "「」\""))
-	if !Speakable(line, MaxLineRunes) {
+func CleanLine(raw string, lang locale.Locale) (string, bool) {
+	line := strings.TrimSpace(strings.Trim(strings.TrimSpace(raw), "「」\"“”"))
+	if !Speakable(line, MaxLineRunes[lang]) {
 		return "", false
 	}
 	return line, true
@@ -234,6 +237,7 @@ type LineRequest struct {
 	Progress       Progress
 	ProfileContext string
 	Task           *TaskSummary
+	Locale         locale.Locale
 }
 
 // Line は相棒の一言。Generated が false なら Text は空で、クライアントが決まった文を表示する。
@@ -245,9 +249,9 @@ type Line struct {
 // LineReuse は、同じ場面・課題・計画で作った一言を使い回す時間（同じ画面を開き直すたびに AI の回数を使わないように）。
 const LineReuse = 6 * time.Hour
 
-// lineKey は一言を使い回す単位。本人の暦日・場面・課題・計画の開始が同じなら同じ一言にする。
-func lineKey(uid string, moment Moment, t *task.Task, now time.Time, loc *time.Location) string {
-	key := uid + "|" + string(moment) + "|" + now.In(loc).Format(time.DateOnly)
+// lineKey は一言を使い回す単位。本人の暦日・場面・課題・計画の開始・言語が同じなら同じ一言にする。
+func lineKey(uid string, moment Moment, t *task.Task, now time.Time, loc *time.Location, lang locale.Locale) string {
+	key := uid + "|" + string(lang) + "|" + string(moment) + "|" + now.In(loc).Format(time.DateOnly)
 	if t != nil {
 		key += "|" + t.ID + "|" + t.Plan.Start.UTC().Format(time.RFC3339)
 	}
