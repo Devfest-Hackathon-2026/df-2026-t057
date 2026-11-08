@@ -66,8 +66,9 @@ function imageInput(path) {
   );
 }
 
-export function planChecks(files, flags, event = 'pull_request') {
+export function planChecks(files, flags, event = 'pull_request', requestDeploy = false) {
   const manual = event === 'workflow_dispatch';
+  const redeploy = event === 'push' && requestDeploy;
   const result = Object.fromEntries(
     ['code', 'api', 'web', 'extension', 'shared', 'generate', 'e2e', 'deploy', 'terraform'].map(
       (key) => [key, flags[key] === true || flags[key] === 'true'],
@@ -78,6 +79,7 @@ export function planChecks(files, flags, event = 'pull_request') {
   );
   const buildChanged = files.some(imageInput);
   const deploy =
+    redeploy ||
     files.some((path) => productionControls.has(path)) ||
     buildChanged ||
     (result.deploy && runtime.some((path) => !path.startsWith('apps/extension/')));
@@ -132,13 +134,13 @@ export function planChecks(files, flags, event = 'pull_request') {
       ) &&
         !testOrDocumentation(path)),
   );
-  if (manual) {
+  if (manual || redeploy) {
     for (const key of ['code', 'api', 'web', 'extension', 'shared', 'terraform'])
       result[key] = true;
   }
   return {
     ...result,
-    generate: manual || generate,
+    generate: manual || redeploy || generate,
     deploy,
     e2e: browser,
     suite,
@@ -149,7 +151,12 @@ export function planChecks(files, flags, event = 'pull_request') {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const changes = JSON.parse(process.env.CHANGES);
-  const plan = planChecks(JSON.parse(changes.all_files), changes, process.env.EVENT_NAME);
+  const plan = planChecks(
+    JSON.parse(changes.all_files),
+    changes,
+    process.env.EVENT_NAME,
+    process.env.REQUEST_DEPLOY === 'true',
+  );
   appendFileSync(
     process.env.GITHUB_OUTPUT,
     Object.entries(plan)
