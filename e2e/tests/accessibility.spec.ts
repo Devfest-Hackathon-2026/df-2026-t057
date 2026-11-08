@@ -1,7 +1,7 @@
 import type { Config } from '../support/api';
 import { expectAccessibleInBothSchemes } from '../support/a11y';
 import { hoursFromNow } from '../support/api';
-import { expect, test } from '../support/fixtures';
+import { expect, test, tokyoDate } from '../support/fixtures';
 import { expectReflow } from '../support/layout';
 import { expandPanel, workspace } from '../support/pages';
 
@@ -24,8 +24,10 @@ test.describe('main screens', () => {
     });
   });
 
-  test('calendar', async ({ page }) => {
-    await page.goto('/calendar');
+  test('calendar', async ({ page, api }) => {
+    const [task] = (await api.tasks()).items;
+    // 夜に実行すると3時間後の作業は翌日になるため、作成した予定の日を開く。
+    await page.goto(`/calendar?date=${tokyoDate(task?.plan.start ?? '')}`);
     await expect(workspace(page).calendar.getByText('検査用のレポート')).toBeVisible();
     await expectAccessibleInBothSchemes(page);
     await expectReflow(page);
