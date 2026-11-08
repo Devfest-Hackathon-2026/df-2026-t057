@@ -41,3 +41,30 @@ func TestWebNonceAndSecurityHeaders(t *testing.T) {
 		t.Fatal("unsafe auth origin accepted")
 	}
 }
+
+func TestOnlyExtensionAuthPageAllowsConfiguredFrame(t *testing.T) {
+	static := t.TempDir()
+	for name, body := range map[string]string{"index.html": `<script nonce="__DOPAGAKI_CSP_NONCE__"></script>`, "extension-auth.html": `<script src="/extension-auth.js"></script>`} {
+		if err := os.WriteFile(filepath.Join(static, name), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	id := strings.Repeat("a", 32)
+	handler, err := WebHandler(http.NotFoundHandler(), static, "app.firebaseapp.com", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth := httptest.NewRecorder()
+	handler.ServeHTTP(auth, httptest.NewRequest("GET", "/extension-auth.html", nil))
+	if auth.Code != 200 || auth.Header().Get("X-Frame-Options") != "" || !strings.Contains(auth.Header().Get("Content-Security-Policy"), "frame-ancestors chrome-extension://"+id) {
+		t.Fatal("auth frame policy is not limited to the configured extension")
+	}
+	normal := httptest.NewRecorder()
+	handler.ServeHTTP(normal, httptest.NewRequest("GET", "/", nil))
+	if normal.Header().Get("X-Frame-Options") != "DENY" || !strings.Contains(normal.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
+		t.Fatal("normal app framing protection changed")
+	}
+	if _, err := WebHandler(nil, static, "app.firebaseapp.com", "invalid; frame-src *"); err == nil {
+		t.Fatal("unsafe extension ID accepted")
+	}
+}

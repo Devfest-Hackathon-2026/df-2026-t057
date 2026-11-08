@@ -1,3 +1,4 @@
+import { extensionConnection, signIn, disconnectAuth, receiveCredential, authStatus } from './auth';
 import { Draft, Morning, State, nightWindow, rewardDescription } from '../../shared/models';
 import {
   Connection,
@@ -12,6 +13,8 @@ import {
 let connectionVersion = 0;
 
 async function connection(): Promise<Connection | undefined> {
+  const own = await extensionConnection();
+  if (own !== undefined) return own ?? undefined;
   return (await chrome.storage.session.get('connection'))['connection'] as Connection | undefined;
 }
 async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
@@ -333,30 +336,80 @@ function replaceConnection(next?: Connection): Promise<void> {
 }
 
 chrome.runtime.onMessage.addListener(
-  (request: Request, sender, respond: (value: Reply) => void) => {
-    if (!trustedPage(sender)) return;
+  (request: Request & { target?: string }, sender, respond: (value: Reply) => void) => {
+    if (!request || typeof request !== 'object' || typeof request.type !== 'string' || !trustedPage(sender) || request.target === 'offscreen') return;
+    if (request.type === 'AUTH_RESULT') {
+      if (sender.url === chrome.runtime.getURL('offscreen.html'))
+        void receiveCredential(request.credential);
+      return;
+    }
     void (async (): Promise<Reply> => {
+      if (
+        ['AUTH_SIGN_IN', 'AUTH_SIGN_OUT', 'TEST_NOTICE'].includes(request.type) &&
+        sender.url !== chrome.runtime.getURL('popup.html')
+      )
+        throw new Error('拡張のメニューから操作してください。');
+      if (request.type === 'AUTH_SIGN_IN') {
+        connectionVersion++;
+        await clearAccount();
+        await signIn();
+        return { state: await refresh(), connected: true };
+      }
+      if (request.type === 'AUTH_SIGN_OUT') {
+        await disconnectAuth();
+        await replaceConnection();
+        return { connected: false };
+      }
+      if (request.type === 'DIAGNOSTICS')
+        return {
+          diagnostics: {
+            ...(await authStatus()),
+            notificationPermission: await chrome.notifications.getPermissionLevel(),
+            protocolVersion: 2,
+          },
+        };
+      if (request.type === 'TEST_NOTICE') {
+        await chrome.notifications.create('dopagaki-test', {
+          type: 'basic',
+          iconUrl: 'icon-128.png',
+          title: 'DOPAGAKI 接続テスト',
+          message: 'この通知が見えたら、設定画面の「見えた」を押してください。',
+        });
+        return {};
+      }
       if (request.type === 'CONNECT') {
         if (
           !trustedManagement(sender) ||
           request.connection.apiBase !== MANAGEMENT_ORIGIN ||
           typeof request.connection.accountId !== 'string' ||
           !request.connection.accountId ||
-          !/^(Bearer |Demo )\S+$/.test(request.connection.auth)
+          (request.connection.auth !== undefined &&
+            !/^(Bearer |Demo )\S+$/.test(request.connection.auth))
         )
           throw new Error('接続元を確認してください。');
+        const own = await extensionConnection();
+        if (own !== undefined) {
+          if (!own || own.accountId !== request.connection.accountId)
+            throw new Error('拡張で同じGoogleアカウントへ接続してください。');
+          return { state: await refresh(), connected: true };
+        }
         const current = await connection();
+        if (typeof request.connection.auth !== 'string')
+          throw new Error('デモの接続情報を確認してください。');
         if (
           !current ||
           current.accountId !== request.connection.accountId ||
           current.auth !== request.connection.auth ||
           current.apiBase !== request.connection.apiBase
         )
-          await replaceConnection(request.connection);
+          await replaceConnection({ ...request.connection, auth: request.connection.auth });
         return { state: await refresh(), connected: true };
       }
       if (request.type === 'DISCONNECT') {
         if (!trustedManagement(sender)) throw new Error('接続元を確認してください。');
+        const own = await extensionConnection();
+        if (own && own.accountId !== request.accountId) return {};
+        await disconnectAuth();
         await replaceConnection();
         return { connected: false };
       }
@@ -401,7 +454,10 @@ chrome.runtime.onMessage.addListener(
           state = await apiState(`/tasks/${encodeURIComponent(request.taskId)}/complete`, 'POST');
           break;
         case 'PAUSE':
-          state = await apiState('/session/pause', 'POST');
+          {
+            const current = await apiState('/state');
+            state = await apiState('/session/pause', 'PUT', { paused: !current.session?.pausedAt });
+          }
           break;
         case 'CONFIRM_WORK':
           state = await apiState('/session/confirm', 'POST', { id: request.id });

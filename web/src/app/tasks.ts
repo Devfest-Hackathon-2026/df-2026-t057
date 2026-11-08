@@ -17,6 +17,16 @@ export class Tasks {
   readonly api = inject(Api);
   readonly actions = inject(TaskActions);
   readonly status = signal('pending');
+  readonly archiveBusy = signal(false);
+  async archive(task: Task) {
+    if (this.archiveBusy()) return;
+    this.archiveBusy.set(true);
+    try {
+      await this.api.mutate('/tasks/' + encodeURIComponent(task.id) + '/archive');
+    } finally {
+      this.archiveBusy.set(false);
+    }
+  }
   readonly tasks = computed(() =>
     (this.api.state()?.tasks ?? [])
       .filter((t) => (t.status === 'completed') === (this.status() === 'completed'))

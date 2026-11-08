@@ -22,23 +22,24 @@ type Plan struct {
 	Reason string    `json:"reason"`
 }
 type Task struct {
-	StartedAt            *time.Time `json:"startedAt,omitempty"`
-	ScheduledStartAt     *time.Time `json:"scheduledStartAt,omitempty"`
-	ID                   string     `json:"id"`
-	Title                string     `json:"title"`
-	Notes                string     `json:"notes"`
-	Why                  string     `json:"why,omitempty"`
-	Deadline             time.Time  `json:"deadline"`
-	Minutes              int        `json:"minutes"`
-	URL                  string     `json:"url"`
-	Status               string     `json:"status"`
-	CreatedAt            time.Time  `json:"createdAt"`
-	CompletedAt          *time.Time `json:"completedAt,omitempty"`
-	Plan                 Plan       `json:"plan"`
-	CalendarEventID      string     `json:"calendarEventId,omitempty"`
-	CalendarInputPending bool       `json:"calendarInputPending,omitempty"`
-	CalendarETag         string     `json:"calendarEtag,omitempty"`
-	InputHash            string     `json:"inputHash,omitempty"`
+	LastCalendarResolutionID string     `json:"lastCalendarResolutionId,omitempty"`
+	StartedAt                *time.Time `json:"startedAt,omitempty"`
+	ScheduledStartAt         *time.Time `json:"scheduledStartAt,omitempty"`
+	ID                       string     `json:"id"`
+	Title                    string     `json:"title"`
+	Notes                    string     `json:"notes"`
+	Why                      string     `json:"why,omitempty"`
+	Deadline                 time.Time  `json:"deadline"`
+	Minutes                  int        `json:"minutes"`
+	URL                      string     `json:"url"`
+	Status                   string     `json:"status"`
+	CreatedAt                time.Time  `json:"createdAt"`
+	CompletedAt              *time.Time `json:"completedAt,omitempty"`
+	Plan                     Plan       `json:"plan"`
+	CalendarEventID          string     `json:"calendarEventId,omitempty"`
+	CalendarInputPending     bool       `json:"calendarInputPending,omitempty"`
+	CalendarETag             string     `json:"calendarEtag,omitempty"`
+	InputHash                string     `json:"inputHash,omitempty"`
 }
 type Profile struct {
 	Name     string `json:"name"`
@@ -73,26 +74,32 @@ type LedgerEntry struct {
 	At          time.Time `json:"at"`
 }
 type State struct {
-	Sleep                 *Sleep           `json:"sleep,omitempty"`
-	TimePolicy            *TimePolicy      `json:"timePolicy,omitempty"`
-	ViewingSession        *ViewingSession  `json:"viewingSession,omitempty"`
-	ViewingHistory        []ViewingSession `json:"viewingHistory,omitempty"`
-	Revision              int              `json:"revision"`
-	PlanRevision          int              `json:"planRevision"`
-	Profile               Profile          `json:"profile"`
-	Settings              Settings         `json:"settings"`
-	BalanceSeconds        int              `json:"balanceSeconds"`
-	Tasks                 []Task           `json:"tasks"`
-	Session               *Session         `json:"session,omitempty"`
-	Ledger                []LedgerEntry    `json:"ledger"`
-	CalendarConnected     bool             `json:"calendarConnected"`
-	CalendarSync          string           `json:"calendarSync"`
-	LastSync              *time.Time       `json:"lastSync,omitempty"`
-	NextDraft             *Draft           `json:"nextDraft,omitempty"`
-	LastViewingAt         *time.Time       `json:"lastViewingAt,omitempty"`
-	ViewingReceipts       map[string]bool  `json:"viewingReceipts,omitempty"`
-	MemoryReceipts        map[string]bool  `json:"memoryReceipts,omitempty"`
-	AssistantContextSince *time.Time       `json:"assistantContextSince,omitempty"`
+	AccountReceiptHash    string             `json:"-"`
+	CalendarConflicts     []CalendarConflict `json:"calendarConflicts,omitempty"`
+	AccountClosing        bool               `json:"accountClosing,omitempty"`
+	DeleteCalendar        bool               `json:"-"`
+	LastSnoozeID          string             `json:"-"`
+	LastSnoozeTask        string             `json:"-"`
+	Sleep                 *Sleep             `json:"sleep,omitempty"`
+	TimePolicy            *TimePolicy        `json:"timePolicy,omitempty"`
+	ViewingSession        *ViewingSession    `json:"viewingSession,omitempty"`
+	ViewingHistory        []ViewingSession   `json:"viewingHistory,omitempty"`
+	Revision              int                `json:"revision"`
+	PlanRevision          int                `json:"planRevision"`
+	Profile               Profile            `json:"profile"`
+	Settings              Settings           `json:"settings"`
+	BalanceSeconds        int                `json:"balanceSeconds"`
+	Tasks                 []Task             `json:"tasks"`
+	Session               *Session           `json:"session,omitempty"`
+	Ledger                []LedgerEntry      `json:"ledger"`
+	CalendarConnected     bool               `json:"calendarConnected"`
+	CalendarSync          string             `json:"calendarSync"`
+	LastSync              *time.Time         `json:"lastSync,omitempty"`
+	NextDraft             *Draft             `json:"nextDraft,omitempty"`
+	LastViewingAt         *time.Time         `json:"lastViewingAt,omitempty"`
+	ViewingReceipts       map[string]bool    `json:"viewingReceipts,omitempty"`
+	MemoryReceipts        map[string]bool    `json:"memoryReceipts,omitempty"`
+	AssistantContextSince *time.Time         `json:"assistantContextSince,omitempty"`
 }
 type PlanChange struct {
 	TaskID          string  `json:"taskId"`
@@ -103,6 +110,7 @@ type PlanChange struct {
 	PlannedMinutes  float64 `json:"plannedMinutes"`
 }
 type Draft struct {
+	Intent       string       `json:"intent,omitempty"`
 	ID           string       `json:"id"`
 	TaskID       string       `json:"taskId"`
 	BaseRevision int          `json:"baseRevision"`

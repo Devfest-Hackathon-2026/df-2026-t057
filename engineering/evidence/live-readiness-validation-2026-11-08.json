@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-08",
+  "timezone": "Asia/Tokyo",
+  "branch": "codex/live-readiness",
+  "base_commit": "ade57da",
+  "source_state": "uncommitted worktree changes",
+  "scope": [
+    "1_extension_auth",
+    "3_calendar_recovery",
+    "4_onboarding",
+    "5_archive_records",
+    "6_account_data",
+    "7_activity_records"
+  ],
+  "excluded": [
+    "2_scheduling_changes",
+    "whole_repository_rewrite",
+    "production_reset",
+    "deployment"
+  ],
+  "validation": {
+    "typescript": "passed",
+    "build": "passed",
+    "node_unit": {
+      "passed": 18
+    },
+    "go_race": "passed",
+    "go_vet": "passed",
+    "firestore_emulator": "passed; synthetic isolated demo projects",
+    "e2e_full": {
+      "total": 33,
+      "passed": 32,
+      "failed": 1,
+      "failure": "existing start-count text changed"
+    },
+    "e2e_after_correction": {
+      "selected": 10,
+      "passed": 10,
+      "duration_seconds": 41.1
+    },
+    "e2e_coverage": "all 33 covered by full run plus corrected selected run",
+    "shell_syntax": "passed",
+    "diff_whitespace": "passed"
+  },
+  "not_verified": [
+    "live Google OAuth",
+    "one-hour live token renewal",
+    "live Chrome restart and sleep",
+    "live Google edit conflicts and reconnect",
+    "live Secret and Firebase deletion",
+    "Scheduler OIDC in cloud",
+    "Chrome Web Store distribution"
+  ],
+  "production_modified": false
+}

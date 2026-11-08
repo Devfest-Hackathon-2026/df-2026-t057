@@ -5,10 +5,12 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	firebaseauth "firebase.google.com/go/v4/auth"
 )
 
+type authTimeKey struct{}
 type userKey struct{}
 type googleAccountKey struct{}
 type googleAccount struct{ Subject, Email string }
@@ -49,12 +51,13 @@ func (s *Server) protected(next http.HandlerFunc) http.HandlerFunc {
 				writeError(w, 401, errors.New("Googleアカウントでログインしてください"))
 				return
 			}
-			verified, err := s.Auth.VerifyIDToken(r.Context(), token)
+			verified, err := s.Auth.VerifyIDTokenAndCheckRevoked(r.Context(), token)
 			if err != nil {
 				writeError(w, 401, errors.New("ログインの有効期限が切れました。再度ログインしてください"))
 				return
 			}
 			id = verified.UID
+			r = r.WithContext(context.WithValue(r.Context(), authTimeKey{}, time.Unix(verified.AuthTime, 0)))
 			r = r.WithContext(context.WithValue(r.Context(), googleAccountKey{}, tokenGoogleAccount(verified)))
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), userKey{}, id)))

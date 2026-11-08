@@ -26,13 +26,16 @@ import (
 )
 
 type Connection struct {
-	UID          string    `firestore:"uid"`
-	GoogleID     string    `firestore:"googleId"`
-	CalendarID   string    `firestore:"calendarId"`
-	SyncToken    string    `firestore:"syncToken"`
-	ChannelID    string    `firestore:"channelId"`
-	ChannelToken string    `firestore:"channelToken"`
-	Expires      time.Time `firestore:"expires"`
+	CalendarDeleted bool      `firestore:"calendarDeleted"`
+	Disabled        bool      `firestore:"disabled"`
+	ResourceID      string    `firestore:"resourceId"`
+	UID             string    `firestore:"uid"`
+	GoogleID        string    `firestore:"googleId"`
+	CalendarID      string    `firestore:"calendarId"`
+	SyncToken       string    `firestore:"syncToken"`
+	ChannelID       string    `firestore:"channelId"`
+	ChannelToken    string    `firestore:"channelToken"`
+	Expires         time.Time `firestore:"expires"`
 }
 type Calendar struct {
 	DB      *firestore.Client
@@ -74,6 +77,12 @@ func (c *Calendar) saveToken(ctx context.Context, uid string, token *oauth2.Toke
 	return err
 }
 func (c *Calendar) service(ctx context.Context, uid string) (*calendar.Service, error) {
+	if conn, err := c.connection(ctx, uid); err == nil && conn.Disabled {
+		return nil, errors.New("Googleカレンダーを連携し直してください")
+	}
+	return c.serviceForCleanup(ctx, uid)
+}
+func (c *Calendar) serviceForCleanup(ctx context.Context, uid string) (*calendar.Service, error) {
 	version, err := c.Secrets.AccessSecretVersion(ctx, &secretpb.AccessSecretVersionRequest{Name: c.secretName(uid) + "/versions/latest"})
 	if err != nil {
 		return nil, err
@@ -114,6 +123,9 @@ func (c *Calendar) callback(ctx context.Context, state, code string) error {
 		return tx.Delete(ref)
 	})
 	if err != nil {
+		return err
+	}
+	if _, err := c.Store.Read(ctx, uid); err != nil {
 		return err
 	}
 	token, err := c.OAuth.Exchange(ctx, code)
@@ -168,6 +180,9 @@ func validateCalendarAccount(expected, actual string) error {
 	return nil
 }
 func (c *Calendar) watch(ctx context.Context, conn *Connection, svc *calendar.Service) error {
+	if _, err := c.Store.Read(ctx, conn.UID); err != nil {
+		return err
+	}
 	channel := &calendar.Channel{Id: newID(), Type: "web_hook", Address: c.AppURL + "/api/calendar/webhook", Token: newID(), Expiration: time.Now().Add(6 * 24 * time.Hour).UnixMilli()}
 	_, err := c.DB.Collection("calendarChannels").Doc(channel.Id).Set(ctx, map[string]any{"uid": conn.UID, "token": channel.Token, "expires": time.UnixMilli(channel.Expiration)})
 	if err != nil {
@@ -177,6 +192,7 @@ func (c *Calendar) watch(ctx context.Context, conn *Connection, svc *calendar.Se
 	if err != nil {
 		return err
 	}
+	conn.ResourceID = result.ResourceId
 	conn.ChannelID = channel.Id
 	conn.ChannelToken = channel.Token
 	conn.Expires = time.UnixMilli(result.Expiration)
@@ -283,6 +299,7 @@ func (c *Calendar) Sync(ctx context.Context, uid string) (State, error) {
 			return c.Sync(ctx, uid)
 		}
 		if err != nil {
+			c.markSyncFailure(ctx, uid, err)
 			return State{}, sourceError("カレンダー読み込み", err)
 		}
 		events = append(events, result.Items...)
@@ -291,6 +308,23 @@ func (c *Calendar) Sync(ctx context.Context, uid string) (State, error) {
 		if page == "" {
 			break
 		}
+	}
+	if history, ok := c.Store.(historyStore); ok {
+		archived, readErr := history.Archived(ctx, uid)
+		if readErr != nil {
+			return State{}, readErr
+		}
+		hidden := map[string]bool{}
+		for _, t := range archived {
+			hidden[t.CalendarEventID] = true
+		}
+		filtered := []*calendar.Event{}
+		for _, e := range events {
+			if !hidden[e.Id] {
+				filtered = append(filtered, e)
+			}
+		}
+		events = filtered
 	}
 	now := time.Now()
 	current, err = c.Store.Read(ctx, uid)
@@ -392,7 +426,7 @@ func applyCalendarEvents(st *State, events []*calendar.Event, plans map[string]P
 			}
 			eventIDHash := sha256.Sum256([]byte(event.Id))
 			id := "calendar-" + hex.EncodeToString(eventIDHash[:16])
-			if event.ExtendedProperties != nil && event.ExtendedProperties.Private["dopagakiTaskId"] != "" {
+			if event.ExtendedProperties != nil && requestIDPattern.MatchString(event.ExtendedProperties.Private["dopagakiTaskId"]) {
 				id = event.ExtendedProperties.Private["dopagakiTaskId"]
 			}
 			if _, err := st.task(id); err == nil {
@@ -432,10 +466,18 @@ func (c *Calendar) Export(ctx context.Context, uid string, state State) (State, 
 		}
 		event, err := svc.Events.Get(conn.CalendarID, task.CalendarEventID).Context(ctx).Do()
 		if err != nil {
+			c.markSyncFailure(ctx, uid, err)
 			return state, sourceError("予定の確認", err)
 		}
 		patch, desiredHash, err := calendarUpdate(task, event, location)
 		if err != nil {
+			if errors.Is(err, ErrConflict) {
+				if saved, saveErr := c.saveConflict(ctx, uid, task, event); saveErr != nil {
+					return state, saveErr
+				} else {
+					return saved, err
+				}
+			}
 			return state, err
 		}
 		hashes[task.ID] = desiredHash
@@ -448,9 +490,19 @@ func (c *Calendar) Export(ctx context.Context, uid string, state State) (State, 
 		updated, err := call.Context(ctx).Do()
 		var apiErr *googleapi.Error
 		if errors.As(err, &apiErr) && apiErr.Code == 412 {
-			return state, ErrConflict
+			latest, readErr := svc.Events.Get(conn.CalendarID, task.CalendarEventID).Context(ctx).Do()
+			if readErr != nil {
+				c.markSyncFailure(ctx, uid, readErr)
+				return state, sourceError("予定の再確認", readErr)
+			}
+			saved, saveErr := c.saveConflict(ctx, uid, task, latest)
+			if saveErr != nil {
+				return state, saveErr
+			}
+			return saved, ErrConflict
 		}
 		if err != nil {
+			c.markSyncFailure(ctx, uid, err)
 			return state, sourceError("カレンダー保存", err)
 		}
 		etags[task.ID] = updated.Etag
@@ -510,6 +562,10 @@ func calendarPatch(task Task, event *calendar.Event, location *time.Location) *c
 func (s *Server) connectCalendar(w http.ResponseWriter, r *http.Request) {
 	if s.Calendar == nil {
 		respond(w, nil, errors.New("デモでは実際のカレンダーへ接続しません"))
+		return
+	}
+	if _, err := s.Store.Read(r.Context(), uid(r)); err != nil {
+		respond(w, nil, err)
 		return
 	}
 	account, _ := r.Context().Value(googleAccountKey{}).(googleAccount)
@@ -582,19 +638,30 @@ func (s *Server) renewCalendar(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, err)
 		return
 	}
+	failed := 0
 	for _, doc := range docs {
 		var conn Connection
 		if err = doc.DataTo(&conn); err != nil {
-			break
+			failed++
+			continue
+		}
+		if conn.Disabled {
+			continue
 		}
 		var svc *calendar.Service
 		svc, err = s.Calendar.service(r.Context(), conn.UID)
 		if err != nil {
-			break
+			failed++
+			continue
 		}
 		if err = s.Calendar.watch(r.Context(), &conn, svc); err != nil {
-			break
+			failed++
+			continue
 		}
 	}
-	respond(w, map[string]bool{"ok": err == nil}, err)
+	if failed > 0 {
+		writeJSON(w, 503, map[string]int{"failed": failed})
+		return
+	}
+	respond(w, map[string]bool{"ok": true}, nil)
 }

@@ -36,8 +36,16 @@ test('extension release uses the tag and production origin, removes stale files 
     const output = join(directory, 'dist/extension');
     const manifest = JSON.parse(await readFile(join(output, 'manifest.json'), 'utf8'));
     assert.equal(manifest.version, '1.2.3');
-    assert.deepEqual(manifest.host_permissions, [origin + '/*', 'https://www.youtube.com/*']);
-    assert.deepEqual(manifest.content_scripts[0].matches, manifest.host_permissions);
+    assert.deepEqual(manifest.host_permissions, [
+      origin + '/*',
+      'https://www.youtube.com/*',
+      'https://identitytoolkit.googleapis.com/*',
+      'https://securetoken.googleapis.com/*',
+    ]);
+    assert.deepEqual(manifest.content_scripts[0].matches, [
+      origin + '/*',
+      'https://www.youtube.com/*',
+    ]);
     assert(!(await readdir(output)).includes('stale.txt'));
     for (const file of ['background.js', 'content.js', 'popup.js']) {
       const code = await readFile(join(output, file), 'utf8');

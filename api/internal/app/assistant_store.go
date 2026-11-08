@@ -52,21 +52,23 @@ type AssistantStore interface {
 }
 
 type assistantLease struct {
-	RunID string
-	Until time.Time
+	Deleting bool
+	RunID    string
+	Until    time.Time
 }
 type memoryAssistantRecord struct {
 	Turn  AssistantTurn
 	RunID string
 }
 type MemoryAssistantStore struct {
+	closed map[string]bool
 	mu     sync.Mutex
 	turns  map[string]map[string]memoryAssistantRecord
 	leases map[string]assistantLease
 }
 
 func NewMemoryAssistantStore() *MemoryAssistantStore {
-	return &MemoryAssistantStore{turns: map[string]map[string]memoryAssistantRecord{}, leases: map[string]assistantLease{}}
+	return &MemoryAssistantStore{closed: map[string]bool{}, turns: map[string]map[string]memoryAssistantRecord{}, leases: map[string]assistantLease{}}
 }
 func copyAssistantTurn(t AssistantTurn) AssistantTurn {
 	raw, _ := json.Marshal(t)
@@ -97,6 +99,9 @@ func (m *MemoryAssistantStore) History(_ context.Context, uid string) ([]Assista
 	return assistantHistory(turns), nil
 }
 func beginAssistantTurn(previous AssistantTurn, id, text, taskID string, lease assistantLease) (AssistantTurn, string, error) {
+	if lease.Deleting {
+		return AssistantTurn{}, "", errAssistantBusy
+	}
 	if previous.ID != "" && (previous.Text != text || previous.TaskID != taskID) {
 		return previous, "", ErrConflict
 	}
@@ -116,6 +121,9 @@ func beginAssistantTurn(previous AssistantTurn, id, text, taskID string, lease a
 func (m *MemoryAssistantStore) Begin(_ context.Context, uid, id, text, taskID string) (AssistantTurn, string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.closed[uid] {
+		return AssistantTurn{}, "", errAccountClosing
+	}
 	if m.turns[uid] == nil {
 		m.turns[uid] = map[string]memoryAssistantRecord{}
 	}
@@ -129,6 +137,9 @@ func (m *MemoryAssistantStore) Begin(_ context.Context, uid, id, text, taskID st
 func (m *MemoryAssistantStore) Finish(_ context.Context, uid string, turn AssistantTurn, runID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.closed[uid] {
+		return errAccountClosing
+	}
 	if m.turns[uid][turn.ID].RunID != runID || m.leases[uid].RunID != runID {
 		return ErrConflict
 	}
@@ -168,6 +179,13 @@ func (f *FirestoreAssistantStore) Begin(ctx context.Context, uid, id, text, task
 	var turn AssistantTurn
 	var runID string
 	err := f.DB.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		job, jobErr := tx.Get(f.DB.Collection("accountJobs").Doc(uid))
+		if closingDocument(job, jobErr) {
+			return errAccountClosing
+		}
+		if err := missingOrNil(jobErr); err != nil {
+			return err
+		}
 		previous := AssistantTurn{}
 		doc, err := tx.Get(ref)
 		if err == nil {
@@ -204,6 +222,13 @@ func (f *FirestoreAssistantStore) Finish(ctx context.Context, uid string, turn A
 	root := f.DB.Collection("assistantConversations").Doc(uid)
 	ref := root.Collection("turns").Doc(turn.ID)
 	return f.DB.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		job, jobErr := tx.Get(f.DB.Collection("accountJobs").Doc(uid))
+		if closingDocument(job, jobErr) {
+			return errAccountClosing
+		}
+		if err := missingOrNil(jobErr); err != nil {
+			return err
+		}
 		doc, err := tx.Get(ref)
 		if err != nil {
 			return err

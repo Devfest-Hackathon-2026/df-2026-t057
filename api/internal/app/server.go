@@ -18,16 +18,20 @@ import (
 )
 
 type Server struct {
-	Now       func() time.Time
-	Store     Store
-	Planner   *Planner
-	Calendar  *Calendar
-	Auth      *firebaseauth.Client
-	Mode      string
-	Project   string
-	AppURL    string
-	Firebase  map[string]string
-	Assistant AssistantStore
+	Now                   func() time.Time
+	SchedulerSecret       string
+	AccountCleanupEnabled bool
+	ExtensionIDs          []string
+	MaintenanceEmail      string
+	Store                 Store
+	Planner               *Planner
+	Calendar              *Calendar
+	Auth                  *firebaseauth.Client
+	Mode                  string
+	Project               string
+	AppURL                string
+	Firebase              map[string]string
+	Assistant             AssistantStore
 }
 
 func (s *Server) now() time.Time {
@@ -53,6 +57,16 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("POST /api/extension/token", s.protected(s.extensionToken))
 	mux.HandleFunc("GET /api/state", s.protected(s.state))
+	mux.HandleFunc("GET /api/records", s.protected(s.records))
+	mux.HandleFunc("GET /api/tasks/archived", s.protected(s.archivedTasks))
+	mux.HandleFunc("POST /api/tasks/{id}/archive", s.protected(s.archiveTask))
+	mux.HandleFunc("PUT /api/session/pause", s.protected(s.setPause))
+	mux.HandleFunc("GET /api/account/export", s.protected(s.exportAccount))
+	mux.HandleFunc("POST /api/account/deletion", s.protected(s.deleteAccount))
+	mux.HandleFunc("POST /api/account/cleanup", s.cleanupAccounts)
+	mux.HandleFunc("GET /api/account/deletion-status", s.deletionStatus)
+	mux.HandleFunc("POST /api/assistant/delete-history", s.protected(s.deleteHistory))
+	mux.HandleFunc("POST /api/calendar/disconnect", s.protected(s.disconnectCalendar))
 	mux.HandleFunc("GET /api/assistant", s.protected(s.assistantHistory))
 	mux.HandleFunc("POST /api/assistant/messages", s.protected(s.assistantMessage))
 	mux.HandleFunc("POST /api/assistant/memory", s.protected(s.remember))
@@ -84,12 +98,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/calendar/sync", s.protected(s.syncCalendar))
 	mux.HandleFunc("POST /api/calendar/webhook", s.calendarWebhook)
 	mux.HandleFunc("POST /api/calendar/renew", s.renewCalendar)
+	mux.HandleFunc("POST /api/calendar/retry", s.retryCalendar)
+	mux.HandleFunc("POST /api/tasks/{id}/calendar-resolution", s.protected(s.resolveCalendar))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 50*time.Second)
+		defer cancel()
+		r = r.WithContext(ctx)
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if r.Method != "GET" && r.Header.Get("Origin") != "" {
 			origin := r.Header.Get("Origin")
-			if origin != s.AppURL && !strings.HasPrefix(origin, "chrome-extension://") {
+			if !s.allowedOrigin(origin) {
 				writeError(w, 403, errors.New("このページからの操作は許可されていません"))
 				return
 			}
@@ -98,7 +117,7 @@ func (s *Server) Handler() http.Handler {
 	})
 }
 func (s *Server) config(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, map[string]any{"mode": s.Mode, "projectId": s.Project, "firebase": s.Firebase, "aiEnabled": s.Planner != nil && s.Planner.Client != nil, "calendarEnabled": s.Calendar != nil})
+	writeJSON(w, 200, map[string]any{"mode": s.Mode, "projectId": s.Project, "firebase": s.Firebase, "aiEnabled": s.Planner != nil && s.Planner.Client != nil, "calendarEnabled": s.Calendar != nil, "accountDeletionEnabled": s.Mode == "demo" || s.AccountCleanupEnabled})
 }
 
 func (s *Server) state(w http.ResponseWriter, r *http.Request) {
@@ -155,6 +174,17 @@ func (s *Server) createTask(ctx context.Context, id string, input TaskInput) (St
 	current, err := s.Store.Read(ctx, id)
 	if err != nil {
 		return State{}, err
+	}
+	if history, ok := s.Store.(historyStore); ok {
+		archived, readErr := history.Archived(ctx, id)
+		if readErr != nil {
+			return State{}, readErr
+		}
+		for _, t := range archived {
+			if t.ID == input.ID {
+				return State{}, ErrConflict
+			}
+		}
 	}
 	if _, err := current.task(input.ID); err == nil {
 		if s.Calendar != nil && current.CalendarSync == "pending" {
@@ -551,6 +581,14 @@ func (s *Server) commitDraft(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &draft) {
 		return
 	}
+	if draft.Intent != "" && draft.Intent != "snooze" && draft.Intent != "adjust" {
+		writeError(w, 400, errors.New("予定変更の操作を確認してください"))
+		return
+	}
+	if draft.Intent != "" && !requestIDPattern.MatchString(draft.ID) {
+		writeError(w, 400, errors.New("予定変更のIDを確認してください"))
+		return
+	}
 	if s.Calendar != nil {
 		if _, err := s.Calendar.Sync(r.Context(), uid(r)); err != nil {
 			respond(w, nil, err)
@@ -567,6 +605,10 @@ func (s *Server) commitDraft(w http.ResponseWriter, r *http.Request) {
 		for _, c := range draft.Changes {
 			t, _ := st.task(c.TaskID)
 			t.Plan = c.After
+		}
+		if draft.Intent == "snooze" {
+			st.LastSnoozeID = draft.ID
+			st.LastSnoozeTask = draft.TaskID
 		}
 		st.PlanRevision++
 		prepareDraft(st, s.now())

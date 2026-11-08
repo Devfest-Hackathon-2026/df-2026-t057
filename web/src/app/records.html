@@ -91,7 +91,6 @@
     </p>
     <p>過去7日の視聴 {{ viewing().length }}回・終了 {{ ended().length }}回</p>
     <p>区切りで選んだ延長 {{ extensions() }}回</p>
-    <p>予定から5分以内に開始 {{ onTime() }}件／開始した課題 {{ starts().length }}件</p>
     <p>予定開始を過ぎた未開始の課題 {{ notStarted() }}件</p>
     <p>
       課題の開始時刻・視聴の区切り・作業の確認は本人の操作で記録します。動画の内容は保存しません。記録がない日を成功や視聴ゼロとして数えません。
@@ -139,4 +138,33 @@
     <p class="records-empty">視聴時間の増減がここに残ります。</p>
   }
   <p class="records-history-note">視聴による消費は残り時間へ反映されます。</p>
+</section>
+
+<section aria-label="保存した作業記録">
+  <h2>今週の振り返り</h2>
+  @if (stored(); as records) {
+    <p>
+      完了 {{ records.week.completed }}件 ／ 開始 {{ records.week.starts }}件 ／
+      予定から5分以内に開始 {{ records.week.onTime }}件 ／ スヌーズ確定 {{ records.week.snoozes }}回
+    </p>
+    <p>記録したタイマー上の作業時間：{{ durationLabel(records.week.workSeconds) }}</p>
+    <p>計測開始前の操作は未計測です。タイマー時間は実際の集中時間とは区別してください。</p>
+    <h3>直近12週間の完了記録</h3>
+    @for (record of records.completions; track record.taskId) {
+      <p>
+        {{ record.at | date: 'M/d HH:mm' }} {{ record.title }}
+        @if (record.workSeconds !== undefined) {
+          ／ 作業 {{ durationLabel(record.workSeconds) }}
+        }
+      </p>
+    }
+  }
+  @if (stored()?.nextCursor) {
+    <button mat-stroked-button type="button" (click)="loadMore()" [disabled]="loadingMore()">
+      {{ loadingMore() ? '読み込み中…' : '続きを読み込む' }}
+    </button>
+  }
+  @if (recordError()) {
+    <p role="alert">{{ recordError() }}</p>
+  }
 </section>

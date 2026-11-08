@@ -1,23 +1,80 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { durationLabel } from '../../../shared/models';
 import { buildActivity } from '../../../shared/activity';
 import { Api } from './api';
 
+interface StoredRecords {
+  nextCursor: string;
+  activity: { completed: number; days: { date: string; completed: number }[] };
+  completions: {
+    taskId: string;
+    title: string;
+    at: string;
+    workSeconds?: number;
+    rewardSeconds: number;
+  }[];
+  week: { completed: number; starts: number; onTime: number; snoozes: number; workSeconds: number };
+}
 @Component({
   selector: 'app-records',
-  imports: [DatePipe, MatTooltipModule],
+  imports: [DatePipe, MatTooltipModule, MatButtonModule],
   templateUrl: './records.html',
   styleUrl: './records.scss',
 })
 export class Records {
   readonly api = inject(Api);
+  readonly stored = signal<StoredRecords | null>(null);
+  readonly recordError = signal('');
+  constructor() {
+    void this.api
+      .request<StoredRecords>('/records')
+      .then((value) => this.stored.set(value))
+      .catch(() =>
+        this.recordError.set('保存記録を読み込めませんでした。画面を開き直してください。'),
+      );
+  }
+
   durationLabel = durationLabel;
   readonly activity = computed(() => {
     const state = this.api.state()!;
-    return buildActivity(state.tasks, state.ledger);
+    const base = buildActivity(state.tasks, state.ledger);
+    const saved = this.stored()?.activity;
+    if (!saved) return base;
+    return {
+      ...base,
+      completed: saved.completed,
+      days: saved.days.map((day) => {
+        const date = new Date(day.date + 'T00:00:00');
+        const key = date.toDateString();
+        return {
+          date,
+          key,
+          completed: day.completed,
+          earnedSeconds: base.days.find((d) => d.key === key)?.earnedSeconds ?? 0,
+        };
+      }),
+    };
   });
+  readonly loadingMore = signal(false);
+  async loadMore() {
+    const previous = this.stored();
+    if (!previous?.nextCursor || this.loadingMore()) return;
+    this.loadingMore.set(true);
+    this.recordError.set('');
+    try {
+      const next = await this.api.request<StoredRecords>(
+        '/records?cursor=' + encodeURIComponent(previous.nextCursor),
+      );
+      this.stored.set({ ...next, completions: [...previous.completions, ...next.completions] });
+    } catch {
+      this.recordError.set('続きを読み込めませんでした。もう一度お試しください。');
+    } finally {
+      this.loadingMore.set(false);
+    }
+  }
   readonly selectedKey = signal(new Date().toDateString());
   readonly selectedDay = computed(
     () =>
@@ -49,19 +106,6 @@ export class Records {
             Date.parse(t.plan.start) < Date.now() &&
             Date.parse(t.plan.start) >= Date.now() - 7 * 86400000,
         ).length,
-  );
-  readonly starts = computed(() =>
-    this.api
-      .state()!
-      .tasks.filter((t) => t.startedAt && Date.parse(t.startedAt) >= Date.now() - 7 * 86400000),
-  );
-  readonly onTime = computed(
-    () =>
-      this.starts().filter(
-        (t) =>
-          t.scheduledStartAt &&
-          Date.parse(t.startedAt!) <= Date.parse(t.scheduledStartAt) + 5 * 60000,
-      ).length,
   );
   entryLabel(kind: string) {
     return (

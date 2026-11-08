@@ -8,10 +8,10 @@
   "scripts": {
     "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "cd api && APP_MODE=demo DEV_API_ONLY=true PORT=8080 go run ./cmd/server",
-    "dev:web": "ng serve --host 127.0.0.1 --port 4200 --proxy-config web/proxy.json",
-    "build": "ng build && npm run build:extension",
+    "dev:web": "node scripts/build-auth.mjs && ng serve --host 127.0.0.1 --port 4200 --proxy-config web/proxy.json",
+    "build": "node scripts/build-auth.mjs && ng build && npm run build:extension",
     "build:extension": "node scripts/build-extension.mjs",
-    "typecheck": "tsc --noEmit -p extension/tsconfig.json",
+    "typecheck": "tsc --noEmit -p extension/tsconfig.json && tsc --noEmit -p web/auth/tsconfig.json",
     "test": "npm run typecheck && npm run test:unit && cd api && go test -race ./...",
     "test:e2e": "playwright test",
     "format": "prettier --write 'web/src/**/*.{ts,html,scss}' 'extension/src/**/*.ts' 'shared/**/*.ts'",

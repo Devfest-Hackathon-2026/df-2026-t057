@@ -7,12 +7,14 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { AccountTools } from './account-tools';
 import { Api } from './api';
 import { TaskActions } from './task-actions';
 
 @Component({
   selector: 'app-settings',
   imports: [
+    AccountTools,
     FormsModule,
     MatButtonModule,
     MatFormFieldModule,

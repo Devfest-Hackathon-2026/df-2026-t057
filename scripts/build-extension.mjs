@@ -22,6 +22,7 @@ await cp('web/public/gold-light.png', `${outdir}/gold-light.png`);
 await build({
   entryPoints: [
     'extension/src/background.ts',
+    'extension/src/offscreen.ts',
     'extension/src/content.ts',
     'extension/src/popup.ts',
   ],
@@ -51,8 +52,8 @@ await writeFile(
       version,
       description: '課題を終えて、次の楽しみに。カレンダー連携と作業タイマー。',
       minimum_chrome_version: '120',
-      permissions: ['storage', 'alarms', 'notifications', 'scripting', 'activeTab'],
-      host_permissions: [`${origin}/*`, 'https://www.youtube.com/*'],
+      permissions: ['offscreen', 'storage', 'alarms', 'notifications', 'scripting', 'activeTab'],
+      host_permissions: [`${origin}/*`, 'https://www.youtube.com/*', 'https://identitytoolkit.googleapis.com/*', 'https://securetoken.googleapis.com/*'],
       optional_host_permissions: ['https://*/*', 'http://*/*'],
       background: { service_worker: 'background.js' },
       action: { default_popup: 'popup.html', default_title: 'DOPAGAKI' },

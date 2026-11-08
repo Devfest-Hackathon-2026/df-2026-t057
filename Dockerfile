@@ -5,7 +5,8 @@ RUN npm ci
 COPY angular.json tsconfig.json ./
 COPY web web
 COPY shared shared
-RUN npx ng build
+COPY scripts/build-auth.mjs scripts/build-auth.mjs
+RUN node scripts/build-auth.mjs && npx ng build
 
 FROM golang:1.27.3-bookworm AS api
 WORKDIR /src

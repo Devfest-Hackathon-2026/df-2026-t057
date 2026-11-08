@@ -74,6 +74,7 @@ export interface Morning {
   releasedSeconds: number;
 }
 export interface State {
+  calendarConflicts?: { taskId: string; remote: TaskInput; etag: string }[];
   timePolicy?: TimePolicy;
   viewingSession?: ViewingSession;
   viewingHistory?: ViewingSession[];
@@ -163,6 +164,7 @@ export interface PlanChange {
   plannedMinutes: number;
 }
 export interface Draft {
+  intent?: 'snooze' | 'adjust';
   id: string;
   taskId: string;
   baseRevision: number;
@@ -172,6 +174,7 @@ export interface Draft {
   reason: string;
 }
 export interface Config {
+  accountDeletionEnabled?: boolean;
   mode: 'demo' | 'live';
   aiEnabled: boolean;
   calendarEnabled: boolean;

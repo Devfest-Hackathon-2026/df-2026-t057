@@ -200,6 +200,7 @@ test('extension account switch removes old notices and rejects an in-flight resp
       URL,
       console,
       fetch: async (_url: string, options: any) => {
+        if (_url.endsWith('/api/config')) return json({ mode: 'demo' });
         if (slowViewing && _url.endsWith('/viewing')) {
           viewingStarted.resolve();
           return viewingHeld.promise;

@@ -35,7 +35,13 @@
             <span class="muted">/ {{ workMinutes() }}分</span>
           </div>
           <div>
-            <button mat-button (click)="api.mutate('/session/pause')" [disabled]="api.busy()">
+            <button
+              mat-button
+              (click)="
+                api.mutate('/session/pause', { paused: !api.state()?.session?.pausedAt }, 'PUT')
+              "
+              [disabled]="api.busy()"
+            >
               {{ session.pausedAt ? '再開' : '一時停止' }}
             </button>
             @if (api.state()?.timePolicy) {
@@ -96,6 +102,13 @@
               </button>
             </div>
           }
+          @if (state.calendarSync === 'reauth_required') {
+            <div class="notice-info" role="status">
+              Googleカレンダーへの接続を確認してください。
+              <button mat-button (click)="actions.connect()">連携し直す</button>
+            </div>
+          }
+          <app-calendar-conflicts />
           <router-outlet />
         }
       </main>

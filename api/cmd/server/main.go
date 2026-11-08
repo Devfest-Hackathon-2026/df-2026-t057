@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -37,7 +38,7 @@ func main() {
 	mode := env("APP_MODE", "live")
 	project := env("GOOGLE_CLOUD_PROJECT", "devfest-2026-513816")
 	appURL := env("APP_URL", "http://127.0.0.1:4200")
-	server := &app.Server{Mode: mode, Project: project, AppURL: appURL, Planner: &app.Planner{Model: env("GEMINI_MODEL", "gemini-3.8-flash")}}
+	server := &app.Server{ExtensionIDs: strings.Fields(os.Getenv("EXTENSION_IDS")), MaintenanceEmail: os.Getenv("MAINTENANCE_EMAIL"), SchedulerSecret: os.Getenv("SCHEDULER_SECRET"), AccountCleanupEnabled: os.Getenv("ACCOUNT_CLEANUP_ENABLED") == "true", Mode: mode, Project: project, AppURL: appURL, Planner: &app.Planner{Model: env("GEMINI_MODEL", "gemini-3.8-flash")}}
 	if raw := os.Getenv("FIREBASE_WEB_CONFIG"); raw != "" {
 		if err := json.Unmarshal([]byte(raw), &server.Firebase); err != nil {
 			slog.Error("invalid Firebase web configuration")
@@ -85,11 +86,14 @@ func main() {
 			server.Calendar = app.NewCalendar(db, secrets, project, appURL, store, server.Planner)
 		}
 	}
+	if mode != "demo" && server.Calendar == nil {
+		server.AccountCleanupEnabled = false
+	}
 	static := env("STATIC_DIR", "../dist/web/browser")
 	var handler http.Handler = server.Handler()
 	if mode != "demo" || os.Getenv("DEV_API_ONLY") != "true" {
 		var err error
-		handler, err = app.WebHandler(handler, static, server.Firebase["authDomain"])
+		handler, err = app.WebHandler(handler, static, server.Firebase["authDomain"], strings.Fields(os.Getenv("EXTENSION_IDS"))...)
 		if err != nil {
 			fatal(err)
 		}

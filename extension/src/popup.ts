@@ -54,3 +54,28 @@ void send({ type: 'STATE' })
   .catch(() => {
     status.textContent = `${MANAGEMENT_ORIGIN} から接続してください。`;
   });
+
+const account = document.querySelector<HTMLElement>('#account')!;
+void send({ type: 'DIAGNOSTICS' }).then((reply) => {
+  account.textContent = reply.diagnostics?.email || '拡張の接続アカウントを確認してください。';
+});
+for (const [id, type] of [
+  ['connect', 'AUTH_SIGN_IN'],
+  ['disconnect', 'AUTH_SIGN_OUT'],
+  ['test-notice', 'TEST_NOTICE'],
+] as const) {
+  const button = document.querySelector<HTMLButtonElement>('#' + id)!;
+  button.onclick = async () => {
+    button.disabled = true;
+    try {
+      const reply = await send({ type });
+      status.textContent =
+        reply.error ||
+        (type === 'TEST_NOTICE'
+          ? '通知を送信しました。OSの通知欄を確認してください。'
+          : '接続状態を更新しました。');
+    } finally {
+      button.disabled = false;
+    }
+  };
+}

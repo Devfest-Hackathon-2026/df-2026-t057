@@ -6,6 +6,7 @@ import {
   onIdTokenChanged,
   signInWithPopup,
   signOut,
+  reauthenticateWithPopup,
   Auth,
 } from 'firebase/auth';
 import { Config, State } from '../../../shared/models';
@@ -39,12 +40,17 @@ export class Api {
         await new Promise<void>((resolve) => {
           onIdTokenChanged(this.auth!, async (user) => {
             if ((user?.uid ?? '') !== this.accountId) {
+              const previousAccountId = this.accountId;
               this.accountId = user?.uid ?? '';
               this.sessionVersion++;
               this.token = '';
               this.state.set(null);
               this.error.set('');
-              window.postMessage({ type: 'DOPAGAKI_DISCONNECT' }, location.origin);
+              if (previousAccountId)
+                window.postMessage(
+                  { type: 'DOPAGAKI_DISCONNECT', accountId: previousAccountId },
+                  location.origin,
+                );
             }
             const version = this.sessionVersion;
             this.signedIn.set(!!user);
@@ -59,7 +65,7 @@ export class Api {
               if (user) await this.refresh();
               else {
                 this.state.set(null);
-                window.postMessage({ type: 'DOPAGAKI_DISCONNECT' }, location.origin);
+                // Account-specific disconnect is sent when the authenticated user changes.
               }
             } catch (e) {
               if (version === this.sessionVersion) this.error.set(message(e));
@@ -93,6 +99,27 @@ export class Api {
     } finally {
       this.authPending.set(false);
     }
+  }
+  async reauthenticate() {
+    if (this.config()?.mode === 'demo') return;
+    if (!this.auth?.currentUser) throw new Error('Googleでログインしてください。');
+    await reauthenticateWithPopup(this.auth.currentUser, new GoogleAuthProvider());
+    this.token = await this.auth.currentUser.getIdToken(true);
+  }
+  async download(format: 'json' | 'csv') {
+    const version = this.sessionVersion;
+    const response = await fetch('/api/account/export?format=' + format, {
+      headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+    });
+    if (!response.ok) throw new Error('書き出しに失敗しました。もう一度お試しください。');
+    const blob = await response.blob();
+    if (version !== this.sessionVersion) throw new Error('アカウントが切り替わりました。');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'dopagaki-export.' + format;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   async logout() {
     if (this.auth) await this.run(() => signOut(this.auth!));
@@ -150,13 +177,13 @@ export class Api {
     const auth =
       this.config()?.mode === 'demo'
         ? (await this.request<{ token: string }>('/extension/token', 'POST')).token
-        : `Bearer ${this.token}`;
+        : undefined;
     window.postMessage(
       {
         type: 'DOPAGAKI_CONNECT',
         apiBase: location.origin,
         auth,
-        accountId: this.accountId || auth,
+        accountId: this.accountId || auth || '',
       },
       location.origin,
     );

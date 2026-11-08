@@ -52,6 +52,9 @@ func respond(w http.ResponseWriter, value any, err error) {
 			return
 		}
 		status := 400
+		if errors.Is(err, errAccountClosing) {
+			status = 403
+		}
 		if errors.Is(err, ErrConflict) {
 			status = 409
 		}

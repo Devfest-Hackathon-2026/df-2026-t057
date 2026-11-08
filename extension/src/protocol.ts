@@ -27,8 +27,13 @@ export interface Snapshot {
 }
 export type Moment = 'notice' | 'snooze' | 'complete' | 'balance_zero' | 'night' | 'morning';
 export type Request =
-  | { type: 'CONNECT'; connection: Connection }
-  | { type: 'DISCONNECT' }
+  | { type: 'AUTH_SIGN_IN' }
+  | { type: 'AUTH_SIGN_OUT' }
+  | { type: 'AUTH_RESULT'; credential: unknown }
+  | { type: 'DIAGNOSTICS' }
+  | { type: 'TEST_NOTICE' }
+  | { type: 'CONNECT'; connection: Omit<Connection, 'auth'> & { auth?: string } }
+  | { type: 'DISCONNECT'; accountId?: string }
   | { type: 'STATE' }
   | { type: 'START'; taskId: string }
   | { type: 'COMPLETE'; taskId: string }
@@ -45,6 +50,13 @@ export type Request =
   | { type: 'OPEN_APP'; path?: string }
   | { type: 'CLOSE_TAB' };
 export interface Reply {
+  diagnostics?: {
+    accountId?: string;
+    email: string;
+    live: boolean;
+    notificationPermission: string;
+    protocolVersion: number;
+  };
   tabId?: number;
   viewingOwnerTabId?: number;
   state?: ExtensionState;

@@ -205,7 +205,12 @@ export class PlanDialog {
     this.busy.set(true);
     this.error.set('');
     try {
-      this.api.state.set(await this.api.request<State>('/draft/commit', 'POST', this.draft()));
+      this.api.state.set(
+        await this.api.request<State>('/draft/commit', 'POST', {
+          ...this.draft(),
+          intent: this.data.adjust ? 'adjust' : 'snooze',
+        }),
+      );
       await this.api.refresh();
       this.dialog.close(true);
     } catch (e) {

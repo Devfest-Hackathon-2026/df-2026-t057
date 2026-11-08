@@ -60,6 +60,11 @@
             <span class="material-symbols-rounded" aria-hidden="true">edit</span>
           </button>
         }
+        @if (task.status === 'completed') {
+          <button mat-button (click)="archive(task)" [disabled]="archiveBusy()">
+            記録を残して整理
+          </button>
+        }
         @if (task.status !== 'completed') {
           <button
             mat-icon-button

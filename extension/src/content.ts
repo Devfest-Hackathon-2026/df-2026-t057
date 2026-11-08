@@ -54,7 +54,17 @@ function initialize() {
     window.addEventListener('message', (event) => {
       if (event.source !== window || event.origin !== MANAGEMENT_ORIGIN) return;
       if (event.data?.type === 'DOPAGAKI_DISCONNECT') {
-        void send({ type: 'DISCONNECT' });
+        void send({ type: 'DISCONNECT', accountId: event.data.accountId });
+        return;
+      }
+      if (event.data?.type === 'DOPAGAKI_DIAGNOSE' && typeof event.data.requestId === 'string') {
+        const requestId = event.data.requestId;
+        void send({ type: 'DIAGNOSTICS' }).then((reply) =>
+          window.postMessage(
+            { type: 'DOPAGAKI_DIAGNOSTICS', requestId, ...reply },
+            MANAGEMENT_ORIGIN,
+          ),
+        );
         return;
       }
       if (event.data?.type !== 'DOPAGAKI_CONNECT') return;
@@ -469,7 +479,10 @@ function initialize() {
         button(
           'OK・この予定に変更',
           () => {
-            void action({ type: 'COMMIT', draft: current }, panel).then((reply) => {
+            void action(
+              { type: 'COMMIT', draft: { ...current, intent: adjust ? 'adjust' : 'snooze' } },
+              panel,
+            ).then((reply) => {
               if (!reply) return;
               dismiss();
               if (!adjust)

@@ -13,7 +13,7 @@ import (
 
 const noncePlaceholder = "__DOPAGAKI_CSP_NONCE__"
 
-func WebHandler(api http.Handler, static, authDomain string) (http.Handler, error) {
+func WebHandler(api http.Handler, static, authDomain string, extensionIDs ...string) (http.Handler, error) {
 	index, err := os.ReadFile(filepath.Join(static, "index.html"))
 	if err != nil {
 		return nil, err
@@ -29,10 +29,30 @@ func WebHandler(api http.Handler, static, authDomain string) (http.Handler, erro
 		}
 		authOrigin = " https://" + authDomain
 	}
+	ancestors := []string{}
+	for _, id := range extensionIDs {
+		if len(id) != 32 || strings.Trim(id, "abcdefghijklmnop") != "" {
+			return nil, fmt.Errorf("invalid extension ID")
+		}
+		ancestors = append(ancestors, "chrome-extension://"+id)
+	}
 	mux := http.NewServeMux()
 	mux.Handle("/api/", api)
 	files := http.FileServer(http.Dir(static))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/deletion-status.html" {
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+		}
+		if r.URL.Path == "/extension-auth.html" {
+			if len(extensionIDs) == 0 {
+				http.Error(w, "拡張IDの設定が必要です", http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Del("X-Frame-Options")
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://apis.google.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com"+authOrigin+"; frame-src"+authOrigin+"; object-src 'none'; base-uri 'none'; frame-ancestors "+strings.Join(ancestors, " "))
+		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
 			w.WriteHeader(http.StatusMethodNotAllowed)

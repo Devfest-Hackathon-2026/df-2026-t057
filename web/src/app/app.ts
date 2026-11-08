@@ -1,3 +1,4 @@
+import { CalendarConflicts } from './calendar-conflicts';
 import { Component, computed, effect, inject, OnDestroy, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { A11yModule } from '@angular/cdk/a11y';
@@ -26,6 +27,7 @@ import {
 @Component({
   selector: 'app-root',
   imports: [
+    CalendarConflicts,
     DatePipe,
     A11yModule,
     MatButtonModule,
@@ -134,6 +136,14 @@ export class App implements OnDestroy {
       else this.preview.set(task);
     });
     void this.api.init().then(() => {
+      if (
+        this.api.config()?.mode === 'live' &&
+        this.api.signedIn() &&
+        this.api.state() &&
+        !this.api.state()?.calendarConnected &&
+        this.router.url.split('?')[0] === '/calendar'
+      )
+        void this.router.navigateByUrl('/setup');
       if (params.get('calendar') === 'error')
         this.api.error.set(
           'ログイン中と同じGoogleアカウントを選び、設定からカレンダーを連携し直してください。',
