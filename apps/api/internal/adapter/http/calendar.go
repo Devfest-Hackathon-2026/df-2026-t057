@@ -11,7 +11,11 @@ import (
 type CalendarLink struct{ Service *calendar.Service }
 
 func calendarStatusOut(s calendar.Status) oapi.CalendarStatus {
-	return oapi.CalendarStatus{Enabled: s.Enabled, Connected: s.Connected, Sync: oapi.CalendarStatusSync(s.Sync), LastSync: s.LastSync, FailedJobs: s.FailedJobs, Conflicts: ptr(s.Conflicts)}
+	out := oapi.CalendarStatus{Enabled: s.Enabled, Connected: s.Connected, Sync: oapi.CalendarStatusSync(s.Sync), LastSync: s.LastSync, FailedJobs: s.FailedJobs, Conflicts: ptr(s.Conflicts)}
+	if s.Reminders != nil {
+		out.Reminders = ptr(s.Reminders)
+	}
+	return out
 }
 
 func (c CalendarLink) Status(ctx context.Context, uid string) (oapi.CalendarStatus, error) {
@@ -34,6 +38,11 @@ func (c CalendarLink) SyncNow(ctx context.Context, uid string) (oapi.CalendarSta
 
 func (c CalendarLink) Disconnect(ctx context.Context, uid string) (oapi.CalendarStatus, error) {
 	s, err := c.Service.Disconnect(ctx, uid)
+	return calendarStatusOut(s), err
+}
+
+func (c CalendarLink) SetReminders(ctx context.Context, uid string, minutes []int) (oapi.CalendarStatus, error) {
+	s, err := c.Service.SetReminders(ctx, uid, minutes)
 	return calendarStatusOut(s), err
 }
 

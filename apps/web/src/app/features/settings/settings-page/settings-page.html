@@ -328,6 +328,9 @@
               </button>
             </div>
           }
+          @if (status.connected) {
+            <app-calendar-reminders />
+          }
         }
         @if (calendar.sync.error() ?? calendar.connect.error(); as error) {
           <p class="error" role="alert">{{ error.message }}</p>

@@ -17,9 +17,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
@@ -89,6 +91,23 @@ type Connection struct {
 	SyncJob   string `json:"syncJob,omitempty" firestore:"syncJob,omitempty"`
 	// SleepJob は最後に積んだ就寝の予定のジョブ（反映待ちかの表示に使う）。
 	SleepJob string `json:"sleepJob,omitempty" firestore:"sleepJob,omitempty"`
+	// RemindersSet は本人が通知を選んだか。選ぶまでは Google の設定を変えない。
+	// Reminders は予定の開始の何分前に通知するか（早い順。空なら通知しない）。連携を解除しても残す。
+	RemindersSet bool  `json:"remindersSet,omitempty" firestore:"remindersSet,omitempty"`
+	Reminders    []int `json:"reminders,omitempty" firestore:"reminders,omitempty"`
+	// RemindersJob は、まだ始まっていない通知の書き換えのジョブ。
+	RemindersJob string `json:"remindersJob,omitempty" firestore:"remindersJob,omitempty"`
+}
+
+// ChosenReminders は本人が選んだ通知。選んでいなければ nil（Google の設定のまま）。
+func (c Connection) ChosenReminders() []int {
+	if !c.RemindersSet {
+		return nil
+	}
+	if c.Reminders == nil {
+		return []int{}
+	}
+	return c.Reminders
 }
 
 // ContentPending は課題の内容の変更が予定に未反映か。
@@ -355,4 +374,32 @@ func SleepEvent(uid string, s sleep.Schedule, now time.Time, loc *time.Location,
 		Recurrence:  []string{"RRULE:FREQ=DAILY"}, Transparent: true,
 		Private: map[string]string{PropSleep: "1"},
 	}
+}
+
+// Google カレンダーの通知の上限（1つのカレンダーの既定の通知は5件まで、4週間前まで）。
+const (
+	MaxReminders       = 5
+	MaxReminderMinutes = 4 * 7 * 24 * 60
+)
+
+// NormalizeReminders は、予定の開始の何分前に通知するかの一覧を検証し、重複を除いて早い順（大きい順）に並べる。
+// 空の一覧は「通知しない」。
+func NormalizeReminders(minutes []int) ([]int, error) {
+	seen := map[int]bool{}
+	out := make([]int, 0, len(minutes))
+	for _, m := range minutes {
+		if m < 0 || m > MaxReminderMinutes {
+			return nil, apperr.Invalid("request.invalid", apperr.Field("minutes", "out_of_range"))
+		}
+		if !seen[m] {
+			seen[m] = true
+			out = append(out, m)
+		}
+	}
+	if len(out) > MaxReminders {
+		return nil, apperr.Invalid("request.invalid", apperr.Field("minutes", "too_long"))
+	}
+	slices.Sort(out)
+	slices.Reverse(out)
+	return out, nil
 }

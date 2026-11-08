@@ -595,6 +595,23 @@ export const web = {
       unavailable: '現在の環境ではGoogle連携は未設定です。',
       privacy: 'データの取り扱い・削除の依頼',
       logout: 'ログアウト',
+      reminders: {
+        title: '予定の通知',
+        lead: '取りかかる時刻の何分前にGoogleカレンダーから通知するかを選びます。手入力した予定にも効きます。',
+        notChosen: 'まだ選んでいません。今はGoogleカレンダーの設定のまま通知します。',
+        none: '何も選ばずに保存すると、通知しません。',
+        limit: (max: number) => `${max}つまで選べます。`,
+        label: (minutes: number) => {
+          if (minutes === 0) return '取りかかる時刻ちょうど';
+          const days = Math.floor(minutes / 1440);
+          const hours = Math.floor((minutes % 1440) / 60);
+          const rest = minutes % 60;
+          return `${days > 0 ? `${days}日` : ''}${hours > 0 ? `${hours}時間` : ''}${rest > 0 ? `${rest}分` : ''}前`;
+        },
+        save: '通知を保存',
+        saving: '保存しています…',
+        saved: '通知を保存しました。Googleカレンダーへ反映します。',
+      },
     },
     shortcut: {
       title: 'iPhoneのショートカット',
