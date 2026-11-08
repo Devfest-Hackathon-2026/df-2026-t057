@@ -1,10 +1,10 @@
 # 旧実装（作り直しが終わったら削除する）
-api/
-web/
-extension/
-shared/
-tests/
-legacy.package*.json
+/api/
+/web/
+/extension/
+/shared/
+/tests/
+/legacy.package*.json
 
 # 生成物
 pnpm-lock.yaml

@@ -129,7 +129,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       const problem: Problem = isProblem(body)
         ? body
         : { type: 'about:blank', status: response.status, code: 'internal' };
-      throw new ApiError(problem, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined);
+      throw new ApiError(
+        problem,
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
+      );
     },
     onError({ error }) {
       if (error instanceof ApiError) return error;

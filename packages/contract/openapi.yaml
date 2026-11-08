@@ -1067,7 +1067,8 @@ components:
       type: object
       required: [type, status, code]
       properties:
-        type: { type: string, description: 'エラーの種類の URI（`about:blank` か `/problems/<code>`）' }
+        type:
+          { type: string, description: 'エラーの種類の URI（`about:blank` か `/problems/<code>`）' }
         status: { type: integer }
         code: { $ref: '#/components/schemas/ProblemCode' }
         errors:
@@ -1078,7 +1079,11 @@ components:
       type: object
       required: [field, code]
       properties:
-        field: { type: string, description: 'JSON Pointer 風の項目名（例 `title`、`changes/0/after/steps`）' }
+        field:
+          {
+            type: string,
+            description: 'JSON Pointer 風の項目名（例 `title`、`changes/0/after/steps`）',
+          }
         code: { $ref: '#/components/schemas/FieldCode' }
     ProblemCode:
       type: string
@@ -1249,7 +1254,8 @@ components:
       enum: [pending, active, completed]
     Task:
       type: object
-      required: [id, title, notes, why, deadline, minutes, url, status, createdAt, plan, calendarLinked]
+      required:
+        [id, title, notes, why, deadline, minutes, url, status, createdAt, plan, calendarLinked]
       properties:
         id: { $ref: '#/components/schemas/Id' }
         title: { type: string }
@@ -1261,7 +1267,8 @@ components:
         status: { $ref: '#/components/schemas/TaskStatus' }
         createdAt: { type: string, format: date-time }
         startedAt: { type: string, format: date-time, description: 初めて開始した時刻 }
-        scheduledStartAt: { type: string, format: date-time, description: 初めて開始したときの予定の開始時刻 }
+        scheduledStartAt:
+          { type: string, format: date-time, description: 初めて開始したときの予定の開始時刻 }
         completedAt: { type: string, format: date-time }
         plan: { $ref: '#/components/schemas/Plan' }
         calendarLinked: { type: boolean, description: Google カレンダーの予定と結び付いている }
@@ -1386,11 +1393,13 @@ components:
       properties:
         revision: { type: integer }
         balanceSeconds: { type: integer, description: 残高 }
-        availableSeconds: { type: integer, description: 今から視聴できる秒数（ルールと今日の上限を反映） }
+        availableSeconds:
+          { type: integer, description: 今から視聴できる秒数（ルールと今日の上限を反映） }
         deferredSeconds: { type: integer, description: 朝に受け取る予定の報酬 }
         policy:
           type: object
-          required: [mode, dailyLimitSeconds, day, resetAt, viewedSeconds, rewardSeconds, workSeconds]
+          required:
+            [mode, dailyLimitSeconds, day, resetAt, viewedSeconds, rewardSeconds, workSeconds]
           properties:
             mode: { $ref: '#/components/schemas/TimePolicyMode' }
             dailyLimitSeconds: { type: integer }
@@ -1402,7 +1411,15 @@ components:
         rules:
           description: ルールの定数。表示の説明に使う
           type: object
-          required: [balanceCapSeconds, workSecondsPerReward, rewardSecondsPerUnit, dailyRewardCapSeconds, registrationRewardSeconds, viewingChoicesSeconds]
+          required:
+            [
+              balanceCapSeconds,
+              workSecondsPerReward,
+              rewardSecondsPerUnit,
+              dailyRewardCapSeconds,
+              registrationRewardSeconds,
+              viewingChoicesSeconds,
+            ]
           properties:
             balanceCapSeconds: { type: integer }
             workSecondsPerReward: { type: integer }
@@ -1456,7 +1473,8 @@ components:
             - { type: 'null' }
         availableSeconds: { type: integer }
         balanceSeconds: { type: integer }
-        requiresSession: { type: boolean, description: 視聴の前に区切りを選ぶ必要がある（self 以外） }
+        requiresSession:
+          { type: boolean, description: 視聴の前に区切りを選ぶ必要がある（self 以外） }
 
     # ── records ──
     Records:
@@ -1482,7 +1500,16 @@ components:
         practice:
           description: 過去7日の「自分で区切る練習」の集計
           type: object
-          required: [viewingSessions, endedSessions, extensions, startedTasks, onTimeStarts, missedStarts, history]
+          required:
+            [
+              viewingSessions,
+              endedSessions,
+              extensions,
+              startedTasks,
+              onTimeStarts,
+              missedStarts,
+              history,
+            ]
           properties:
             viewingSessions: { type: integer }
             endedSessions: { type: integer }
@@ -1540,7 +1567,8 @@ components:
         night: { type: string, format: date }
         kept: { type: boolean, description: Shorts を見ずに眠れた }
         bonusSeconds: { type: integer }
-        releasedSeconds: { type: integer, description: 夜の間に保留していた報酬のうち受け取った秒数 }
+        releasedSeconds:
+          { type: integer, description: 夜の間に保留していた報酬のうち受け取った秒数 }
 
     # ── shortcut ──
     ShortcutStatus:
@@ -1658,7 +1686,19 @@ components:
     # ── realtime ──
     Resource:
       type: string
-      enum: [profile, settings, tasks, workSession, wallet, viewing, sleep, shortcut, assistant, calendar]
+      enum:
+        [
+          profile,
+          settings,
+          tasks,
+          workSession,
+          wallet,
+          viewing,
+          sleep,
+          shortcut,
+          assistant,
+          calendar,
+        ]
     ChangeEvent:
       type: object
       required: [resource, revision]

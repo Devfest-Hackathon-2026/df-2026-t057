@@ -61,7 +61,8 @@ export const problemMessages: Record<ProblemCode, string> = {
   'shortcut.rate_limited': '短い間に何度も呼び出されました。少し待ってから開いてください。',
   'calendar.unavailable': 'この環境ではGoogleカレンダーに接続しません。',
   'calendar.not_connected': '先にGoogleカレンダーを連携してください。',
-  'calendar.reauth_required': 'ログイン中と同じGoogleアカウントで、カレンダーを連携し直してください。',
+  'calendar.reauth_required':
+    'ログイン中と同じGoogleアカウントで、カレンダーを連携し直してください。',
   'demo.only': 'サンプルはデモ環境でのみ作成できます。',
   'demo.tasks_exist': 'サンプルは課題がないときだけ追加できます。',
 };
@@ -96,7 +97,8 @@ export const fieldMessages: Record<FieldCode, string> = {
 export const planReasonLabels: Record<PlanReason, string> = {
   backward: '締切と必要時間から逆算した予定です。',
   ai_detailed: '作業の傾向を参考に手順を具体化し、締切から逆算しました。',
-  ai_limit_fallback: 'AIの利用上限に達したため、締切と必要時間から作成した予定です。手順は手動で調整できます。',
+  ai_limit_fallback:
+    'AIの利用上限に達したため、締切と必要時間から作成した予定です。手順は手動で調整できます。',
   snooze_kept: '作業時間を保って開始時刻を後ろへ移します。',
   snooze_shortened: '締切に合わせて作業時間を短縮する案です。変更前後を確認してください。',
   edit_replanned: '課題の内容を変更し、未開始の課題を締切から組み直します。',

@@ -1,0 +1,143 @@
+/* ポップアップ。色・文字・角丸はトークンだけで指定する。 */
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  width: 20rem;
+  margin: 0;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+}
+
+.popup {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font: var(--mat-sys-title-small);
+  letter-spacing: 0.1em;
+}
+
+.brand img {
+  border-radius: var(--mat-sys-corner-small);
+}
+
+.label {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
+}
+
+.value {
+  margin: 0;
+  font: var(--mat-sys-display-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.work {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container);
+}
+
+.work p {
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.row:empty {
+  display: none;
+}
+
+.status {
+  min-height: 1.25rem;
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.stack {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.button {
+  position: relative;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--mat-sys-corner-full);
+  background: transparent;
+  font: var(--mat-sys-label-large);
+  cursor: pointer;
+}
+
+.button:hover {
+  background-image: linear-gradient(
+    color-mix(in srgb, currentcolor 8%, transparent),
+    color-mix(in srgb, currentcolor 8%, transparent)
+  );
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.filled {
+  background-color: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+}
+
+.tonal {
+  background-color: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+.outlined {
+  border-color: var(--mat-sys-outline);
+  color: var(--mat-sys-primary);
+}
+
+.text {
+  color: var(--mat-sys-primary);
+}
+
+.error {
+  width: 100%;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+.loading {
+  width: 100%;
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

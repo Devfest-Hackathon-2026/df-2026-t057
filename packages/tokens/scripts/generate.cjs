@@ -4,18 +4,41 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const s = require(path.join(path.dirname(require.resolve('@angular/material/package.json')), 'schematics/ng-generate/theme-color/index_bundled.js'));
+const s = require(
+  path.join(
+    path.dirname(require.resolve('@angular/material/package.json')),
+    'schematics/ng-generate/theme-color/index_bundled.js',
+  ),
+);
 const PKG = path.resolve(__dirname, '..');
 const WORK = fs.mkdtempSync(path.join(os.tmpdir(), 'dpg-tokens-'));
 const hex = (a) => '#' + (a & 0xffffff).toString(16).padStart(6, '0');
 
-const SEEDS = { primary: '#2858eb', tertiary: '#d4f777', neutral: '#5e615d', neutralVariant: '#797e76' };
+const SEEDS = {
+  primary: '#2858eb',
+  tertiary: '#d4f777',
+  neutral: '#5e615d',
+  neutralVariant: '#797e76',
+};
 const EXT = { notice: '#f9d46b', pachinko: '#6b3908', mahjong: '#187855' };
 
-const pal = s.getColorPalettes(SEEDS.primary, undefined, SEEDS.tertiary, SEEDS.neutral, SEEDS.neutralVariant, undefined);
+const pal = s.getColorPalettes(
+  SEEDS.primary,
+  undefined,
+  SEEDS.tertiary,
+  SEEDS.neutral,
+  SEEDS.neutralVariant,
+  undefined,
+);
 const comment = `Color palettes are generated from primary: ${SEEDS.primary}, tertiary: ${SEEDS.tertiary}, neutral: ${SEEDS.neutral}, neutral variant: ${SEEDS.neutralVariant}`;
-let palettesScss = s.generateSCSSTheme(pal, comment)
-  .split('\n').filter((l) => !l.startsWith("@use") && !l.startsWith('// This file') && !l.startsWith('// Proceed')).join('\n').trim();
+let palettesScss = s
+  .generateSCSSTheme(pal, comment)
+  .split('\n')
+  .filter(
+    (l) => !l.startsWith('@use') && !l.startsWith('// This file') && !l.startsWith('// Proceed'),
+  )
+  .join('\n')
+  .trim();
 
 const ext = {};
 for (const [k, v] of Object.entries(EXT)) ext[k] = s.getColorPalettes(v).primary; // TonalPalette.fromHct(seed)
@@ -91,14 +114,28 @@ const final = scss.replace('// Note: // Note: ', '// Note: ');
 fs.writeFileSync(`${PKG}/src/_theme.scss`, final);
 
 // 実際にコンパイルして、出力された値から tokens.css を作る（値の一致を保証する）
-fs.writeFileSync(path.join(WORK, 'compile.scss'), `@use 'theme' as dpg;\nhtml { @include dpg.dopagaki-theme(); }\n`);
-const css = execFileSync(path.join(PKG, 'node_modules/.bin/sass'), ['--no-source-map', `--load-path=${path.join(PKG, 'node_modules')}`, `--load-path=${PKG}/src`, path.join(WORK, 'compile.scss')]).toString();
+fs.writeFileSync(
+  path.join(WORK, 'compile.scss'),
+  `@use 'theme' as dpg;\nhtml { @include dpg.dopagaki-theme(); }\n`,
+);
+const css = execFileSync(path.join(PKG, 'node_modules/.bin/sass'), [
+  '--no-source-map',
+  `--load-path=${path.join(PKG, 'node_modules')}`,
+  `--load-path=${PKG}/src`,
+  path.join(WORK, 'compile.scss'),
+]).toString();
 const decls = new Map();
-for (const m of css.matchAll(/^\s*(--[\w-]+):\s*(.+);$/gm)) { decls.delete(m[1]); decls.set(m[1], m[2]); }
+for (const m of css.matchAll(/^\s*(--[\w-]+):\s*(.+);$/gm)) {
+  decls.delete(m[1]);
+  decls.set(m[1], m[2]);
+}
 const group = (pred) => [...decls].filter(([k]) => pred(k));
 const isColor = (k, v) => v.startsWith('light-dark(') || /^#/.test(v);
 const used = new Set();
-const section = (title, entries) => { entries.forEach(([k]) => used.add(k)); return `\n  /* ${title} */\n` + entries.map(([k, v]) => `  ${k}: ${v};`).join('\n') + '\n'; };
+const section = (title, entries) => {
+  entries.forEach(([k]) => used.add(k));
+  return `\n  /* ${title} */\n` + entries.map(([k, v]) => `  ${k}: ${v};`).join('\n') + '\n';
+};
 const colors = group((k) => k.startsWith('--mat-sys-') && isColor(k, decls.get(k)));
 const typo = group((k) => /^--mat-sys-(display|headline|title|body|label)-/.test(k));
 const elev = group((k) => /^--mat-sys-level\d$/.test(k));
@@ -125,4 +162,9 @@ const rest = [...decls].filter(([k]) => !used.has(k));
 if (rest.length) out += section('Other', rest);
 out += '}\n';
 fs.writeFileSync(`${PKG}/src/tokens.css`, out);
-console.log('decls', decls.size, 'rest', rest.map(([k]) => k));
+console.log(
+  'decls',
+  decls.size,
+  'rest',
+  rest.map(([k]) => k),
+);

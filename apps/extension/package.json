@@ -1,11 +1,13 @@
 {
   "name": "@dopagaki/extension",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
     "zip": "wxt zip",
+    "postinstall": "wxt prepare",
     "typecheck": "wxt prepare && tsc --noEmit",
     "test": "vitest run"
   },
@@ -18,6 +20,7 @@
   },
   "devDependencies": {
     "@types/chrome": "^0.3.7",
+    "@types/node": "^24.19.2",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0",
     "wxt": "^0.21.5"
