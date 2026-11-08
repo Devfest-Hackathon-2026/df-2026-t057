@@ -581,8 +581,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description iPhone で YouTube を開いたときにショートカットが呼ぶ。アカウントを作らない。 */
+        /** @description iPhone で YouTube アプリが前面に来たときにショートカットが呼ぶ。アカウントを作らない。今日の視聴時間が0分なら stop が yes になり、ショートカットが url を開く（YouTube は止めない）。 */
         post: operations["openFromShortcut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shortcut/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description iPhone で YouTube アプリが前面から外れたときにショートカットが呼ぶ。直前に開いてから使った時間を振り返り用に記録する。視聴時間の残高は変えない。アカウントを作らない。 */
+        post: operations["closeFromShortcut"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1156,6 +1173,19 @@ export interface components {
             createdAt?: string;
         };
         ShortcutOpen: {
+            title: string;
+            message: string;
+            /** Format: uri */
+            url: string;
+            /**
+             * @description ショートカットの「もし」は文字列で比べるので、真偽値ではなく文字列にする。yes なら url を開く
+             * @enum {string}
+             */
+            stop: "yes" | "no";
+            /** @description 今日あと何分見られるか。残高を使わないモード（reminder・self）では返さない */
+            minutesLeft?: number;
+        };
+        ShortcutClose: {
             title: string;
             message: string;
             /** Format: uri */
@@ -2340,6 +2370,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShortcutOpen"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    closeFromShortcut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 通知に表示する内容 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortcutClose"];
                 };
             };
             default: components["responses"]["Problem"];
