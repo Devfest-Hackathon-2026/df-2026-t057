@@ -32,7 +32,7 @@ describe('AboutPage', () => {
 
   it('見出しの階層で、目的・対象・しくみ・大切にしていることを説明する', async () => {
     const element = await render();
-    expect(headings(element, 'h1')).toEqual(['このアプリについて .']);
+    expect(headings(element, 'h1')).toEqual(['このアプリについて']);
     expect(headings(element, 'h2')).toEqual([
       '禁止ではなく、距離感を。',
       '目的',
