@@ -165,7 +165,7 @@ test.describe('dialogs', () => {
   test('tutorial', async ({ page }) => {
     await page.goto('/calendar?tutorial');
     await page.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'まずは課題を登録' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Googleカレンダーを連携' })).toBeVisible();
     await expectAccessibleInBothSchemes(page);
   });
 });

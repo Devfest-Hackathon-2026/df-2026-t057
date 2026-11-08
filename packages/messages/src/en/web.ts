@@ -357,11 +357,22 @@ export const web: WebMessages = {
       end: 'End',
       back: 'Back',
       next: 'Next',
+      connect: 'Connect Google Calendar',
+      connecting: 'Opening Google…',
     },
     steps: {
       welcome: {
         title: 'Welcome to DOPAGAKI',
         body: ['Add your tasks, and the more you work on them, the more Shorts time you earn.'],
+      },
+      google: {
+        title: 'Connect Google Calendar',
+        required: [
+          'Your task events go into a dedicated "DOPAGAKI" calendar.',
+          "You can't continue until it's connected.",
+        ],
+        connected: ['Connected. Events go into the DOPAGAKI calendar.'],
+        unavailable: ["Google Calendar can't be connected here, so you can continue."],
       },
       add: {
         title: 'Start by adding a task',
@@ -398,7 +409,10 @@ export const web: WebMessages = {
       },
       settings: {
         title: 'Settings can wait',
-        body: ['Later, set your bedtime and Google sync.', 'Open this guide again from Guide.'],
+        body: [
+          'Later, set your bedtime to mark the end of the day.',
+          'Open this guide again from Guide.',
+        ],
       },
       ready: {
         title: "You're all set",

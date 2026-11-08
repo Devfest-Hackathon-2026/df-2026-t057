@@ -355,6 +355,8 @@ export const web = {
       end: '終了',
       back: '戻る',
       next: '次へ',
+      connect: 'Googleカレンダーを連携',
+      connecting: '連携の画面を開いています…',
     },
     steps: {
       welcome: {
@@ -363,6 +365,15 @@ export const web = {
         body: [
           '課題を登録して、取り\u2060組んだぶんだけショート動画を見られる時間が増えるアプリです。',
         ],
+      },
+      google: {
+        title: 'Googleカレンダーを連携',
+        required: [
+          '予定は専用の「DOPAGAKI」カレンダーに入ります。',
+          '連携するまで先へ進めません。',
+        ],
+        connected: ['連携できました。予定はDOPAGAKIカレンダーに入ります。'],
+        unavailable: ['この環境では連携できないので、このまま進めます。'],
       },
       add: {
         title: 'まずは課題を登録',
@@ -400,7 +411,7 @@ export const web = {
       settings: {
         title: '設定はあとからで大丈夫',
         body: [
-          '慣れたら「就寝時刻」と「Google連携」を設定すると便利です。',
+          '慣れたら「就寝時刻」を設定すると、夜の区切りに使えます。',
           'この案内は「使い方」から見直せます。',
         ],
       },

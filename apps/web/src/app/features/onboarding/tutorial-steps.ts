@@ -6,22 +6,29 @@ export interface TutorialStep {
   readonly target?: string;
   readonly title: string;
   readonly body: readonly string[];
+  /** Google カレンダーを連携する段階。連携するまで先へ進めない。 */
+  readonly connect?: true;
 }
 
+/** 案内の Google カレンダーの段階の状態。required は連携が必要で、まだ連携していない。 */
+export type GoogleStepState = 'required' | 'connected' | 'unavailable';
+
 /**
- * 使い方の案内（10段階）。1段階の説明はカードの中で3行までにする（e2e で確かめる）。
- * 報酬の数はサーバーのルールから表示する。
+ * 使い方の案内（11段階）。1段階の説明はカードの中で3行までにする（e2e で確かめる）。
+ * 報酬の数はサーバーのルールから表示する。Google カレンダーの連携は最初に案内する。
  */
 export function tutorialSteps(
   rules: Wallet['rules'] | undefined,
   text: WebMessages['onboarding']['steps'],
   shared: SharedMessages,
+  google: GoogleStepState,
 ): readonly TutorialStep[] {
   const registration = shared.durationLabel(rules?.registrationRewardSeconds ?? 300);
   const work = shared.durationLabel(rules?.workSecondsPerReward ?? 300);
   const reward = shared.durationLabel(rules?.rewardSecondsPerUnit ?? 60);
   return [
     { title: text.welcome.title, body: text.welcome.body },
+    { title: text.google.title, body: text.google[google], connect: true },
     {
       target: 'add',
       title: text.add.title,
@@ -38,4 +45,7 @@ export function tutorialSteps(
   ];
 }
 
-export const tutorialStepCount = 10;
+export const tutorialStepCount = 11;
+
+/** Google カレンダーの段階の位置。 */
+export const googleStepIndex = 1;
