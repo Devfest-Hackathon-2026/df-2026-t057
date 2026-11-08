@@ -903,6 +903,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calendar/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * DOPAGAKI のカレンダーの既定の通知を変える
+         * @description 予定の開始（取りかかる時刻）の何分前に通知するかを保存し、Google カレンダーの DOPAGAKI のカレンダーの
+         *     既定の通知へ反映するジョブを積む。DOPAGAKI が作る予定と、本人が Google カレンダーで手入力した予定の両方に効く。
+         *     空の一覧は通知しない。重複は除き、早い順に並べて保存する。連携していなければ 409。
+         */
+        put: operations["setCalendarReminders"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/calendar/webhook": {
         parameters: {
             query?: never;
@@ -1447,6 +1469,8 @@ export interface components {
             conflicts?: number;
             /** @description 再試行しても反映できなかったジョブの数 */
             failedJobs: number;
+            /** @description 本人が選んだ通知（予定の開始の何分前か、早い順）。選んでいなければ省く（Google の設定のまま） */
+            reminders?: number[];
         };
         /** @enum {string} */
         Resource: "profile" | "settings" | "tasks" | "workSession" | "wallet" | "viewing" | "sleep" | "shortcut" | "assistant" | "calendar";
@@ -3040,6 +3064,35 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description 取り込み後の連携状態 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setCalendarReminders: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    minutes: number[];
+                };
+            };
+        };
+        responses: {
+            /** @description 保存後の連携状態 */
             200: {
                 headers: {
                     [name: string]: unknown;

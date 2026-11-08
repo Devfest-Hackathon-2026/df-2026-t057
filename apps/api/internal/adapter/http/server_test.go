@@ -235,6 +235,7 @@ func TestEventsStreamSendsInitialRevisions(t *testing.T) {
 type fakeCalendar struct {
 	connected   bool
 	disconnects int
+	reminders   []int
 }
 
 func (f *fakeCalendar) status() oapi.CalendarStatus {
@@ -242,7 +243,11 @@ func (f *fakeCalendar) status() oapi.CalendarStatus {
 	if f.connected {
 		sync = oapi.CalendarStatusSyncSynced
 	}
-	return oapi.CalendarStatus{Enabled: true, Connected: f.connected, Sync: sync}
+	st := oapi.CalendarStatus{Enabled: true, Connected: f.connected, Sync: sync}
+	if f.reminders != nil {
+		st.Reminders = &f.reminders
+	}
+	return st
 }
 
 func (f *fakeCalendar) Status(context.Context, string) (oapi.CalendarStatus, error) {
@@ -258,6 +263,10 @@ func (f *fakeCalendar) SyncNow(context.Context, string) (oapi.CalendarStatus, er
 func (f *fakeCalendar) Disconnect(context.Context, string) (oapi.CalendarStatus, error) {
 	f.disconnects++
 	f.connected = false
+	return f.status(), nil
+}
+func (f *fakeCalendar) SetReminders(_ context.Context, _ string, minutes []int) (oapi.CalendarStatus, error) {
+	f.reminders = minutes
 	return f.status(), nil
 }
 func (f *fakeCalendar) Webhook(context.Context, string, string, string) error { return nil }
@@ -294,6 +303,30 @@ func TestDisconnectCalendar(t *testing.T) {
 	if r := call(t, srv, "POST", "/api/calendar/disconnect", "", "Idempotency-Key", "disc-0003"); r.status != 200 || r.body["connected"] != false {
 		t.Fatalf("disconnect while disconnected: %d %s", r.status, r.raw)
 	}
+}
+
+func TestSetCalendarReminders(t *testing.T) {
+	off, _ := newServer(t, config.ModeDemo)
+	expectProblem(t, call(t, off, "PUT", "/api/calendar/reminders", `{"minutes":[1440]}`, "Idempotency-Key", "rem-0001"), 503, "calendar.unavailable")
+
+	w := testkit.New(t, time.Date(2026, 11, 8, 12, 0, 0, 0, testkit.JST))
+	cal := &fakeCalendar{connected: true}
+	api, err := apihttp.NewAPI(apihttp.Deps{
+		Config: config.Config{Mode: config.ModeDemo, AppURL: "http://app.test"}, Clock: w.Clock, Log: w.Log, Idempotency: w.Idempotency,
+		Profiles: w.Profiles, Tasks: w.Tasks, Work: w.Work, Wallet: w.Wallet, Viewing: w.Viewing, Sleep: w.Sleep,
+		Records: w.Records, Shortcut: w.Shortcut, Events: realtime.NewHub(w.Store, w.Log), Calendar: cal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(apihttp.APIOnly(api))
+	t.Cleanup(srv.Close)
+	expectProblem(t, call(t, srv, "PUT", "/api/calendar/reminders", `{"minutes":[1440]}`), 400, "idempotency.key_required")
+	r := call(t, srv, "PUT", "/api/calendar/reminders", `{"minutes":[1440,300]}`, "Idempotency-Key", "rem-0002")
+	if r.status != 200 || !strings.Contains(r.raw, `"reminders":[1440,300]`) {
+		t.Fatalf("set reminders: %d %s", r.status, r.raw)
+	}
+	expectProblem(t, call(t, srv, "PUT", "/api/calendar/reminders", `{}`, "Idempotency-Key", "rem-0003"), 400, "request.invalid")
 }
 
 func TestDeletionResponseReplayAfterFence(t *testing.T) {

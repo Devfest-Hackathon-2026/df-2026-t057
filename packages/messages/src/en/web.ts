@@ -600,6 +600,28 @@ export const web: WebMessages = {
       unavailable: "Google integration isn't set up in this environment.",
       privacy: 'Data handling and deletion requests',
       logout: 'Sign out',
+      reminders: {
+        title: 'Event notifications',
+        lead: 'Choose how long before the start time Google Calendar notifies you. This also applies to events you add by hand.',
+        notChosen: "You haven't chosen yet, so Google Calendar's own setting is used.",
+        none: 'Save with nothing selected to turn notifications off.',
+        limit: (max: number) => ` Choose up to ${max}.`,
+        label: (minutes: number) => {
+          if (minutes === 0) return 'At the start time';
+          const days = Math.floor(minutes / 1440);
+          const hours = Math.floor((minutes % 1440) / 60);
+          const rest = minutes % 60;
+          const parts = [
+            days > 0 ? `${days} ${days === 1 ? 'day' : 'days'}` : '',
+            hours > 0 ? `${hours} ${hours === 1 ? 'hour' : 'hours'}` : '',
+            rest > 0 ? `${rest} min` : '',
+          ].filter((part) => part !== '');
+          return `${parts.join(' ')} before`;
+        },
+        save: 'Save notifications',
+        saving: 'Saving…',
+        saved: 'Notifications saved. Updating Google Calendar.',
+      },
     },
     shortcut: {
       title: 'iPhone Shortcut',
