@@ -744,6 +744,7 @@ export const web: WebMessages = {
       edit: 'Edit task',
       adjust: 'Adjust schedule',
       delete: 'Delete task',
+      moreActions: (title: string) => `More actions for “${title}”`,
       start: 'Start',
       empty: 'No tasks yet',
       emptyCompleted: 'No completed tasks yet',

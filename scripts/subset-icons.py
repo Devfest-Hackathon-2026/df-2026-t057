@@ -15,7 +15,7 @@ PUBLIC = WEB / "public"
 icons = """add add_circle add_task arrow_drop_down arrow_upward assignment auto_awesome bedtime
 calendar_month calendar_today check chevron_left chevron_right close delete edit
 edit_calendar error event_available expand_more flare forum grass help info link
-logout mobile motion_photos_off notifications open_in_new palette person person_add
+logout mobile more_vert motion_photos_off notifications open_in_new palette person person_add
 play_arrow psychology schedule send settings snooze task_alt texture timer volume_up""".split()
 
 font = TTFont(SOURCE / "material-symbols-rounded.woff2")

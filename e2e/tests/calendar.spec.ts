@@ -2,7 +2,7 @@ import type { CalendarStatus } from '../support/api';
 import { hoursFromNow } from '../support/api';
 import { expect, test, tokyoDate } from '../support/fixtures';
 import { expectNoHorizontalScroll } from '../support/layout';
-import { workspace } from '../support/pages';
+import { taskAction, workspace } from '../support/pages';
 import { enableAi, fulfillProblem, Gate, mockAssistant } from '../support/routes';
 
 test('calendar selection, routes and chat preserve the chosen task and draft', async ({
@@ -33,12 +33,7 @@ test('calendar selection, routes and chat preserve the chosen task and draft', a
   await expect(
     page.getByRole('navigation', { name: 'メインメニュー' }).getByRole('link'),
   ).toHaveCount(4);
-  await page
-    .getByRole('list', { name: '課題一覧' })
-    .getByRole('listitem')
-    .nth(1)
-    .getByRole('link', { name: 'カレンダーで見る' })
-    .click();
+  await taskAction(page, 'カレンダーで見る', 1);
   await expect(page).toHaveURL(
     new RegExp(`task=calendar-b.*date=${tokyoDate(chosen?.plan.start ?? '')}`),
   );

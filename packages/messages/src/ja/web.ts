@@ -733,6 +733,7 @@ export const web = {
       edit: '課題を編集',
       adjust: '予定を調整',
       delete: '課題を削除',
+      moreActions: (title: string) => `「${title}」のそのほかの操作`,
       start: 'はじめる',
       empty: 'まだ課題がありません',
       emptyCompleted: '完了した課題はまだありません',

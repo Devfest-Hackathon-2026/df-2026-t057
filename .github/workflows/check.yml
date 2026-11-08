@@ -152,9 +152,12 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-node
+      # node_modules ができる前に Go を用意する（mise のキャッシュのキーを作るときに、作業ディレクトリ全体を調べるため）。
       - uses: ./.github/actions/setup-go
         if: needs.changes.outputs.image != 'true'
+        with:
+          cache-suffix: '-build'
+      - uses: ./.github/actions/setup-node
       - name: Build extension once
         env:
           APP_URL: http://127.0.0.1:4300
@@ -162,8 +165,10 @@ jobs:
       - name: Build API and web once
         if: needs.changes.outputs.image != 'true'
         run: |-
-          pnpm --filter @dopagaki/api build
+          pnpm --filter @dopagaki/api build &
+          api=$!
           pnpm --filter @dopagaki/web build
+          wait "$api"
       - name: Set up container builder
         if: needs.changes.outputs.image == 'true'
         uses: docker/setup-buildx-action@v4

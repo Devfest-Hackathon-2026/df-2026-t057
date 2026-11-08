@@ -162,8 +162,13 @@
         >
           <full-calendar class="workspace-calendar" [options]="options()" [events]="events()">
             <ng-template #eventContent let-info>
-              <span class="event-name">{{ info.event.title }}</span>
-              <span class="event-clock">{{ info.event.start | time }}</span>
+              <!-- 週表示は列が細いので、時刻を出さずに課題名を2行まで出す -->
+              @if (info.view.type === 'timeGridWeek') {
+                <span class="event-name wrap">{{ info.event.title }}</span>
+              } @else {
+                <span class="event-name">{{ info.event.title }}</span>
+                <span class="event-clock">{{ info.event.start | time }}</span>
+              }
             </ng-template>
           </full-calendar>
         </div>

@@ -2,7 +2,7 @@ name: Set up Go
 description: Install pinned Go and restore compilation and module caches
 inputs:
   cache-suffix:
-    description: Separate API test cache from the complete E2E build cache
+    description: Cache purpose (for example -api or -build). Each purpose restores only its own caches
     default: ''
 runs:
   using: composite
@@ -23,7 +23,8 @@ runs:
           ~/go/pkg/mod
           ~/.cache/go-build
           ~/.cache/golangci-lint
-        key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-${{ hashFiles('apps/api/**/*.go', 'apps/api/.golangci.yml') }}${{ inputs.cache-suffix }}
+        # 用途ごとに分ける（-race のテストと Lint の結果を、通常のビルドへ持ち込んでも使えず、全体を作り直すため）。
+        # 用途の名前を先頭に置き、復元の候補も同じ用途のキャッシュだけにする。
+        key: go${{ inputs.cache-suffix }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-${{ hashFiles('apps/api/**/*.go', 'apps/api/.golangci.yml') }}
         restore-keys: |
-          go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-${{ hashFiles('apps/api/**/*.go', 'apps/api/.golangci.yml') }}
-          go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-
+          go${{ inputs.cache-suffix }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-
