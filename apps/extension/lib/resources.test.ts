@@ -19,8 +19,14 @@ describe('resourcesToRefetch', () => {
     ]);
   });
 
+  it('refetches the profile to follow its language', () => {
+    expect(resourcesToRefetch({ resource: 'profile', revision: 2 }, { profile: 1 })).toEqual([
+      'profile',
+    ]);
+  });
+
   it('ignores resources the extension does not show', () => {
     expect(resourcesToRefetch({ resource: 'assistant', revision: 9 }, {})).toEqual([]);
-    expect(resourcesToRefetch({ resource: 'profile', revision: 9 }, {})).toEqual([]);
+    expect(resourcesToRefetch({ resource: 'calendar', revision: 9 }, {})).toEqual([]);
   });
 });

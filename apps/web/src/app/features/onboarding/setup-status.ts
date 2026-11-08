@@ -3,31 +3,29 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../core/auth/auth.service';
 import { ExtensionBridge } from '../../core/extension/extension-bridge';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { CalendarStore } from '../calendar/calendar.store';
 @Component({
   selector: 'app-setup-status',
   imports: [MatButtonModule],
   template: `
-    <h3>導入と接続の確認</h3>
+    @let t = text().onboarding.setupStatus;
+    <h3>{{ t.heading }}</h3>
     <ol>
-      <li>管理画面へログイン：{{ auth.signedIn() ? '完了' : '未完了' }}</li>
-      <li>Googleカレンダー：{{ calendar.connected() ? '連携済み' : '未連携' }}</li>
-      <li>拡張：{{ bridge.extensionVersion() ?? '未検出' }}</li>
-      <li>同じアカウントで接続：{{ sameAccount() ? '確認済み' : '未確認' }}</li>
-      <li>
-        通知：{{
-          bridge.diagnostic()?.notifications === 'granted' ? '許可済み' : '未確認または拒否'
-        }}
-      </li>
+      <li>{{ t.signedIn(auth.signedIn()) }}</li>
+      <li>{{ t.calendar(calendar.connected()) }}</li>
+      <li>{{ t.extension(bridge.extensionVersion()) }}</li>
+      <li>{{ t.sameAccount(sameAccount()) }}</li>
+      <li>{{ t.notifications(bridge.diagnostic()?.notifications === 'granted') }}</li>
     </ol>
-    <p>Chromeの拡張ポップアップでGoogle接続と通知テストを実行してください。</p>
+    <p>{{ t.instructions }}</p>
     <button
       mat-stroked-button
       type="button"
       (click)="bridge.diagnose()"
       [disabled]="bridge.diagnosing()"
     >
-      {{ bridge.diagnosing() ? '確認中…' : '接続を診断' }}
+      {{ bridge.diagnosing() ? t.diagnosing : t.diagnose }}
     </button>
     <button
       mat-button
@@ -35,9 +33,9 @@ import { CalendarStore } from '../calendar/calendar.store';
       (click)="seen.set(true)"
       [disabled]="bridge.diagnostic()?.notifications !== 'granted'"
     >
-      テスト通知を確認した
+      {{ t.confirmTest }}
     </button>
-    <p aria-live="polite">{{ seen() ? '通知を本人が確認しました。' : '' }}</p>
+    <p aria-live="polite">{{ seen() ? t.testConfirmed : '' }}</p>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -47,6 +45,7 @@ export class SetupStatus {
       this.seen.set(false);
     });
   }
+  protected readonly text = inject(LocaleStore).web;
   protected readonly auth = inject(AuthService);
   protected readonly bridge = inject(ExtensionBridge);
   protected readonly calendar = inject(CalendarStore);

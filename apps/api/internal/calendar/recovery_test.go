@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 )
@@ -99,7 +100,7 @@ func TestAppResolutionRecoversAppliedPatchAndDeletedEvent(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !deleted {
-				if _, err = e.cal.PatchEvent(e.ctx, e.connection().CalendarID, c.Remote.ID, c.Remote.ETag, ContentPatch(c.Task, time.UTC)); err != nil {
+				if _, err = e.cal.PatchEvent(e.ctx, e.connection().CalendarID, c.Remote.ID, c.Remote.ETag, ContentPatch(c.Task, time.UTC, locale.Ja)); err != nil {
 					t.Fatal(err)
 				}
 			}

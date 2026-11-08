@@ -24,9 +24,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Router } from '@angular/router';
 import { ApiError, newIdempotencyKey, type Draft, type TaskInput } from '@dopagaki/contract';
-import { fieldMessages } from '@dopagaki/messages';
 import { ConfigStore } from '../../../core/config/config.store';
 import type { OperationError } from '../../../core/http/operation';
+import { LocaleStore } from '../../../core/i18n/locale.store';
 import { DateTimePipe, DurationPipe } from '../../../shared/ui/format';
 import { AssistantPanel } from '../../assistant/assistant-panel';
 import { AssistantStore } from '../../assistant/assistant.store';
@@ -83,6 +83,8 @@ export class TaskDialog {
   protected readonly sleep = inject(SleepStore);
   protected readonly assistant = inject(AssistantStore);
   private readonly config = inject(ConfigStore);
+  private readonly locale = inject(LocaleStore);
+  protected readonly text = this.locale.web;
 
   protected readonly editing = this.data.taskId !== undefined;
   protected readonly task = computed(() =>
@@ -94,13 +96,7 @@ export class TaskDialog {
   protected readonly mode = signal<Mode>(this.data.mode ?? 'manual');
   /** AI のパネルは初めて開いたときに作り、以後は隠して残す（会話と入力を保つ）。 */
   protected readonly aiOpened = signal(this.mode() === 'ai');
-  protected readonly minutePresets: readonly { value: number; label: string }[] = [
-    { value: 15, label: '15分' },
-    { value: 30, label: '30分' },
-    { value: 60, label: '1時間' },
-    { value: 90, label: '1.5時間' },
-    { value: 120, label: '2時間' },
-  ];
+  protected readonly minutePresets: readonly number[] = [15, 30, 60, 90, 120];
 
   /** 登録する課題の ID。再送しても二重に登録しないよう、ダイアログごとに一度だけ作る。 */
   private readonly newTaskId = newIdempotencyKey();
@@ -251,7 +247,7 @@ export class TaskDialog {
       const name = fieldNames.find((candidate) => candidate === field.field);
       if (!name) continue;
       const control = this.form.controls[name];
-      control.setErrors({ ...control.errors, server: fieldMessages[field.code] });
+      control.setErrors({ ...control.errors, server: this.locale.shared().fields[field.code] });
       control.markAsTouched();
     }
   }

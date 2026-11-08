@@ -1,5 +1,5 @@
 <div class="backdrop">
-  <p class="preview-label">通知プレビュー</p>
+  <p class="preview-label">{{ text().notification.preview.label }}</p>
   <div class="content">
     <h2 mat-dialog-title class="heading">{{ heading() }}</h2>
     @if (companionLine(); as line) {
@@ -10,21 +10,22 @@
         <mat-icon class="task-icon">assignment</mat-icon>
         <h3>{{ task.title }}</h3>
         @if (task.why) {
-          <p class="why">なぜ：{{ task.why }}</p>
+          <p class="why">{{ text().notification.preview.why(task.why) }}</p>
         }
         @if (firstStep(); as step) {
-          <p class="first-step">最初の一手：{{ step }}</p>
+          <p class="first-step">{{ text().notification.preview.firstStep(step) }}</p>
         }
         <p class="time">
-          {{ task.plan.start | time }}–{{ task.plan.end | time }} · {{ task.plan | planMinutes }}分
+          {{ task.plan.start | time }}–{{ task.plan.end | time }} ·
+          {{ text().notification.preview.minutes(task.plan | planMinutes) }}
         </p>
         <strong class="reward">{{ reward() }}</strong>
       } @else {
-        <p>この課題は見つかりません。</p>
+        <p>{{ text().notification.preview.notFound }}</p>
       }
     </mat-dialog-content>
     @if (startError(); as error) {
-      <p class="error" role="alert">はじめられませんでした。{{ error.message }}</p>
+      <p class="error" role="alert">{{ text().notification.preview.startFailed(error.message) }}</p>
     }
     <div class="notice-buttons">
       <button
@@ -34,15 +35,17 @@
         (click)="start()"
         [disabled]="!task() || starting()"
       >
-        {{ starting() ? '開始しています…' : '作業をはじめる' }}
+        {{ starting() ? text().notification.preview.starting : text().notification.preview.start }}
       </button>
       <button mat-stroked-button type="button" (click)="snooze()" [disabled]="!task()">
-        {{ settings.value()?.snoozeMinutes }}分スヌーズ・予定を確認
+        {{ text().notification.preview.snooze(settings.value()?.snoozeMinutes) }}
       </button>
       <button mat-stroked-button type="button" (click)="adjust()" [disabled]="!task()">
-        予定を調整する
+        {{ text().notification.preview.adjust }}
       </button>
-      <button mat-stroked-button type="button" (click)="later()">あとで</button>
+      <button mat-stroked-button type="button" (click)="later()">
+        {{ text().notification.preview.later }}
+      </button>
     </div>
   </div>
 </div>

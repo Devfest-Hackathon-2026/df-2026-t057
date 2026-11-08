@@ -1,14 +1,15 @@
+@let t = text().shell;
 <div class="grime" [style.opacity]="grime()" aria-hidden="true"></div>
-<a class="skip-link" href="#main">本文へ移動</a>
+<a class="skip-link" href="#main">{{ t.layout.skipToMain }}</a>
 <div class="layout">
   <aside class="sidebar">
-    <a class="brand" href="/" aria-label="DOPAGAKI ホーム">
+    <a class="brand" href="/" [attr.aria-label]="t.layout.home">
       <img src="/logo.png" alt="" width="40" height="40" />
       <span class="brand-name">DOPAGAKI</span>
     </a>
-    <nav aria-label="メインメニュー">
+    <nav [attr.aria-label]="t.layout.mainMenu">
       <ul>
-        @for (item of nav; track item.path) {
+        @for (item of nav(); track item.path) {
           <li>
             <a
               [routerLink]="item.path"
@@ -28,19 +29,24 @@
   <div class="main-column">
     <header class="topbar">
       <!-- スマホではサイドバーを隠すので、ロゴを上部に出す -->
-      <a class="brand mobile-brand" href="/" aria-label="DOPAGAKI ホーム">
+      <a class="brand mobile-brand" href="/" [attr.aria-label]="t.layout.home">
         <img src="/logo.png" alt="" width="32" height="32" />
       </a>
       <div class="topbar-right" data-tour="settings">
         @if (auth.mode() === 'demo') {
-          <span class="demo-badge">デモ</span>
+          <span class="demo-badge">{{ t.layout.demo }}</span>
         }
         <span class="today">{{ today() }}</span>
         <button mat-button type="button" class="wide-only" (click)="tutorial.start()">
-          使い方
+          {{ t.layout.tutorial }}
         </button>
         @if (auth.mode() === 'demo') {
-          <a mat-icon-button routerLink="/settings" matTooltip="設定" aria-label="設定を開く">
+          <a
+            mat-icon-button
+            routerLink="/settings"
+            [matTooltip]="t.layout.settings"
+            [attr.aria-label]="t.layout.openSettings"
+          >
             <mat-icon>settings</mat-icon>
           </a>
         } @else {
@@ -51,16 +57,16 @@
           type="button"
           class="menu-button"
           [matMenuTriggerFor]="mobileMenu"
-          aria-label="メニューを開く"
+          [attr.aria-label]="t.layout.openMenu"
         >
           <span class="hamburger" aria-hidden="true"></span>
         </button>
       </div>
     </header>
 
-    <mat-menu #mobileMenu="matMenu" xPosition="before" aria-label="メインメニュー">
+    <mat-menu #mobileMenu="matMenu" xPosition="before" [aria-label]="t.layout.mainMenu">
       <p class="menu-today">{{ today() }}</p>
-      @for (item of nav; track item.path) {
+      @for (item of nav(); track item.path) {
         <a
           mat-menu-item
           class="menu-link"
@@ -75,7 +81,7 @@
       <mat-divider />
       <button mat-menu-item type="button" (click)="tutorial.start()">
         <mat-icon>help</mat-icon>
-        <span>使い方</span>
+        <span>{{ t.layout.tutorial }}</span>
       </button>
     </mat-menu>
 
@@ -88,20 +94,22 @@
         <div class="banner error-banner" role="alert">
           <mat-icon>error</mat-icon>
           <span class="banner-text">{{ notice.text }}</span>
-          <button mat-button type="button" (click)="notices.dismiss(notice.id)">閉じる</button>
+          <button mat-button type="button" (click)="notices.dismiss(notice.id)">
+            {{ t.common.close }}
+          </button>
         </div>
       }
       @if (calendar.needsRetry()) {
         <div class="banner info-banner" role="status">
           <mat-icon>calendar_month</mat-icon>
-          <span class="banner-text">管理画面の予定をGoogleカレンダーへ反映できていません。</span>
+          <span class="banner-text">{{ t.layout.calendarNotSynced }}</span>
           <button
             mat-button
             type="button"
             (click)="calendar.syncNow()"
             [disabled]="calendar.sync.pending()"
           >
-            {{ calendar.sync.pending() ? '同期しています…' : '同期を再試行' }}
+            {{ calendar.sync.pending() ? t.layout.syncing : t.layout.retrySync }}
           </button>
         </div>
         @if (calendar.sync.error(); as error) {
@@ -118,12 +126,12 @@
         <div class="banner error-banner" role="alert">
           <mat-icon>error</mat-icon>
           <span class="banner-text">{{ error.message }}</span>
-          <button mat-button type="button" (click)="loadAll()">再読み込み</button>
+          <button mat-button type="button" (click)="loadAll()">{{ t.layout.reload }}</button>
         </div>
       } @else {
         <div class="loading" role="status">
-          <mat-progress-bar mode="indeterminate" aria-label="課題と予定を読み込み中" />
-          <p>課題と予定を読み込んでいます…</p>
+          <mat-progress-bar mode="indeterminate" [attr.aria-label]="t.layout.loadingLabel" />
+          <p>{{ t.layout.loading }}</p>
         </div>
       }
     </main>

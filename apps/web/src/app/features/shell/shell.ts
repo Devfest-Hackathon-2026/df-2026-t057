@@ -19,6 +19,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter, map } from 'rxjs';
 import { AccountScope } from '../../core/auth/account-scope';
 import { AuthService } from '../../core/auth/auth.service';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { formatFullDate } from '../../shared/ui/format';
 import { CalendarStore } from '../calendar/calendar.store';
 import { TutorialOverlay } from '../onboarding/tutorial-overlay';
@@ -77,17 +78,22 @@ export class Shell {
   private readonly sleep = inject(SleepStore);
   private readonly viewing = inject(ViewingStore);
   private readonly router = inject(Router);
+  private readonly locale = inject(LocaleStore).locale;
+  protected readonly text = inject(LocaleStore).web;
 
-  protected readonly nav: readonly NavItem[] = [
-    { path: '/calendar', icon: 'calendar_month', label: 'カレンダー' },
-    { path: '/tasks', icon: 'assignment', label: '課題' },
-    { path: '/records', icon: 'grass', label: '記録' },
-    { path: '/about', icon: 'info', label: 'アプリについて' },
-  ];
+  protected readonly nav = computed((): readonly NavItem[] => {
+    const labels = this.text().shell.layout.nav;
+    return [
+      { path: '/calendar', icon: 'calendar_month', label: labels.calendar },
+      { path: '/tasks', icon: 'assignment', label: labels.tasks },
+      { path: '/records', icon: 'grass', label: labels.records },
+      { path: '/about', icon: 'info', label: labels.about },
+    ];
+  });
 
   /** 1分ごとに進む時計（日付の表示と画面の汚れ）。 */
   private readonly now = signal(Date.now());
-  protected readonly today = computed(() => formatFullDate(this.now()));
+  protected readonly today = computed(() => formatFullDate(this.now(), this.locale()));
 
   /** 画面に必要な store がそろったか。 */
   protected readonly ready = computed(

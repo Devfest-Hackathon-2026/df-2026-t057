@@ -27,9 +27,9 @@ func (noCalendar) TaskRemoved(context.Context, *store.Tx, string, string) error 
 func (noCalendar) LinkedTasks(context.Context, *store.Tx, string) (map[string]bool, error) {
 	return nil, nil
 }
-func (noCalendar) ProfileZoneChanged(context.Context, *store.Tx, string) error { return nil }
-func (noCalendar) SleepChanged(context.Context, *store.Tx, string) error       { return nil }
-func (noCalendar) SleepCleared(context.Context, *store.Tx, string) error       { return nil }
+func (noCalendar) ProfileFormatChanged(context.Context, *store.Tx, string) error { return nil }
+func (noCalendar) SleepChanged(context.Context, *store.Tx, string) error         { return nil }
+func (noCalendar) SleepCleared(context.Context, *store.Tx, string) error         { return nil }
 func (noCalendar) SleepPending(context.Context, *store.Tx, string) (bool, error) {
 	return false, nil
 }

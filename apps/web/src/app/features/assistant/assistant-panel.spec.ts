@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import type { AssistantTurn } from '@dopagaki/contract';
-import { problemMessages } from '@dopagaki/messages';
+import { messages } from '@dopagaki/messages';
 import { ConfigStore } from '../../core/config/config.store';
 import { FakeBackend, flush, provideFakeBackend } from '../../../testing/fake-backend';
 import { taskList } from '../../../testing/fixtures';
@@ -93,7 +93,7 @@ describe('AssistantPanel', () => {
     sendButton(element).click();
     await flush(10);
     expect(element.querySelector('[role="alert"]')?.textContent).toContain(
-      problemMessages['ai.rate_limited'],
+      messages.ja.shared.problems['ai.rate_limited'],
     );
     expect(TestBed.inject(AssistantStore).draft('workspace')).toBe('相談したい');
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"google.golang.org/genai"
 
@@ -12,7 +13,7 @@ import (
 
 const consultTokens = 5000
 
-const consultPrompt = `これは相談チャットです。本人の発言(user)に、日本語の短い平文（ふだん3文以内、最大2000文字）で答えます。
+const consultPrompt = `これは相談チャットです。本人の発言(user)に、{LANGUAGE}の短い平文（ふだん3文以内、最大2000文字）で答えます。
 進め方：受け止める → Whyがまだなら本人の言葉で引き出す → 最初の一歩を5分以内の行動にする → 計画を提案する → 「これでいけそう？」と確認する。質問は1回の返答で1つまで。
 新しい課題の締切と所要時間がそろったら、Whyや最初の一歩が未定でもその返答で propose_task を出し、残りはカードを見せながら聞く。
 道具：予定・課題に触れる前に get_today、前進を認めたり振り返るときは get_progress、カレンダーの話は get_calendar、好みは get_profile を呼んで事実を確かめる。データにない予定や数字を作らない。
@@ -85,7 +86,8 @@ func (v *conversation) Next(ctx context.Context, uid string, results []assistant
 		if err != nil {
 			return assistant.Step{}, fmt.Errorf("gemini: encode consultation: %w", err)
 		}
-		v.contents = []*genai.Content{genai.NewContentFromText(consultPrompt+string(raw), genai.RoleUser)}
+		prompt := strings.ReplaceAll(consultPrompt, "{LANGUAGE}", languageNames[v.input.Locale])
+		v.contents = []*genai.Content{genai.NewContentFromText(prompt+string(raw), genai.RoleUser)}
 	}
 	if len(results) > 0 {
 		parts := make([]*genai.Part, 0, len(results))
@@ -104,7 +106,7 @@ func (v *conversation) Next(ctx context.Context, uid string, results []assistant
 		v.contents = append(v.contents, genai.NewContentFromParts(parts, genai.RoleUser))
 	}
 	res, err := v.client.generate(ctx, uid, v.contents, &genai.GenerateContentConfig{
-		SystemInstruction: persona(), Tools: consultTools(), MaxOutputTokens: consultTokens,
+		SystemInstruction: persona(v.input.Locale), Tools: consultTools(), MaxOutputTokens: consultTokens,
 		ThinkingConfig: &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelLow},
 	})
 	if err != nil {

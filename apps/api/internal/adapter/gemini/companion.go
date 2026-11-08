@@ -8,9 +8,13 @@ import (
 	"google.golang.org/genai"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/companion"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 )
 
 const lineTokens = 1000
+
+// lineRunes は AI に頼む一言の長さ。companion.MaxLineRunes より短くして、少し超えても表示できるようにする。
+var lineRunes = map[locale.Locale]int{locale.Ja: 40, locale.En: 100}
 
 // momentDescriptions は場面ごとに、相棒が何を意識して声をかけるか（AI への指示）。
 var momentDescriptions = map[companion.Moment]string{
@@ -40,9 +44,9 @@ func (c *Client) Line(ctx context.Context, uid string, req companion.LineRequest
 	if err != nil {
 		return "", fmt.Errorf("gemini: encode line: %w", err)
 	}
-	prompt := "次の場面で、本人に向けたひとことを日本語で1つだけ返してください。40文字以内、かぎかっこや説明は付けない。\n" + string(raw)
+	prompt := fmt.Sprintf("次の場面で、本人に向けたひとことを%sで1つだけ返してください。%d文字以内、かぎかっこや説明は付けない。\n%s", languageNames[req.Locale], lineRunes[req.Locale], raw)
 	res, err := c.generate(ctx, uid, genai.Text(prompt), &genai.GenerateContentConfig{
-		SystemInstruction: persona(), MaxOutputTokens: lineTokens, ThinkingConfig: &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelLow},
+		SystemInstruction: persona(req.Locale), MaxOutputTokens: lineTokens, ThinkingConfig: &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelLow},
 	})
 	if err != nil {
 		return "", err

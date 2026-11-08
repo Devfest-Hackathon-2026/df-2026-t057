@@ -1,3 +1,4 @@
+@let t = text().shell.accountMenu;
 <ng-template #avatar>
   @if (photo(); as url) {
     <img [src]="url" alt="" referrerpolicy="no-referrer" (error)="photoError.set(url)" />
@@ -13,14 +14,14 @@
   type="button"
   class="chip"
   [matMenuTriggerFor]="menu"
-  [attr.aria-label]="'アカウントメニュー: ' + email()"
+  [attr.aria-label]="t.label(email())"
 >
   <span class="chip-content">
     <span class="avatar" aria-hidden="true">
       <ng-container [ngTemplateOutlet]="avatar" />
     </span>
     <span class="chip-label">
-      {{ auth.status() === 'signingIn' ? 'ログイン中' : name() }}
+      {{ auth.status() === 'signingIn' ? t.signingIn : name() }}
     </span>
     <mat-icon>expand_more</mat-icon>
   </span>
@@ -32,27 +33,27 @@
     <span class="avatar large" aria-hidden="true">
       <ng-container [ngTemplateOutlet]="avatar" />
     </span>
-    <p class="greeting">こんにちは、{{ auth.account()?.name || 'ユーザー' }}さん</p>
+    <p class="greeting">{{ t.greeting(auth.account()?.name ?? '') }}</p>
   </div>
   <mat-divider />
   <a mat-menu-item routerLink="/settings">
     <mat-icon>calendar_month</mat-icon>
     <span class="item-text">
-      Googleカレンダー
+      {{ t.googleCalendar }}
       <small>{{ calendarLabel() }}</small>
     </span>
   </a>
   <a mat-menu-item routerLink="/settings">
     <mat-icon>settings</mat-icon>
-    <span>設定</span>
+    <span>{{ t.settings }}</span>
   </a>
   <button mat-menu-item type="button" (click)="tutorial.start()">
     <mat-icon>help</mat-icon>
-    <span>使い方を見る</span>
+    <span>{{ t.tutorial }}</span>
   </button>
   <a mat-menu-item routerLink="/about">
     <mat-icon>info</mat-icon>
-    <span>このアプリについて</span>
+    <span>{{ t.about }}</span>
   </a>
   <mat-divider />
   <button
@@ -62,15 +63,15 @@
     [disabled]="auth.status() === 'signingIn'"
   >
     <mat-icon>person_add</mat-icon>
-    <span>別のアカウントを使用</span>
+    <span>{{ t.switchAccount }}</span>
   </button>
   <button mat-menu-item type="button" (click)="auth.logout()">
     <mat-icon>logout</mat-icon>
-    <span>ログアウト</span>
+    <span>{{ t.logout }}</span>
   </button>
   <mat-divider />
   <a mat-menu-item href="/privacy.html" target="_blank" rel="noopener">
     <mat-icon>open_in_new</mat-icon>
-    <span>データの取り扱い</span>
+    <span>{{ t.privacy }}</span>
   </a>
 </mat-menu>

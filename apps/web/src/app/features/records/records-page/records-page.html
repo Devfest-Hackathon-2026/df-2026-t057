@@ -1,9 +1,11 @@
-<app-page-heading heading="積み上げの記録" />
+<app-page-heading [heading]="text().records.page.heading" />
 
 @if (records.load.error(); as error) {
   <div class="error" role="alert">
     <span>{{ error.message }}</span>
-    <button mat-button type="button" (click)="records.refresh()">再読み込み</button>
+    <button mat-button type="button" (click)="records.refresh()">
+      {{ text().records.page.reload }}
+    </button>
   </div>
 }
 
@@ -11,32 +13,29 @@
   <section class="card activity" aria-labelledby="activity-title">
     <div class="summary">
       <div>
-        <p>過去12週間に完了した課題</p>
+        <p>{{ text().records.page.completedLabel }}</p>
         <p class="count">
           {{ data.totals.completed }}
-          <span>件</span>
+          <span>{{ text().records.page.countUnit }}</span>
         </p>
       </div>
       <div class="reward">
-        <p>作業で得た視聴時間</p>
-        <strong>＋{{ data.totals.earnedSeconds | duration }}</strong>
+        <p>{{ text().records.page.earnedLabel }}</p>
+        <strong>{{ text().records.page.gain(data.totals.earnedSeconds | duration) }}</strong>
       </div>
     </div>
     <div class="heading">
-      <h2 id="activity-title">小さな一歩のカレンダー</h2>
+      <h2 id="activity-title">{{ text().records.page.calendarTitle }}</h2>
       @if (days().length > 0) {
         <span>{{ monthDay(days()[0]!.date) }}–{{ monthDay(days()[days().length - 1]!.date) }}</span>
       }
     </div>
     <div class="grass-layout">
       <div class="weekday-labels" aria-hidden="true">
-        <span>日</span>
-        <span></span>
-        <span>火</span>
-        <span></span>
-        <span>木</span>
-        <span></span>
-        <span>土</span>
+        <!-- 行の高さが小さいので、曜日の見出しは1行おきに出す。 -->
+        @for (label of text().records.page.weekdays; track $index) {
+          <span>{{ $even ? label : '' }}</span>
+        }
       </div>
       <!--
         マスは最小でも 1.5rem 四方（WCAG 2.5.8）。狭い画面では縮めずに、この領域の中で横にスクロールする。
@@ -47,9 +46,14 @@
         class="grass-scroll"
         tabindex="0"
         role="region"
-        aria-label="日別の完了記録（横にスクロールできます）"
+        [attr.aria-label]="text().records.page.gridScroll"
       >
-        <div class="grass" [style.--weeks]="weeks()" role="group" aria-label="日別の完了記録">
+        <div
+          class="grass"
+          [style.--weeks]="weeks()"
+          role="group"
+          [attr.aria-label]="text().records.page.grid"
+        >
           @for (cell of cells(); track $index) {
             @if (cell) {
               <button
@@ -73,70 +77,91 @@
       </div>
     </div>
     <div class="legend">
-      <span>色の濃さは完了件数</span>
+      <span>{{ text().records.page.legend }}</span>
       <span class="scale" aria-hidden="true">
-        少
+        {{ text().records.page.fewer }}
         <i></i>
         <i class="completed"></i>
         <i class="multiple"></i>
-        多
+        {{ text().records.page.more }}
       </span>
     </div>
     @if (selected(); as day) {
       <p class="selected" aria-live="polite">
-        {{ longDay(day.date) }} · {{ day.completed }}件完了 · 視聴時間 ＋{{
-          day.earnedSeconds | duration
+        {{
+          text().records.page.selectedDay(
+            longDay(day.date),
+            day.completed,
+            day.earnedSeconds | duration
+          )
         }}
       </p>
     }
     @if (data.totals.completed === 0) {
-      <p class="empty">まだ完了した課題はありません。ひとつ終えたら、ここに一歩が残ります。</p>
+      <p class="empty">{{ text().records.page.empty }}</p>
     }
   </section>
 
   <details class="card disclosure">
-    <summary>自分で区切る練習</summary>
+    <summary>{{ text().records.page.practiceTitle }}</summary>
     @if (wallet.value(); as current) {
       <p>
-        今日の視聴 {{ current.policy.viewedSeconds | duration }}・記録した作業
-        {{ current.policy.workSeconds | duration }}
+        {{
+          text().records.page.practiceToday(
+            current.policy.viewedSeconds | duration,
+            current.policy.workSeconds | duration
+          )
+        }}
       </p>
     }
     <p>
-      過去7日の視聴 {{ data.practice.viewingSessions }}回・終了 {{ data.practice.endedSessions }}回
+      {{
+        text().records.page.practiceSessions(
+          data.practice.viewingSessions,
+          data.practice.endedSessions
+        )
+      }}
     </p>
-    <p>区切りで選んだ延長 {{ data.practice.extensions }}回</p>
+    <p>{{ text().records.page.practiceExtensions(data.practice.extensions) }}</p>
     <p>
-      予定から5分以内に開始 {{ data.practice.onTimeStarts }}件／開始した課題
-      {{ data.practice.startedTasks }}件
+      {{
+        text().records.page.practiceOnTime(data.practice.onTimeStarts, data.practice.startedTasks)
+      }}
     </p>
-    <p>予定開始を過ぎた未開始の課題 {{ data.practice.missedStarts }}件</p>
-    <p class="hint">動画の内容は保存しません。記録のない日は数えません。</p>
+    <p>{{ text().records.page.practiceMissed(data.practice.missedStarts) }}</p>
+    <p class="hint">{{ text().records.page.practicePrivacy }}</p>
     <details class="disclosure nested">
-      <summary>日ごとの記録</summary>
+      <summary>{{ text().records.page.practiceHistoryTitle }}</summary>
       @for (day of data.practice.history; track day.date) {
         <p>
-          {{ day.date }}：視聴 {{ day.viewedSeconds | duration }}、確認した作業
-          {{ day.workSeconds | duration }}
+          {{
+            text().records.page.practiceHistoryDay(
+              day.date,
+              day.viewedSeconds | duration,
+              day.workSeconds | duration
+            )
+          }}
         </p>
       } @empty {
-        <p>明日以降、記録のある日がここに並びます。</p>
+        <p>{{ text().records.page.practiceHistoryEmpty }}</p>
       }
     </details>
   </details>
 } @else if (records.load.pending()) {
-  <mat-progress-bar mode="indeterminate" aria-label="記録を読み込み中" />
+  <mat-progress-bar mode="indeterminate" [attr.aria-label]="text().records.page.loading" />
 }
 
 <section class="card history" aria-labelledby="history-title">
   <div class="heading">
-    <h2 id="history-title">最近の積み上げ</h2>
-    <span>視聴時間の履歴</span>
+    <h2 id="history-title">{{ text().records.page.historyHeading }}</h2>
+    <span>{{ text().records.page.historyCaption }}</span>
   </div>
   @if (ledger.load.error(); as error) {
     <div class="error" role="alert">
       <span>{{ error.message }}</span>
-      <button mat-button type="button" (click)="ledger.refresh()">再読み込み</button>
+      <button mat-button type="button" (click)="ledger.refresh()">
+        {{ text().records.page.reload }}
+      </button>
     </div>
   }
   <ul class="ledger">
@@ -146,18 +171,18 @@
         <div class="ledger-text">
           <strong>{{ entryTitle(entry) }}</strong>
           @if (entry.deferred) {
-            <span class="deferred">朝に受け取り</span>
+            <span class="deferred">{{ text().records.page.deferred }}</span>
           }
-          <p>{{ entry.at | dateTime }} · {{ kindLabels[entry.kind] }}</p>
+          <p>{{ entry.at | dateTime }} · {{ shared().ledgerKinds[entry.kind] }}</p>
           @if (entry.kind === 'work') {
-            <p>作業 {{ entry.workSeconds ?? 0 | duration }}</p>
+            <p>{{ text().records.page.work(entry.workSeconds ?? 0 | duration) }}</p>
           }
         </div>
         <strong class="credit" [class.deduction]="entry.seconds < 0">{{ amount(entry) }}</strong>
       </li>
     } @empty {
       @if (ledger.loaded()) {
-        <li class="empty">視聴時間の増減がここに残ります。</li>
+        <li class="empty">{{ text().records.page.ledgerEmpty }}</li>
       }
     }
   </ul>
@@ -171,18 +196,25 @@
       (click)="ledger.loadMore()"
       [disabled]="ledger.more.pending()"
     >
-      {{ ledger.more.pending() ? '読み込んでいます…' : 'もっと見る' }}
+      {{ ledger.more.pending() ? text().records.page.loadingMore : text().records.page.loadMore }}
     </button>
   }
 </section>
 
 <section aria-labelledby="weekly-heading">
-  <h2 id="weekly-heading">週ごとの振り返り</h2>
-  <p>記録を開始してからの操作を、本人のタイムゾーン・月曜始まりで集計します。</p>
+  <h2 id="weekly-heading">{{ text().records.page.weeklyHeading }}</h2>
+  <p>{{ text().records.page.weeklyLead }}</p>
   @for (w of records.value()?.weeks ?? []; track w.start) {
     <p>
-      {{ w.start }}：開始 {{ w.starts }}回（予定どおり {{ w.onTime }}回）· スヌーズ
-      {{ w.snoozes }}回 · 作業 {{ w.workSeconds | duration }}
+      {{
+        text().records.page.weeklyRow(
+          longDay(w.start),
+          w.starts,
+          w.onTime,
+          w.snoozes,
+          w.workSeconds | duration
+        )
+      }}
     </p>
   }
 </section>

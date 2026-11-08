@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 )
 
@@ -14,6 +15,7 @@ type DetailRequest struct {
 	Why     string
 	Minutes int
 	Context string
+	Locale  locale.Locale
 }
 
 // DetailResult は AI が提案した手順。
@@ -27,6 +29,7 @@ type AdjustRequest struct {
 	Changes     []Change
 	Instruction string
 	Context     string
+	Locale      locale.Locale
 	Location    *time.Location
 	Now         time.Time
 }
@@ -56,10 +59,11 @@ type Sessions interface {
 	TaskRemoved(ctx context.Context, tx *store.Tx, uid, taskID string) error
 }
 
-// Profiles は本人の情報（作業傾向・タイムゾーン・スヌーズの長さ）。
+// Profiles は本人の情報（作業傾向・タイムゾーン・言語・スヌーズの長さ）。
 type Profiles interface {
 	Context(ctx context.Context, tx *store.Tx, uid string) (context string, since *time.Time, err error)
 	Location(ctx context.Context, tx *store.Tx, uid string) (*time.Location, error)
+	Locale(ctx context.Context, tx *store.Tx, uid string) (locale.Locale, error)
 	SnoozeMinutes(ctx context.Context, tx *store.Tx, uid string) (int, error)
 }
 

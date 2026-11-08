@@ -6,7 +6,7 @@ import (
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 )
 
-// CalendarSync は、タイムゾーンが変わったときに就寝の予定をカレンダーへ反映し直す（Outbox に積む）。
+// CalendarSync は、タイムゾーンか言語が変わったときに、カレンダーの予定を書き直す（Outbox に積む）。
 type CalendarSync interface {
-	ProfileZoneChanged(ctx context.Context, tx *store.Tx, uid string) error
+	ProfileFormatChanged(ctx context.Context, tx *store.Tx, uid string) error
 }

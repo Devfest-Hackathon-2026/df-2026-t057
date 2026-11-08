@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/profile"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/testkit"
@@ -130,7 +131,7 @@ func TestRolloverFollowsProfileTimeZone(t *testing.T) {
 	if a := w.Account(t, uid); a.Day != "2026-11-09" {
 		t.Fatalf("day = %s", a.Day)
 	}
-	if _, _, err := w.Profiles.Update(ctx, uid, profile.Input{TimeZone: "UTC"}, 0); err != nil {
+	if _, _, err := w.Profiles.Update(ctx, uid, profile.Input{TimeZone: "UTC", Locale: locale.Ja}, 0); err != nil {
 		t.Fatal(err)
 	}
 	// UTC では 11/8 のまま。日付は戻さない。

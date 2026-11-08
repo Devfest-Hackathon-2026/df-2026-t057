@@ -1,4 +1,4 @@
-// Package profile は本人の情報（表示名・作業傾向・タイムゾーン）と、表示と通知の設定を扱う。
+// Package profile は本人の情報（表示名・作業傾向・タイムゾーン・言語）と、表示と通知の設定を扱う。
 package profile
 
 import (
@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 )
 
 const (
@@ -15,13 +16,16 @@ const (
 	MaxMemoryRunes  = 500
 	// DefaultTimeZone は新しい利用者のタイムゾーン。
 	DefaultTimeZone = "Asia/Tokyo"
+	// DefaultLocale は新しい利用者の言語。管理画面は、初めての設定でブラウザーの言語を保存し直す。
+	DefaultLocale = locale.Ja
 )
 
 // Profile は本人の情報。
 type Profile struct {
-	Name     string `json:"name" firestore:"name"`
-	Context  string `json:"context" firestore:"context"`
-	TimeZone string `json:"timeZone" firestore:"timeZone"`
+	Name     string        `json:"name" firestore:"name"`
+	Context  string        `json:"context" firestore:"context"`
+	TimeZone string        `json:"timeZone" firestore:"timeZone"`
+	Locale   locale.Locale `json:"locale" firestore:"locale"`
 	// ContextSince は作業傾向を書き換えた時刻。これより前の相談は AI に渡さない（「忘れる」）。
 	ContextSince *time.Time `json:"contextSince,omitempty" firestore:"contextSince,omitempty"`
 }
@@ -31,10 +35,11 @@ type Input struct {
 	Name     string
 	Context  string
 	TimeZone string
+	Locale   locale.Locale
 }
 
 // Default は新しい利用者の情報。表示名は空にして、表示はクライアントに任せる。
-func Default() Profile { return Profile{TimeZone: DefaultTimeZone} }
+func Default() Profile { return Profile{TimeZone: DefaultTimeZone, Locale: DefaultLocale} }
 
 // ValidateInput は入力を確かめる。タイムゾーンが読み込めるかは validZone で確かめる（tzdata の読み込みは I/O のため）。
 func ValidateInput(in Input, validZone bool) error {
@@ -48,6 +53,9 @@ func ValidateInput(in Input, validZone bool) error {
 	if in.TimeZone == "" || !validZone {
 		fields = append(fields, apperr.Field("timeZone", "profile.timezone"))
 	}
+	if !in.Locale.Valid() {
+		fields = append(fields, apperr.Field("locale", "not_allowed"))
+	}
 	if len(fields) > 0 {
 		return apperr.Invalid("request.invalid", fields...)
 	}
@@ -57,7 +65,7 @@ func ValidateInput(in Input, validZone bool) error {
 // Apply は入力を反映した情報を返す。作業傾向が変わったら、その時刻を「忘れる」区切りにする。
 func (p Profile) Apply(in Input, now time.Time) Profile {
 	next := p
-	next.Name, next.TimeZone = in.Name, in.TimeZone
+	next.Name, next.TimeZone, next.Locale = in.Name, in.TimeZone, in.Locale
 	if in.Context != p.Context {
 		next.Context = in.Context
 		next.ContextSince = &now

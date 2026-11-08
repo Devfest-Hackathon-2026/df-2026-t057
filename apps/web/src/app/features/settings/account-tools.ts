@@ -9,6 +9,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { AccountScope } from '../../core/auth/account-scope';
 import { API_CLIENT, idempotent, requireData, requireOk } from '../../core/http/api-client';
 import { AccountSwitchedError, Operation } from '../../core/http/operation';
+import { LocaleStore } from '../../core/i18n/locale.store';
 import { ProfileStore } from './profile.store';
 import { AssistantStore } from '../assistant/assistant.store';
 function download(name: string, type: string, text: string): void {
@@ -32,29 +33,30 @@ export function csvCell(value: string): string {
   selector: 'app-account-tools',
   imports: [FormsModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule],
   template: `
-    <h3>データと利用停止</h3>
-    <p>課題・記録・会話を書き出せます。認証情報は含めません。</p>
+    @let t = text().settings.accountTools;
+    <h3>{{ t.heading }}</h3>
+    <p>{{ t.exportLead }}</p>
     <button
       mat-stroked-button
       type="button"
       (click)="exportData(false)"
       [disabled]="exporting.pending()"
     >
-      JSONで書き出す
+      {{ t.exportJson }}
     </button>
     <button mat-button type="button" (click)="exportData(true)" [disabled]="exporting.pending()">
-      CSVで書き出す
+      {{ t.exportCsv }}
     </button>
     @if (exporting.error(); as error) {
       <p role="alert">{{ error.message }}</p>
     }
-    <h4>会話を削除</h4>
+    <h4>{{ t.historyHeading }}</h4>
     <mat-checkbox [(ngModel)]="forgetMemory" [ngModelOptions]="{ standalone: true }">
-      保存した作業の傾向も削除する
+      {{ t.forgetMemory }}
     </mat-checkbox>
-    <p>会話の履歴をすべて削除します。元に戻せません。</p>
+    <p>{{ t.historyWarning }}</p>
     <mat-checkbox [(ngModel)]="confirmHistory" [ngModelOptions]="{ standalone: true }">
-      会話を削除することを確認しました
+      {{ t.confirmHistory }}
     </mat-checkbox>
     <button
       mat-button
@@ -62,18 +64,16 @@ export function csvCell(value: string): string {
       (click)="deleteHistory()"
       [disabled]="history.pending() || !confirmHistory"
     >
-      会話を削除する
+      {{ t.deleteHistory }}
     </button>
     @if (history.error(); as error) {
       <p role="alert">{{ error.message }}</p>
     }
-    <p role="status">{{ historyDeleted() ? '会話を削除しました。' : '' }}</p>
-    <h4>退会</h4>
-    <p>
-      予定の連携を停止し、課題・記録・会話・アカウントを削除します。Googleにある専用カレンダーは残ります。元に戻せません。
-    </p>
+    <p role="status">{{ historyDeleted() ? t.historyDeleted : '' }}</p>
+    <h4>{{ t.accountHeading }}</h4>
+    <p>{{ t.accountWarning }}</p>
     <mat-form-field>
-      <mat-label>確認のため DELETE と入力</mat-label>
+      <mat-label>{{ t.confirmationLabel }}</mat-label>
       <input
         matInput
         [(ngModel)]="confirmation"
@@ -87,7 +87,7 @@ export function csvCell(value: string): string {
       (click)="deleteAccount()"
       [disabled]="deleting.pending() || confirmation !== 'DELETE'"
     >
-      再認証して退会する
+      {{ t.deleteAccount }}
     </button>
     @if (deleting.error(); as error) {
       <p role="alert">{{ error.message }}</p>
@@ -101,6 +101,7 @@ export class AccountTools {
   private readonly profile = inject(ProfileStore);
   private readonly assistant = inject(AssistantStore);
   private readonly scope = inject(AccountScope);
+  protected readonly text = inject(LocaleStore).web;
   protected readonly exporting = new Operation(this.scope);
   protected readonly history = new Operation(this.scope);
   protected readonly deleting = new Operation(this.scope);

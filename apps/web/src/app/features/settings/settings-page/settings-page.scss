@@ -93,6 +93,10 @@
   width: 7rem;
 }
 
+.locale-field {
+  width: 10rem;
+}
+
 .mode-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
