@@ -102,6 +102,9 @@ export class TutorialOverlay {
 
   constructor() {
     effect(() => {
+      this.tour.target.set(this.tour.active() ? this.current()?.target : undefined);
+    });
+    effect(() => {
       const active = this.tour.active();
       this.index();
       untracked(() => {

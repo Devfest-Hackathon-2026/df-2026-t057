@@ -9,6 +9,8 @@ export class Tutorial {
   private readonly router = inject(Router);
   readonly active = signal(false);
   readonly step = signal(0);
+  /** 案内が今強調している要素の `data-tour`（案内を閉じているときは undefined）。画面の側が表示を合わせるのに使う。 */
+  readonly target = signal<string | undefined>(undefined);
 
   private readonly storageKey = computed(() => {
     const email = this.auth.account()?.email;

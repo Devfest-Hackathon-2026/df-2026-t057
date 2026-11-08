@@ -42,6 +42,7 @@ import {
   localDateKey,
 } from '../../../shared/ui/format';
 import { AssistantPanel } from '../../assistant/assistant-panel';
+import { Tutorial } from '../../onboarding/tutorial.service';
 import { TaskActions } from '../../tasks/task-actions';
 import { TasksStore } from '../../tasks/tasks.store';
 import { WalletStore } from '../../wallet/wallet.store';
@@ -104,6 +105,7 @@ export class CalendarWorkspace {
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly tutorial = inject(Tutorial);
   private readonly fullCalendar = viewChild(FullCalendarComponent);
 
   protected readonly stylesReady = signal(false);
@@ -180,6 +182,11 @@ export class CalendarWorkspace {
     eventMinHeight: 36,
     slotEventOverlap: false,
     eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+    views: {
+      // 週表示では30分の枠を予定の最小の高さと同じにする。続けて並ぶ予定が重ならず、
+      // 列の幅いっぱいに課題名を出せる（時刻はテンプレートで週表示だけ省く）。
+      timeGridWeek: { slotMinHeight: 36 },
+    },
     slotHeaderFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
     eventClick: (info) => {
       const task = this.tasks.find(info.event.id);
@@ -211,6 +218,18 @@ export class CalendarWorkspace {
   }));
 
   constructor() {
+    // 狭い画面ではカレンダーと相談の片方しか出ない。使い方の案内が強調する側を表示する。
+    effect(() => {
+      const target = this.tutorial.target();
+      untracked(() => {
+        if (target === 'assistant') {
+          this.panel.set('assistant');
+          this.mobilePart.set('panel');
+        } else if (target === 'calendar') {
+          this.mobilePart.set('calendar');
+        }
+      });
+    });
     void loadFullCalendarStyles().then(() => {
       this.stylesReady.set(true);
     });
