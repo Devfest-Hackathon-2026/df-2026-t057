@@ -5,3 +5,7 @@ pnpm = "12.15.0"
 go = "1.27.3"
 golangci-lint = "2.14.0"
 terraform = "1.17.1"
+
+# pnpm は Dockerfile と同じく npm から入れる。aqua は pnpm 12.15.0 の配布ファイル（tar.gz）を見つけられず、キャッシュがないと CI の準備で失敗する。
+[tool_alias]
+pnpm = "npm:pnpm"
