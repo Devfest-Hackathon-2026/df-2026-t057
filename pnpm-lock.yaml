@@ -317,6 +317,12 @@ importers:
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
+      js-yaml:
+        specifier: 4.3.2
+        version: 4.3.2
+      picomatch:
+        specifier: 4.0.7
+        version: 4.0.7
 
   e2e:
     devDependencies:
