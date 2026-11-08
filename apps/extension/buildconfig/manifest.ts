@@ -1,6 +1,8 @@
 // manifest.json のうち、WXT が entrypoints から作らない部分。
 // 権限は最小にする（AGENTS.md「Chrome拡張」）。作業サイトのタイマーは optional_host_permissions で必要なときに求める。
 
+import { EXTENSION_PUBLIC_KEY } from './extension-key';
+
 export const YOUTUBE_MATCH = 'https://www.youtube.com/*';
 
 export function managementMatches(origin: string): string[] {
@@ -11,6 +13,8 @@ export function manifestFor(origin: string, version: string) {
   return {
     name: 'DOPAGAKI',
     version,
+    // 拡張IDを固定する（開発ビルドと配布ビルドで同じIDにする）。extension-key.ts を参照。
+    key: EXTENSION_PUBLIC_KEY,
     description: '課題を終えて、次の楽しみに。カレンダー連携と作業タイマー。',
     minimum_chrome_version: '120',
     permissions: ['storage', 'alarms', 'notifications', 'scripting', 'activeTab'],
