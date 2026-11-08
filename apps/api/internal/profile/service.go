@@ -203,3 +203,20 @@ func (s *Service) SnoozeMinutes(ctx context.Context, tx *store.Tx, uid string) (
 	v, err := s.SettingsTx(ctx, tx, uid)
 	return v.SnoozeMinutes, err
 }
+
+func (s *Service) Forget(ctx context.Context, uid string) error {
+	return s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
+		p, err := s.ProfileTx(ctx, tx, uid)
+		if err != nil {
+			return err
+		}
+		now := store.Truncate(s.clock.Now())
+		p.Context = ""
+		p.ContextSince = &now
+		if err := tx.Set(profileRef(uid), p); err != nil {
+			return err
+		}
+		_, err = tx.Touch(ctx, uid, store.ResourceProfile)
+		return err
+	})
+}

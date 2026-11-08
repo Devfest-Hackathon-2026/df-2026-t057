@@ -43,6 +43,7 @@ export function startYouTube(ctx: ContentScriptContext, root: HTMLElement): void
 
   const show = (command: TabCommand): boolean => {
     if (!onShorts() || document.visibilityState !== 'visible') return false;
+    context.apply({ ok: true, connected: true, state: command.state });
     switch (command.type) {
       case 'SHOW_NOTICE':
         showNotice(host, command.task, command.state, command.line);

@@ -18,10 +18,14 @@ export const requestSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('CONNECT'),
     origin: z.url(),
-    authorization: z.string().min(1).max(4096),
+    authorization: z.string().min(1).max(4096).exactOptional(),
     accountId: z.string().min(1).max(128),
   }),
-  z.object({ type: z.literal('DISCONNECT') }),
+  z.object({ type: z.literal('DISCONNECT'), accountId: z.string().optional() }),
+  z.object({ type: z.literal('SIGN_IN') }),
+  z.object({ type: z.literal('AUTH_RESULT'), credential: z.unknown() }),
+  z.object({ type: z.literal('TEST_NOTICE') }),
+  z.object({ type: z.literal('DIAGNOSE') }),
   z.object({
     type: z.literal('GET_STATE'),
     /** true なら API から取り直す（再接続のボタンなど）。false なら変更通知で最新なら手元の状態を返す。 */
@@ -76,6 +80,8 @@ export const replySchema = z.discriminatedUnion('ok', [
   z.object({
     ok: z.literal(true),
     connected: z.boolean(),
+    accountId: z.string().optional(),
+    notifications: z.enum(['granted', 'denied']).optional(),
     state: extensionStateSchema.exactOptional(),
     /** 送ったタブが視聴の区切りの持ち主か。 */
     ownsViewing: z.boolean().exactOptional(),

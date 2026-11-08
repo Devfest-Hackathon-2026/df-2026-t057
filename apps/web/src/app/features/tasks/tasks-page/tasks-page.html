@@ -44,6 +44,16 @@
         </p>
       </div>
       <div class="task-actions">
+        @if (task.status === 'completed') {
+          <button
+            mat-button
+            type="button"
+            (click)="archive(task)"
+            [disabled]="archiveOperation.pending()"
+          >
+            {{ text().tasks.page.archive }}
+          </button>
+        }
         <a
           mat-icon-button
           [attr.aria-label]="text().tasks.page.viewInCalendar"
@@ -106,3 +116,8 @@
     </li>
   }
 </ul>
+
+@if (archiveOperation.error(); as error) {
+  <p role="alert">{{ error.message }}</p>
+}
+<app-archives />

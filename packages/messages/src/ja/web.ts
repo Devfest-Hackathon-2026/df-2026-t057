@@ -274,6 +274,20 @@ export const web = {
       openSettings: '視聴ルールの設定を開く',
       close: '閉じる',
     },
+    conflicts: {
+      heading: 'Google同期の復旧',
+      load: '競合を確認',
+      retry: '同期を再試行',
+      reconnect: '同じGoogleアカウントでカレンダーを連携し直してください。',
+      appSide: (deadline: string, notes: string) => `DOPAGAKI：${deadline} · ${notes}`,
+      googleSide: (title: string, deadline: string, notes: string) =>
+        `Google：${title} · ${deadline} · ${notes}`,
+      googleDeleted: '予定が削除されています',
+      useApp: 'DOPAGAKIを採用',
+      useGoogle: 'Googleを採用',
+      pending: '反映待ちです。もう一度確認してください。',
+      empty: '解消待ちの競合はありません。',
+    },
   },
 
   login: {
@@ -392,6 +406,23 @@ export const web = {
         body: ['まずは、今週の課題を1つ登録してみましょう。'],
       },
     },
+    setupStatus: {
+      heading: '導入と接続の確認',
+      signedIn: (done: boolean) => `管理画面へログイン：${done ? '完了' : '未完了'}`,
+      calendar: (connected: boolean) => `Googleカレンダー：${connected ? '連携済み' : '未連携'}`,
+      extension: (version: string | undefined) => `拡張：${version ?? '未検出'}`,
+      sameAccount: (confirmed: boolean) =>
+        `同じアカウントで接続：${confirmed ? '確認済み' : '未確認'}`,
+      notifications: (granted: boolean) => `通知：${granted ? '許可済み' : '未確認または拒否'}`,
+      instructions: 'Chromeの拡張ポップアップでGoogle接続と通知テストを実行してください。',
+      diagnosing: '確認中…',
+      diagnose: '接続を診断',
+      confirmTest: 'テスト通知を確認した',
+      testConfirmed: '通知を本人が確認しました。',
+    },
+    extensionAuth: {
+      checking: 'Googleアカウントへの接続を確認しています。',
+    },
   },
 
   records: {
@@ -437,6 +468,10 @@ export const web = {
       ledgerEmpty: '視聴時間の増減がここに残ります。',
       loadingMore: '読み込んでいます…',
       loadMore: 'もっと見る',
+      weeklyHeading: '週ごとの振り返り',
+      weeklyLead: '記録を開始してからの操作を、本人のタイムゾーン・月曜始まりで集計します。',
+      weeklyRow: (start: string, starts: number, onTime: number, snoozes: number, work: string) =>
+        `${start}：開始 ${starts}回（予定どおり ${onTime}回）· スヌーズ ${snoozes}回 · 作業 ${work}`,
     },
   },
 
@@ -466,6 +501,9 @@ export const web = {
       saveInProgress: '保存中…',
       save: '変更を保存',
       saved: '設定を保存しました',
+      setupPanel: '導入と接続',
+      syncPanel: '同期の復旧',
+      dataPanel: 'データと退会',
     },
     policy: {
       title: '視聴ルール',
@@ -543,6 +581,8 @@ export const web = {
         synced: '同期済み',
         pending: '反映待ち',
         failed: '反映に失敗',
+        reauth_required: '再連携が必要',
+        conflict: '競合の解消待ち',
       },
       lastSync: (time: string) => `（最終同期 ${time}）`,
       failedJobs: (count: number) => `Googleカレンダーへ反映できなかった変更が${count}件あります。`,
@@ -588,6 +628,31 @@ export const web = {
       cancel: 'キャンセル',
       disconnecting: '解除しています…',
       disconnect: '連携を解除する',
+    },
+    accountTools: {
+      heading: 'データと利用停止',
+      exportLead: '課題・記録・会話を書き出せます。認証情報は含めません。',
+      exportJson: 'JSONで書き出す',
+      exportCsv: 'CSVで書き出す',
+      historyHeading: '会話を削除',
+      forgetMemory: '保存した作業の傾向も削除する',
+      historyWarning: '会話の履歴をすべて削除します。元に戻せません。',
+      confirmHistory: '会話を削除することを確認しました',
+      deleteHistory: '会話を削除する',
+      historyDeleted: '会話を削除しました。',
+      accountHeading: '退会',
+      accountWarning:
+        '予定の連携を停止し、課題・記録・会話・アカウントを削除します。Googleにある専用カレンダーは残ります。元に戻せません。',
+      // DELETE はサーバーへ送る確認の語なので、どの言語でも同じ。
+      confirmationLabel: '確認のため DELETE と入力',
+      deleteAccount: '再認証して退会する',
+    },
+    deletionStatus: {
+      heading: '退会処理の状況',
+      checking: '確認しています…',
+      complete: '退会処理が完了しました。',
+      accepted: '削除を受け付けました。処理が完了するまでお待ちください。',
+      refresh: '更新',
     },
   },
 
@@ -674,6 +739,14 @@ export const web = {
       start: 'はじめる',
       empty: 'まだ課題がありません',
       emptyCompleted: '完了した課題はまだありません',
+      archive: 'アーカイブ',
+    },
+    archives: {
+      heading: 'アーカイブ',
+      show: '一覧を表示',
+      restore: '完了一覧へ戻す',
+      empty: 'アーカイブした課題はありません。',
+      more: 'もっと見る',
     },
     deleteDialog: {
       title: '課題を削除しますか？',

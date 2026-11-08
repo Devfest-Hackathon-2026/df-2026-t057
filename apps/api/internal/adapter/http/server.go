@@ -5,7 +5,9 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/account"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/http/oapi"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
@@ -56,6 +58,7 @@ type InternalAuth interface {
 
 // Deps はサーバーが使う機能。
 type Deps struct {
+	Accounts    *account.Service
 	Config      config.Config
 	Clock       clock.Clock
 	Log         *slog.Logger
@@ -123,16 +126,22 @@ func NewAPI(d Deps) (http.Handler, error) {
 	})
 	events := eventsHandler(d.Events)
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r = r.WithContext(context.WithValue(r.Context(), rawAuthKey{}, r.Header.Get("Authorization")))
+		ctx := context.WithValue(r.Context(), rawAuthKey{}, r.Header.Get("Authorization"))
 		if r.URL.Path == "/api/events" {
-			events.ServeHTTP(w, r)
+			events.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
-		generated.ServeHTTP(w, r)
+		ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
+		defer cancel()
+		generated.ServeHTTP(w, r.WithContext(ctx))
 	})
+	var accountOpen func(context.Context, string) error
+	if d.Accounts != nil {
+		accountOpen = d.Accounts.CheckOpen
+	}
 	extensions := origins{appURL: d.Config.AppURL, extensionIDs: d.Config.ExtensionIDs, anyExtension: d.Config.Mode == config.ModeDemo}
 	return observe(d.Log, rs, apiPipeline{
-		log: d.Log, routes: rs, origins: extensions, idempotency: d.Idempotency, next: inner,
+		log: d.Log, routes: rs, origins: extensions, idempotency: d.Idempotency, next: inner, accountOpen: accountOpen,
 		auth: authenticator{demo: d.Config.Mode == config.ModeDemo, verifier: d.Verifier},
 	}), nil
 }

@@ -16,7 +16,8 @@
     "@dopagaki/contract": "workspace:*",
     "@dopagaki/messages": "workspace:*",
     "@dopagaki/tokens": "workspace:*",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "firebase": "13.2.0"
   },
   "devDependencies": {
     "@types/chrome": "^0.3.7",

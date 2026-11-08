@@ -580,6 +580,9 @@ func (r *Runner) run(ctx context.Context, opts RunOptions, fn func(ctx context.C
 				}
 			}
 		}
+		if err := tx.checkAccounts(ctx); err != nil {
+			return err
+		}
 		if err := tx.flush(); err != nil {
 			return err
 		}

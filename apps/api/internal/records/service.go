@@ -3,6 +3,8 @@ package records
 import (
 	"context"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/activity"
+
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/clock"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/store"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/profile"
@@ -41,6 +43,13 @@ func (s *Service) Get(ctx context.Context, uid string) (r Records, err error) {
 			return err
 		}
 		if in.Sessions, err = s.viewing.SessionsSince(ctx, tx, uid, now.Add(-PracticeWindow)); err != nil {
+			return err
+		}
+		journal := activity.Journal{}
+		if in.Completions, err = journal.Completions(ctx, tx, uid); err != nil {
+			return err
+		}
+		if in.Events, err = journal.Events(ctx, tx, uid); err != nil {
 			return err
 		}
 		r = Compute(in)

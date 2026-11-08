@@ -1,3 +1,7 @@
+import { Archives } from '../archives';
+import { API_CLIENT, requireOk, idempotent } from '../../../core/http/api-client';
+import { Operation } from '../../../core/http/operation';
+import { AccountScope } from '../../../core/auth/account-scope';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -25,6 +29,7 @@ export function filterTasks(tasks: readonly Task[], filter: Filter): Task[] {
 @Component({
   selector: 'app-tasks-page',
   imports: [
+    Archives,
     DateTimePipe,
     MatButtonModule,
     MatButtonToggleModule,
@@ -37,6 +42,18 @@ export function filterTasks(tasks: readonly Task[], filter: Filter): Task[] {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TasksPage {
+  private readonly api = inject(API_CLIENT);
+  protected readonly archiveOperation = new Operation(inject(AccountScope));
+  protected async archive(t: Task): Promise<void> {
+    const result = await this.archiveOperation.run(() =>
+      requireOk(
+        this.api.POST('/tasks/{taskId}/archive', {
+          params: { path: { taskId: t.id }, header: idempotent() },
+        }),
+      ),
+    );
+    if (result.ok) await this.store.refresh();
+  }
   protected readonly store = inject(TasksStore);
   protected readonly actions = inject(TaskActions);
   private readonly dialog = inject(MatDialog);

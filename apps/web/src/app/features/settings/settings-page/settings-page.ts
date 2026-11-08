@@ -1,3 +1,6 @@
+import { SetupStatus } from '../../onboarding/setup-status';
+import { CalendarConflicts } from '../../calendar/calendar-conflicts';
+import { AccountTools } from '../account-tools';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -90,6 +93,9 @@ function toDailyLimit(seconds: number): DailyLimit {
 @Component({
   selector: 'app-settings-page',
   imports: [
+    SetupStatus,
+    CalendarConflicts,
+    AccountTools,
     DateTimePipe,
     DurationPipe,
     MatButtonModule,

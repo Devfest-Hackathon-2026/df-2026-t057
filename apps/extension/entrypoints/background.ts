@@ -43,6 +43,13 @@ export default defineBackground(() => {
     const parsed = requestSchema.safeParse(message);
     // 返事の文言は利用者の言語で引くため、断るときも非同期で返す。
     if (!parsed.success) {
+      if (
+        typeof message === 'object' &&
+        message !== null &&
+        'target' in message &&
+        message.target === 'offscreen'
+      )
+        return false;
       void errorReply(new ExtensionError('operationUnknown')).then(sendResponse);
       return true;
     }
@@ -53,7 +60,7 @@ export default defineBackground(() => {
   });
 
   onStateChange((state) => {
-    void broadcast(state);
+    void broadcast();
     void scheduleTaskAlarm(state).catch((error: unknown) => {
       console.warn('DOPAGAKI: failed to schedule the notification', error);
     });

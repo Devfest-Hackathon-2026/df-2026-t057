@@ -200,3 +200,21 @@
     </button>
   }
 </section>
+
+<section aria-labelledby="weekly-heading">
+  <h2 id="weekly-heading">{{ text().records.page.weeklyHeading }}</h2>
+  <p>{{ text().records.page.weeklyLead }}</p>
+  @for (w of records.value()?.weeks ?? []; track w.start) {
+    <p>
+      {{
+        text().records.page.weeklyRow(
+          longDay(w.start),
+          w.starts,
+          w.onTime,
+          w.snoozes,
+          w.workSeconds | duration
+        )
+      }}
+    </p>
+  }
+</section>

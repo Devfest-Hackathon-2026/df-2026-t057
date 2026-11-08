@@ -377,3 +377,37 @@ func (s *Service) snapshot(ctx context.Context, uid string) (snap Snapshot, hist
 	})
 	return snap, history, err
 }
+
+func (s *Service) DeleteHistory(ctx context.Context, uid string) error {
+	if err := s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
+		if err := tx.Delete(leaseRef(uid)); err != nil {
+			return err
+		}
+		_, err := tx.Touch(ctx, uid, store.ResourceAssistant)
+		return err
+	}); err != nil {
+		return err
+	}
+	for {
+		count := 0
+		err := s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
+			docs, err := store.List[turnDoc](ctx, tx, store.Query{Collection: turnsCollection(uid), Limit: 100})
+			if err != nil {
+				return err
+			}
+			count = len(docs)
+			for _, d := range docs {
+				if err := tx.Delete(turnRef(uid, d.ID)); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		if count < 100 {
+			return nil
+		}
+	}
+}

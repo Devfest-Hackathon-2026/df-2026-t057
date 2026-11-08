@@ -69,7 +69,12 @@ func APIOnly(api http.Handler) http.Handler {
 // WebOption は管理画面の配信の設定。
 type WebOption func(*webOptions)
 
-type webOptions struct{ demoSession bool }
+type webOptions struct {
+	demoSession  bool
+	extensionIDs []string
+}
+
+func WithExtensionIDs(ids []string) WebOption { return func(o *webOptions) { o.extensionIDs = ids } }
 
 // WithDemoSession は、デモモードで管理画面のページを返すときに利用者の Cookie を発行する。
 func WithDemoSession() WebOption { return func(o *webOptions) { o.demoSession = true } }
@@ -113,7 +118,16 @@ func WithWeb(api http.Handler, staticDir, authDomain string, opts ...WebOption) 
 		var b [16]byte
 		_, _ = rand.Read(b[:])
 		nonce := hex.EncodeToString(b[:])
-		w.Header().Set("Content-Security-Policy", pageCSP(nonce, authDomain))
+		csp := pageCSP(nonce, authDomain)
+		if clean == "/extension-auth" && len(options.extensionIDs) > 0 {
+			parents := make([]string, 0, len(options.extensionIDs))
+			for _, id := range options.extensionIDs {
+				parents = append(parents, "chrome-extension://"+id)
+			}
+			csp = strings.Replace(csp, "frame-ancestors 'none'", "frame-ancestors "+strings.Join(parents, " "), 1)
+			w.Header().Del("X-Frame-Options")
+		}
+		w.Header().Set("Content-Security-Policy", csp)
 		w.Header().Set("Cache-Control", "no-store")
 		if options.demoSession {
 			ensureDemoCookie(w, r)

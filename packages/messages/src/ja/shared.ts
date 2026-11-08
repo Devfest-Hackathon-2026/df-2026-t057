@@ -13,6 +13,11 @@ import type {
 
 export const shared = {
   problems: {
+    'account.cleanup_disabled': '退会処理はまだ有効になっていません。',
+    'account.reauth_required': '同じアカウントで再認証してから退会してください。',
+    'account.closed': '退会処理を受け付けたため、このアカウントは操作できません。',
+    'task.not_completed': '完了した課題だけをアーカイブできます。',
+    'calendar.invalid_event': 'Googleの予定が変わりました。内容を再確認してください。',
     internal: '問題が発生しました。少し待って再試行してください。',
     'request.malformed': '送信した内容を読み取れませんでした。画面を再読み込みしてください。',
     'request.too_large': '送信する内容が大きすぎます。',

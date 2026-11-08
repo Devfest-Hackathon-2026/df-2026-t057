@@ -117,7 +117,10 @@ export const api = {
     call(async (c) => {
       const result = await c.POST('/reschedule/commit', {
         params: { header: { ...key(), 'If-Match': etag(draft.baseRevision) } },
-        body: { changes: draft.changes.map(({ taskId, after }) => ({ taskId, after })) },
+        body: {
+          kind: draft.kind,
+          changes: draft.changes.map(({ taskId, after }) => ({ taskId, after })),
+        },
       });
       return parse(taskListSchema, result.data);
     }),

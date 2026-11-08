@@ -8,6 +8,7 @@ export const extension: ExtensionMessages = {
   transportFailed: "Couldn't connect. Your input is still here. Please try again.",
   accountChanged: 'Your account changed. Reconnect from the dashboard.',
   connectFromApp: 'Connect from the dashboard.',
+  connectFromPopup: 'Connect from the extension popup with the same Google account.',
   untrustedSender: 'Please check where this came from.',
   operationUnknown: 'Please check the action.',
   fromShorts: 'Do this from the Shorts you are watching.',
@@ -15,6 +16,15 @@ export const extension: ExtensionMessages = {
   sessionEnded: 'This viewing session has ended.',
   autoplayBlocked: "You can resume with the video's play button.",
   close: 'Close',
+
+  // Googleアカウントでの接続
+  authConfigUnavailable:
+    "Couldn't load the connection settings. We'll retry when you're back online.",
+  authNotConfigured: 'Google sign-in is not set up.',
+  authUnavailable: "Google sign-in for the extension isn't used in this environment.",
+  authInProgress: 'Checking your sign-in.',
+  authTimedOut: "Couldn't confirm your sign-in. Please connect again.",
+  authFailed: "Couldn't connect to your Google account.",
 
   // 視聴の区切り
   choiceLabel: 'Viewing session',
@@ -97,6 +107,8 @@ export const extension: ExtensionMessages = {
   morningTitle: 'DOPAGAKI · Good morning',
   morningBonus: (seconds: number) => `Early-to-bed bonus +${shared.durationLabel(seconds)}`,
   morningReleased: (seconds: number) => `Last night's reward +${shared.durationLabel(seconds)}`,
+  testNoticeTitle: 'DOPAGAKI connection test',
+  testNoticeMessage: 'If you see this notification, confirm it on the dashboard.',
 
   // ポップアップ
   popupAvailable: 'Viewing time available',
@@ -115,6 +127,8 @@ export const extension: ExtensionMessages = {
   popupWorkSiteEnabled: 'The work timer will show on this site.',
   popupWorkSiteFailed: "Couldn't show the timer.",
   popupStartNext: 'Start the next task',
+  popupSignIn: 'Connect the extension with Google',
+  popupTestNotice: 'Test notification',
 
   workReward(rewardSeconds: number, deferred: boolean): string {
     return rewardSeconds > 0

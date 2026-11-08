@@ -45,7 +45,7 @@ func loadRoutes() (routes, error) {
 	var out routes
 	for path, item := range spec.Paths.Map() {
 		for method, op := range item.Operations() {
-			r := route{method: method, template: path, segments: strings.Split(strings.Trim(path, "/"), "/"), operationID: op.OperationID}
+			r := route{method: method, template: path, segments: strings.Split(strings.Trim(path, "/"), "/"), operationID: lowerOperationID(op.OperationID)}
 			r.auth = authUser
 			if op.Security != nil {
 				switch {
@@ -221,4 +221,12 @@ func join(path, key string) string {
 		return key
 	}
 	return path + "/" + key
+}
+
+// The embedded spec normalizes operationId to Go names; middleware keys use the contract spelling.
+func lowerOperationID(value string) string {
+	if value == "" {
+		return value
+	}
+	return strings.ToLower(value[:1]) + value[1:]
 }

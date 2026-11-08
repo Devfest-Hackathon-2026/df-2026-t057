@@ -439,3 +439,24 @@
     </button>
   </div>
 </form>
+
+<mat-accordion>
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>{{ t.page.setupPanel }}</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-setup-status />
+  </mat-expansion-panel>
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>{{ t.page.syncPanel }}</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-calendar-conflicts />
+  </mat-expansion-panel>
+  <mat-expansion-panel>
+    <mat-expansion-panel-header>
+      <mat-panel-title>{{ t.page.dataPanel }}</mat-panel-title>
+    </mat-expansion-panel-header>
+    <app-account-tools />
+  </mat-expansion-panel>
+</mat-accordion>

@@ -26,6 +26,16 @@ const status = byId('status', HTMLElement);
 const openButton = byId('open', HTMLButtonElement);
 const permissionButton = byId('permission', HTMLButtonElement);
 
+const connectButton = button('', () => {
+  void runAction(workActions, { type: 'SIGN_IN' }).then((reply) => {
+    if (reply?.ok && reply.state) render(reply.state);
+  });
+});
+const testButton = button('', () => {
+  void runAction(workActions, { type: 'TEST_NOTICE' });
+});
+document.body.append(connectButton, testButton);
+
 /** 状態によらない文言。プロフィールの言語を受け取ったら書き直す。 */
 function renderLabels(): void {
   const copy = currentMessages().extension;
@@ -33,6 +43,8 @@ function renderLabels(): void {
   byId('balance-label', HTMLElement).textContent = copy.popupAvailable;
   openButton.textContent = copy.popupOpenApp;
   permissionButton.textContent = copy.popupWorkSite;
+  connectButton.textContent = copy.popupSignIn;
+  testButton.textContent = copy.popupTestNotice;
 }
 
 renderLabels();

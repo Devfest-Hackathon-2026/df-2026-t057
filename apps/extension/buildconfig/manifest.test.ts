@@ -8,7 +8,12 @@ describe('manifestFor', () => {
 
   it('uses the release version and the production origin', () => {
     expect(manifest.version).toBe('1.2.3');
-    expect(manifest.host_permissions).toEqual(['https://release.example/*', YOUTUBE_MATCH]);
+    expect(manifest.host_permissions).toEqual([
+      'https://release.example/*',
+      YOUTUBE_MATCH,
+      'https://identitytoolkit.googleapis.com/*',
+      'https://securetoken.googleapis.com/*',
+    ]);
     expect(managementMatches('https://release.example')).toEqual(['https://release.example/*']);
   });
 

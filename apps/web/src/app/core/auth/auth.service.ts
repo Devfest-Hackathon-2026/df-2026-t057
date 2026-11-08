@@ -149,6 +149,10 @@ export class AuthService {
     }
   }
 
+  async reauthenticate(): Promise<void> {
+    if (!this.firebase?.reauthenticateWithGoogle) throw new Error('auth.required');
+    await this.firebase.reauthenticateWithGoogle();
+  }
   async logout(): Promise<void> {
     if (!this.firebase) return;
     this.error.set(undefined);

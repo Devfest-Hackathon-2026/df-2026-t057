@@ -191,6 +191,7 @@ type apiPipeline struct {
 	origins     origins
 	auth        authenticator
 	idempotency *idempotency.Service
+	accountOpen func(context.Context, string) error
 	next        http.Handler
 }
 
@@ -229,6 +230,12 @@ func (p apiPipeline) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, r, p.log, err)
 			return
 		}
+		if p.accountOpen != nil && rt.operationID != "deleteAccount" {
+			if err := p.accountOpen(ctx, principal.UID); err != nil {
+				writeProblem(w, r, p.log, err)
+				return
+			}
+		}
 		ctx = withPrincipal(ctx, principal)
 	}
 	if rt.bodySchema != nil {
@@ -248,7 +255,7 @@ func (p apiPipeline) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // legacyIdempotency は、要求ごとのトランザクションを使わない操作（platform/idempotency の Complete 方式）。
 // 相談は AI とのやり取りの合間に状態を保存するので、要求の間トランザクションを開いたままにしない。
 // 相談は Idempotency-Key を相談の ID にするので、やり直しても返答済みなら同じ結果を返す。
-var legacyIdempotency = map[string]bool{"sendAssistantMessage": true}
+var legacyIdempotency = map[string]bool{"sendAssistantMessage": true, "deleteAssistantTurns": true}
 
 func (p apiPipeline) serveIdempotent(w http.ResponseWriter, r *http.Request, rt *route, body []byte) {
 	key := r.Header.Get("Idempotency-Key")

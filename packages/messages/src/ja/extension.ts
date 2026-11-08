@@ -15,6 +15,7 @@ export const extension = {
   transportFailed: '接続できませんでした。入力は残っています。再試行してください。',
   accountChanged: 'アカウントが切り替わりました。管理画面から再接続してください。',
   connectFromApp: '管理画面から接続してください。',
+  connectFromPopup: '拡張のポップアップから同じGoogleアカウントで接続してください。',
   untrustedSender: '接続元を確認してください。',
   operationUnknown: '操作を確認してください。',
   fromShorts: '視聴中のShortsから操作してください。',
@@ -22,6 +23,14 @@ export const extension = {
   sessionEnded: 'この視聴の区切りは終了しています。',
   autoplayBlocked: '動画の再生ボタンから再開できます。',
   close: '閉じる',
+
+  // Googleアカウントでの接続
+  authConfigUnavailable: '接続設定を取得できませんでした。通信が戻ると再試行します。',
+  authNotConfigured: 'Googleログインが設定されていません。',
+  authUnavailable: 'この環境では拡張のGoogleログインを利用しません。',
+  authInProgress: 'ログインを確認しています。',
+  authTimedOut: 'ログインを確認できませんでした。もう一度接続してください。',
+  authFailed: 'Googleアカウントへの接続に失敗しました。',
 
   // 視聴の区切り
   choiceLabel: '視聴の区切り',
@@ -104,6 +113,8 @@ export const extension = {
   morningTitle: 'DOPAGAKI · おはよう',
   morningBonus: (seconds: number) => `早寝ボーナス ＋${shared.durationLabel(seconds)}`,
   morningReleased: (seconds: number) => `昨夜の報酬 ＋${shared.durationLabel(seconds)}`,
+  testNoticeTitle: 'DOPAGAKI 接続テスト',
+  testNoticeMessage: '通知が表示されたら管理画面で確認してください。',
 
   // ポップアップ
   popupAvailable: '視聴できる時間',
@@ -122,6 +133,8 @@ export const extension = {
   popupWorkSiteEnabled: 'このサイトで作業タイマーを表示します。',
   popupWorkSiteFailed: 'タイマーを表示できませんでした。',
   popupStartNext: '次の課題を開始',
+  popupSignIn: 'Googleアカウントで拡張に接続',
+  popupTestNotice: '通知をテスト',
 
   /** 作業を記録したときの一文。報酬は API が返した値をそのまま使う。 */
   workReward(rewardSeconds: number, deferred: boolean): string {

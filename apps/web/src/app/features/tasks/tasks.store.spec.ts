@@ -103,6 +103,7 @@ describe('TasksStore', () => {
     expect(request?.headers.get('If-Match')).toBe('"3"');
     expect(request?.headers.get('Idempotency-Key')).toMatch(/^[A-Za-z0-9_-]{8,80}$/);
     expect(request?.body).toEqual({
+      kind: draft().kind,
       changes: [{ taskId: 't1', after: draft().changes[0]?.after }],
     });
     expect(store.revision()).toBe(5);

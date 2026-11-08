@@ -3,6 +3,11 @@ import type { SharedMessages } from '../ja/shared.ts';
 
 export const shared: SharedMessages = {
   problems: {
+    'account.cleanup_disabled': 'Account deletion is not enabled yet.',
+    'account.reauth_required': 'Sign in again with the same account before deleting it.',
+    'account.closed': 'Your account deletion was accepted, so this account can no longer be used.',
+    'task.not_completed': 'Only completed tasks can be archived.',
+    'calendar.invalid_event': 'The Google Calendar event changed. Please check it again.',
     internal: 'Something went wrong. Please wait a moment and try again.',
     'request.malformed': "We couldn't read what was sent. Please reload the page.",
     'request.too_large': 'What you sent is too large.',

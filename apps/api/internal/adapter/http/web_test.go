@@ -79,3 +79,26 @@ func TestWebIssuesDemoCookieOnPageOnlyWhenMissing(t *testing.T) {
 		t.Fatalf("静的ファイルでは発行しない: %v", asset)
 	}
 }
+
+func TestOnlyAuthDocumentAllowsConfiguredExtensionFrame(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte(`<app-root ngCspNonce="__DOPAGAKI_CSP_NONCE__"></app-root>`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	id := "abcdefghijklmnopabcdefghijklmnop"
+	h, err := apihttp.WithWeb(http.NotFoundHandler(), dir, "p.firebaseapp.com", apihttp.WithExtensionIDs([]string{id}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/extension-auth", "/settings", "/deletion-status"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), "GET", path, nil))
+		allowed := strings.Contains(rec.Header().Get("Content-Security-Policy"), "frame-ancestors chrome-extension://"+id)
+		if allowed != (path == "/extension-auth") {
+			t.Fatalf("path=%s headers=%v", path, rec.Header())
+		}
+		if path != "/extension-auth" && rec.Header().Get("X-Frame-Options") != "DENY" {
+			t.Fatal("normal page can be framed")
+		}
+	}
+}

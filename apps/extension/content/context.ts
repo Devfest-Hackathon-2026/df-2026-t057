@@ -10,6 +10,7 @@ import { keepPort, send } from './messaging';
 export class ContentContext {
   #state: ExtensionState | null = null;
   #ownsViewing = false;
+  #updates = 0;
   readonly #listeners = new Set<() => void>();
 
   constructor(readonly root: HTMLElement) {}
@@ -27,6 +28,7 @@ export class ContentContext {
   }
 
   #set(state: ExtensionState | null, ownsViewing: boolean): void {
+    this.#updates++;
     this.#state = state;
     this.#ownsViewing = ownsViewing;
     // 「動きを減らす」設定は、ダイアログだけでなくタイマーや読み込み中の表示にも効かせる。
@@ -53,8 +55,9 @@ export class ContentContext {
 
   /** 状態を取り直す。`refresh` なら API から取り直す。成功したら true。 */
   async refresh(refresh: boolean): Promise<boolean> {
+    const updates = this.#updates;
     const reply = await send({ type: 'GET_STATE', refresh });
-    if (reply.ok) this.apply(reply);
+    if (reply.ok && updates === this.#updates) this.apply(reply);
     return reply.ok;
   }
 

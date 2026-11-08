@@ -1,12 +1,13 @@
+import { connectionVersion, getConnection } from './connection';
 // content script とつないだ runtime.Port。
 // つながっている間は service worker を止めないよう、content script が定期的に PING を送る。
 // 1つ以上つながっている間だけ変更通知（SSE）を購読し、状態が変わったら各タブへ送る。
 import { PORT_NAME, portPingSchema, type PortPush } from '../lib/protocol';
-import type { ExtensionState } from '../lib/schemas';
 import { getState } from './store';
 import { getOwner } from './viewing';
 
 const ports = new Set<chrome.runtime.Port>();
+const deliveries = new WeakMap<chrome.runtime.Port, number>();
 let onCountChange: (count: number) => void = () => undefined;
 
 function trusted(port: chrome.runtime.Port): boolean {
@@ -19,8 +20,14 @@ function trusted(port: chrome.runtime.Port): boolean {
   return protocol === 'https:' || protocol === 'http:';
 }
 
-async function pushTo(port: chrome.runtime.Port, state: ExtensionState | undefined): Promise<void> {
+async function pushTo(port: chrome.runtime.Port): Promise<void> {
+  const ticket = (deliveries.get(port) ?? 0) + 1;
+  deliveries.set(port, ticket);
+  const version = connectionVersion();
+  const connection = await getConnection().catch(() => undefined);
   const owner = await getOwner();
+  const state = connection ? await getState() : undefined;
+  if (ticket !== deliveries.get(port) || version !== connectionVersion()) return;
   const message: PortPush = {
     type: 'STATE',
     state: state ?? null,
@@ -50,7 +57,7 @@ export function listenPorts(countChanged: (count: number) => void): void {
       onCountChange(ports.size);
     });
     onCountChange(ports.size);
-    void getState().then((state) => pushTo(port, state));
+    void pushTo(port);
   });
 }
 
@@ -58,7 +65,6 @@ export function portCount(): number {
   return ports.size;
 }
 
-export async function broadcast(state?: ExtensionState): Promise<void> {
-  const current = state ?? (await getState());
-  await Promise.all([...ports].map((port) => pushTo(port, current)));
+export async function broadcast(): Promise<void> {
+  await Promise.all([...ports].map((port) => pushTo(port)));
 }

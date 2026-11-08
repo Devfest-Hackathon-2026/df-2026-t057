@@ -211,7 +211,10 @@ export class TasksStore extends ResourceStore<TaskList> {
         requireData(
           this.api.POST('/reschedule/commit', {
             params: { header: ifMatch(draft.baseRevision) },
-            body: { changes: draft.changes.map(({ taskId, after }) => ({ taskId, after })) },
+            body: {
+              kind: draft.kind,
+              changes: draft.changes.map(({ taskId, after }) => ({ taskId, after })),
+            },
           }),
         ),
       (list) => {

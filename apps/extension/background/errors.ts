@@ -9,12 +9,19 @@ import { getState } from './store';
 /** API 以外の理由で断るときの、利用者に見せる文言（packages/messages の拡張の文言）のキー。 */
 type ExtensionErrorReason =
   | 'connectFromApp'
+  | 'connectFromPopup'
   | 'accountChanged'
   | 'untrustedSender'
   | 'operationUnknown'
   | 'fromShorts'
   | 'claimFirst'
-  | 'sessionEnded';
+  | 'sessionEnded'
+  | 'authConfigUnavailable'
+  | 'authNotConfigured'
+  | 'authUnavailable'
+  | 'authInProgress'
+  | 'authTimedOut'
+  | 'authFailed';
 
 /** API 以外の理由で断るときの失敗。文言は返すとき（errorReply）に利用者の言語で引く。 */
 export class ExtensionError extends Error {

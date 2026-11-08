@@ -8,12 +8,15 @@ const connect = z.object({
   /** API のオリジン（管理画面と同じ）。 */
   origin: z.url(),
   /** `Authorization` ヘッダーにそのまま入れる値（`Bearer <Firebase ID token>` か `Demo <token>`）。 */
-  authorization: z.string().check(z.minLength(1), z.maxLength(4096)),
+  authorization: z.optional(z.string().check(z.minLength(1), z.maxLength(4096))),
   /** アカウントが切り替わったことを拡張が検知するための ID。 */
   accountId: z.string().check(z.minLength(1), z.maxLength(128)),
 });
 
-const disconnect = z.object({ type: z.literal('DOPAGAKI_DISCONNECT') });
+const disconnect = z.object({
+  type: z.literal('DOPAGAKI_DISCONNECT'),
+  accountId: z.optional(z.string()),
+});
 
 /** 拡張が読み込まれていることを管理画面へ知らせる（管理画面は拡張の有無で案内を変える）。 */
 const extensionReady = z.object({
@@ -21,7 +24,19 @@ const extensionReady = z.object({
   version: z.string().check(z.maxLength(32)),
 });
 
-export const pageMessage = z.discriminatedUnion('type', [connect, disconnect, extensionReady]);
+export const pageMessage = z.discriminatedUnion('type', [
+  connect,
+  disconnect,
+  extensionReady,
+  z.object({ type: z.literal('DOPAGAKI_DIAGNOSE'), requestId: z.string() }),
+  z.object({
+    type: z.literal('DOPAGAKI_DIAGNOSTIC'),
+    requestId: z.string(),
+    connected: z.boolean(),
+    accountId: z.optional(z.string()),
+    notifications: z.enum(['granted', 'denied']),
+  }),
+]);
 export type PageMessage = z.infer<typeof pageMessage>;
 export type ConnectMessage = z.infer<typeof connect>;
 

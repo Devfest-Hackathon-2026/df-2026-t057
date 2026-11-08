@@ -277,6 +277,20 @@ export const web: WebMessages = {
       openSettings: 'Open viewing rule settings',
       close: 'Close',
     },
+    conflicts: {
+      heading: 'Recover Google sync',
+      load: 'Check for conflicts',
+      retry: 'Retry sync',
+      reconnect: 'Reconnect the calendar with the same Google account.',
+      appSide: (deadline: string, notes: string) => `DOPAGAKI: ${deadline} · ${notes}`,
+      googleSide: (title: string, deadline: string, notes: string) =>
+        `Google: ${title} · ${deadline} · ${notes}`,
+      googleDeleted: 'The event was deleted',
+      useApp: 'Keep DOPAGAKI',
+      useGoogle: 'Keep Google',
+      pending: 'Waiting to be applied. Check again in a moment.',
+      empty: 'No conflicts to resolve.',
+    },
   },
 
   login: {
@@ -395,6 +409,26 @@ export const web: WebMessages = {
         body: ["Let's start by adding one task for this week."],
       },
     },
+    setupStatus: {
+      heading: 'Check setup and connections',
+      signedIn: (done: boolean) => `Signed in to the dashboard: ${done ? 'Done' : 'Not yet'}`,
+      calendar: (connected: boolean) =>
+        `Google Calendar: ${connected ? 'Connected' : 'Not connected'}`,
+      extension: (version: string | undefined) => `Extension: ${version ?? 'Not detected'}`,
+      sameAccount: (confirmed: boolean) =>
+        `Connected with the same account: ${confirmed ? 'Confirmed' : 'Not confirmed'}`,
+      notifications: (granted: boolean) =>
+        `Notifications: ${granted ? 'Allowed' : 'Not confirmed or blocked'}`,
+      instructions:
+        'In the Chrome extension popup, connect your Google account and send a test notification.',
+      diagnosing: 'Checking…',
+      diagnose: 'Diagnose connection',
+      confirmTest: 'I saw the test notification',
+      testConfirmed: 'You confirmed the notification.',
+    },
+    extensionAuth: {
+      checking: 'Checking your Google account connection.',
+    },
   },
 
   records: {
@@ -440,6 +474,11 @@ export const web: WebMessages = {
       ledgerEmpty: 'Changes to your viewing time will appear here.',
       loadingMore: 'Loading…',
       loadMore: 'Show more',
+      weeklyHeading: 'Weekly review',
+      weeklyLead:
+        'Your activity since records began, counted in your time zone with weeks starting on Monday.',
+      weeklyRow: (start: string, starts: number, onTime: number, snoozes: number, work: string) =>
+        `Week of ${start}: ${starts} started (${onTime} on time) · ${snoozes} snoozed · ${work} of work`,
     },
   },
 
@@ -468,6 +507,9 @@ export const web: WebMessages = {
       saveInProgress: 'Saving…',
       save: 'Save changes',
       saved: 'Settings saved',
+      setupPanel: 'Setup and connections',
+      syncPanel: 'Sync recovery',
+      dataPanel: 'Data and account deletion',
     },
     policy: {
       title: 'Viewing rules',
@@ -548,6 +590,8 @@ export const web: WebMessages = {
         synced: 'Synced',
         pending: 'Waiting to sync',
         failed: 'Sync failed',
+        reauth_required: 'Reconnection needed',
+        conflict: 'Waiting for conflict resolution',
       },
       lastSync: (time: string) => `(last synced ${time})`,
       failedJobs: (count: number) =>
@@ -597,6 +641,31 @@ export const web: WebMessages = {
       cancel: 'Cancel',
       disconnecting: 'Disconnecting…',
       disconnect: 'Disconnect',
+    },
+    accountTools: {
+      heading: 'Data and account',
+      exportLead:
+        'Export your tasks, records, and conversations. Sign-in credentials are not included.',
+      exportJson: 'Export as JSON',
+      exportCsv: 'Export as CSV',
+      historyHeading: 'Delete conversations',
+      forgetMemory: 'Also delete saved work habits',
+      historyWarning: 'Deletes your entire conversation history. This cannot be undone.',
+      confirmHistory: 'I understand my conversations will be deleted',
+      deleteHistory: 'Delete conversations',
+      historyDeleted: 'Conversations deleted.',
+      accountHeading: 'Delete account',
+      accountWarning:
+        'Stops calendar sync and deletes your tasks, records, conversations, and account. The DOPAGAKI calendar in Google stays. This cannot be undone.',
+      confirmationLabel: 'Type DELETE to confirm',
+      deleteAccount: 'Sign in again and delete account',
+    },
+    deletionStatus: {
+      heading: 'Account deletion status',
+      checking: 'Checking…',
+      complete: 'Your account has been deleted.',
+      accepted: "We've received your deletion request. Please wait until it's complete.",
+      refresh: 'Refresh',
     },
   },
 
@@ -684,6 +753,14 @@ export const web: WebMessages = {
       start: 'Start',
       empty: 'No tasks yet',
       emptyCompleted: 'No completed tasks yet',
+      archive: 'Archive',
+    },
+    archives: {
+      heading: 'Archive',
+      show: 'Show archived tasks',
+      restore: 'Move back to completed',
+      empty: 'No archived tasks.',
+      more: 'Show more',
     },
     deleteDialog: {
       title: 'Delete this task?',

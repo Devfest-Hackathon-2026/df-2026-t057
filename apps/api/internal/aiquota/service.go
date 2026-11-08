@@ -49,6 +49,9 @@ func (q *Quota) Take(ctx context.Context, uid string) error {
 	// 回数は要求の結果にかかわらずその場で確保する（要求ごとのトランザクションに加えない）。
 	// 全体のドキュメントを AI の呼び出しの間ロックしないため。
 	err := q.runner.Update(store.Detach(ctx), func(ctx context.Context, tx *store.Tx) error {
+		if err := store.EnsureAccountOpen(ctx, tx, uid); err != nil {
+			return err
+		}
 		// 全体のドキュメントを先に読み、同時に確保する利用者どうしでロックの順を揃える。
 		global, _, err := store.Get[Usage](ctx, tx, globalRef())
 		if err != nil {
@@ -75,4 +78,8 @@ func (q *Quota) Take(ctx context.Context, uid string) error {
 		return e
 	}
 	return apperr.Unavailable("ai.unavailable").Wrap(err)
+}
+
+func (q *Quota) Forget(ctx context.Context, uid string) error {
+	return q.runner.Update(ctx, func(_ context.Context, tx *store.Tx) error { return tx.Delete(userRef(uid)) })
 }

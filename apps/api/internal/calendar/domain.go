@@ -47,6 +47,8 @@ const (
 	SyncSynced       SyncState = "synced"
 	SyncPending      SyncState = "pending"
 	SyncFailed       SyncState = "failed"
+	SyncReauth       SyncState = "reauth_required"
+	SyncConflict     SyncState = "conflict"
 )
 
 // DeriveSync は連携の状態を決める。連携していなければ disconnected。反映待ちのジョブがあれば pending、
@@ -66,6 +68,7 @@ func DeriveSync(connected bool, pending, failed int) SyncState {
 
 // Connection は users/{uid}/state/calendar に保存する連携の状態。
 type Connection struct {
+	Reauth     bool   `json:"reauth" firestore:"reauth"`
 	Connected  bool   `json:"connected" firestore:"connected"`
 	CalendarID string `json:"calendarId" firestore:"calendarId"`
 	GoogleID   string `json:"googleId" firestore:"googleId"`
