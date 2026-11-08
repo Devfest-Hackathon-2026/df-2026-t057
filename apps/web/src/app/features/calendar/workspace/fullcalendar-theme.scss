@@ -1,0 +1,80 @@
+// FullCalendar（classic テーマ）の色を M3 の役割に合わせる。fullcalendar.css に一緒に入る（angular.json）。
+.workspace-calendar {
+  --fc-classic-button: var(--mat-sys-secondary-container);
+  --fc-classic-button-border: var(--mat-sys-outline);
+  --fc-classic-button-strong: var(--mat-sys-primary);
+  --fc-classic-button-strong-border: var(--mat-sys-primary);
+  --fc-classic-button-outline: var(--mat-sys-primary);
+  --fc-classic-button-foreground: var(--mat-sys-on-secondary-container);
+  --fc-classic-primary: var(--mat-sys-primary);
+  --fc-classic-primary-foreground: var(--mat-sys-on-primary);
+  --fc-classic-event: var(--mat-sys-primary);
+  --fc-classic-event-contrast: var(--mat-sys-on-primary);
+  --fc-classic-background-event: var(--mat-sys-tertiary-container);
+  --fc-classic-highlight: var(--mat-sys-primary-container);
+  --fc-classic-today: var(--mat-sys-surface-container-high);
+  --fc-classic-now: var(--mat-sys-error);
+  --fc-classic-background: var(--mat-sys-surface);
+  --fc-classic-faint: var(--mat-sys-surface-container-low);
+  --fc-classic-muted: var(--mat-sys-surface-container);
+  --fc-classic-strong: var(--mat-sys-surface-container-highest);
+  --fc-classic-foreground: var(--mat-sys-on-surface);
+  --fc-classic-faint-foreground: var(--mat-sys-on-surface-variant);
+  --fc-classic-muted-foreground: var(--mat-sys-on-surface-variant);
+  --fc-classic-border: var(--mat-sys-outline-variant);
+  --fc-classic-strong-border: var(--mat-sys-outline);
+
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  .workspace-event {
+    --fc-event-color: var(--mat-sys-primary);
+    --fc-event-contrast-color: var(--mat-sys-on-primary);
+
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+    border-color: var(--mat-sys-primary);
+    cursor: pointer;
+  }
+
+  .workspace-event.active {
+    --fc-event-color: var(--mat-sys-tertiary-container);
+    --fc-event-contrast-color: var(--mat-sys-on-tertiary-container);
+
+    background: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+    border-color: var(--mat-sys-tertiary);
+  }
+
+  .workspace-event.completed {
+    --fc-event-color: var(--mat-sys-surface-container-highest);
+    --fc-event-contrast-color: var(--mat-sys-on-surface-variant);
+
+    background: var(--mat-sys-surface-container-highest);
+    color: var(--mat-sys-on-surface-variant);
+    border-color: var(--mat-sys-outline-variant);
+  }
+
+  .workspace-event.selected {
+    outline: 3px solid var(--mat-sys-tertiary);
+    outline-offset: 1px;
+  }
+
+  .workspace-event:focus-visible {
+    outline: 3px solid var(--mat-sys-on-surface);
+    outline-offset: 2px;
+  }
+
+  .event-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font: var(--mat-sys-label-medium);
+  }
+
+  .event-clock {
+    display: block;
+    font: var(--mat-sys-label-small);
+  }
+}

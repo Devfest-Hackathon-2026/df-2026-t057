@@ -1,0 +1,94 @@
+.about {
+  display: grid;
+  gap: 2.25rem;
+  max-width: 55rem;
+  padding-bottom: 3rem;
+}
+
+h2 {
+  margin: 0 0 0.875rem;
+}
+
+h3 {
+  margin: 0 0 0.375rem;
+}
+
+p {
+  margin: 0;
+  line-height: 1.85;
+}
+
+.about-hero {
+  padding: 2rem 2.25rem;
+  border-radius: var(--mat-sys-corner-extra-large);
+  background: var(--mat-sys-inverse-surface);
+  color: var(--mat-sys-inverse-on-surface);
+
+  h2 {
+    margin-bottom: 0.75rem;
+    color: var(--mat-sys-inverse-primary);
+    font: var(--mat-sys-headline-medium);
+    text-wrap: balance;
+  }
+
+  h2 span {
+    display: inline-block;
+  }
+
+  p {
+    max-width: 62ch;
+  }
+}
+
+.about-purpose,
+.about-principles {
+  display: grid;
+  gap: 1rem;
+
+  > div {
+    padding: 1.125rem 1.25rem;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: var(--mat-sys-corner-large);
+    background: var(--mat-sys-surface-container-lowest);
+  }
+}
+
+.about-principles {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.about-who {
+  max-width: 68ch;
+
+  strong {
+    padding: 0 0.125rem;
+    background: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+  }
+}
+
+.about-steps {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding-inline-start: 1.5rem;
+
+  li::marker {
+    color: var(--mat-sys-primary);
+    font: var(--mat-sys-title-medium);
+  }
+}
+
+.about-note {
+  padding: 1rem 1.25rem;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container);
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+@media (width <= 40rem) {
+  .about-hero {
+    padding: 1.5rem 1.25rem;
+  }
+}

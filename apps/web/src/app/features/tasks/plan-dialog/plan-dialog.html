@@ -1,0 +1,162 @@
+<h2 mat-dialog-title>{{ data.mode === 'adjust' ? '予定を調整' : 'スヌーズ後の予定を確認' }}</h2>
+@if (pending()) {
+  <mat-progress-bar mode="indeterminate" aria-label="予定を処理中" />
+}
+<mat-dialog-content>
+  <p class="muted">保存するまで、現在の予定は変わりません。</p>
+  @if (draft(); as d) {
+    <div class="notice" role="note">
+      @for (reason of reasons(); track reason) {
+        <p>{{ reason }}</p>
+      }
+    </div>
+
+    <ol class="changes">
+      @for (change of d.changes; track change.taskId; let i = $index) {
+        <li class="plan-change" [attr.aria-labelledby]="'change-title-' + i">
+          <div class="heading">
+            <span class="number" aria-hidden="true">{{ i + 1 }}</span>
+            <strong [id]="'change-title-' + i">{{ change.title }}</strong>
+            <button
+              mat-icon-button
+              type="button"
+              [attr.aria-label]="'「' + change.title + '」の順番を上に移動'"
+              (click)="move(i)"
+              [disabled]="i === 0 || pending()"
+            >
+              <mat-icon>arrow_upward</mat-icon>
+            </button>
+          </div>
+          <p class="muted">
+            変更前 {{ change.before.start | dateTime }} — {{ change.before.end | time }} ·
+            元の見積もり {{ change.originalMinutes }}分
+          </p>
+          <div class="times">
+            <mat-form-field appearance="outline">
+              <mat-label>開始</mat-label>
+              <input
+                matInput
+                type="datetime-local"
+                [value]="toLocal(change.after.start)"
+                (change)="changeTime(i, 'start', inputValue($event))"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>終了</mat-label>
+              <input
+                matInput
+                type="datetime-local"
+                [value]="toLocal(change.after.end)"
+                (change)="changeTime(i, 'end', inputValue($event))"
+              />
+            </mat-form-field>
+          </div>
+          <details class="steps">
+            <summary>
+              手順（{{ change.after.steps.length }}件）{{ change.after.start | time }}–{{
+                change.after.end | time
+              }}
+            </summary>
+            <ul>
+              @for (step of change.after.steps; track $index; let s = $index) {
+                <li class="plan-step">
+                  <mat-form-field appearance="outline" class="step-title">
+                    <mat-label>手順{{ s + 1 }}の内容</mat-label>
+                    <input
+                      matInput
+                      maxlength="100"
+                      [value]="step.title"
+                      (change)="changeStepTitle(i, s, inputValue($event))"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>手順{{ s + 1 }}の開始</mat-label>
+                    <input
+                      matInput
+                      type="datetime-local"
+                      [value]="toLocal(step.start)"
+                      (change)="changeStepTime(i, s, 'start', inputValue($event))"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>手順{{ s + 1 }}の終了</mat-label>
+                    <input
+                      matInput
+                      type="datetime-local"
+                      [value]="toLocal(step.end)"
+                      (change)="changeStepTime(i, s, 'end', inputValue($event))"
+                    />
+                  </mat-form-field>
+                </li>
+              }
+            </ul>
+          </details>
+          @if (changeErrors().get(i); as message) {
+            <p class="error" role="alert">{{ message }}</p>
+          }
+        </li>
+      }
+    </ol>
+
+    <div class="box">
+      <mat-form-field appearance="outline">
+        <mat-label>開始時刻を指定</mat-label>
+        <input matInput type="datetime-local" [formControl]="startAt" />
+      </mat-form-field>
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="rebuildFromStart()"
+        [disabled]="pending() || !startAt.value"
+      >
+        この時刻から作り直す
+      </button>
+    </div>
+
+    @if (aiEnabled()) {
+      <div class="box">
+        <mat-form-field appearance="outline">
+          <mat-label>調整を相談</mat-label>
+          <textarea
+            matInput
+            [formControl]="instruction"
+            maxlength="2000"
+            placeholder="最初の課題を15分にして、見直しに時間を回して"
+            rows="2"
+          ></textarea>
+        </mat-form-field>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="adjust()"
+          [disabled]="pending() || !instruction.value.trim()"
+        >
+          {{ tasks.adjust.pending() ? '調整しています…' : '候補を作り直す' }}
+        </button>
+      </div>
+    }
+  } @else if (!error()) {
+    <p role="status">変更する予定を準備しています…</p>
+  }
+  @if (error(); as message) {
+    <p role="alert" class="error">{{ message }}</p>
+  }
+  @if (stale() || (!draft() && error())) {
+    <button mat-stroked-button type="button" (click)="load()" [disabled]="pending()">
+      最新の予定で作り直す
+    </button>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()" [disabled]="tasks.commit.pending()">
+    キャンセル
+  </button>
+  <button
+    mat-flat-button
+    type="button"
+    (click)="commit()"
+    [disabled]="pending() || !draft() || stale()"
+  >
+    {{ tasks.commit.pending() ? '保存しています…' : 'この予定に変更' }}
+  </button>
+</mat-dialog-actions>

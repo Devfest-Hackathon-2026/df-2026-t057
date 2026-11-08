@@ -1,0 +1,102 @@
+<div class="page-title">
+  <h1>課題</h1>
+  <button mat-flat-button type="button" (click)="actions.add()">
+    <mat-icon>add</mat-icon>
+    課題を登録
+  </button>
+</div>
+
+<mat-button-toggle-group
+  class="filter"
+  [value]="filter()"
+  (change)="filter.set($event.value)"
+  aria-label="課題の状態"
+>
+  <mat-button-toggle value="pending">未完了</mat-button-toggle>
+  <mat-button-toggle value="completed">完了</mat-button-toggle>
+</mat-button-toggle-group>
+
+@if (store.start.error(); as error) {
+  <p class="error" role="alert">{{ error.message }}</p>
+}
+
+<ul class="task-list" aria-label="課題一覧">
+  @for (task of tasks(); track task.id) {
+    <li class="task-row" [attr.aria-labelledby]="'task-' + task.id">
+      <div class="task-main">
+        <div class="task-title">
+          <h2 [id]="'task-' + task.id">{{ task.title }}</h2>
+          @if (task.status !== 'pending') {
+            <span class="tag">{{ task.status === 'active' ? '作業中' : '完了' }}</span>
+          }
+        </div>
+        <p class="meta">
+          締切 {{ task.deadline | dateTime }} / 予定 {{ planMinutes(task.plan) }}分
+          @if (planMinutes(task.plan) !== task.minutes) {
+            <span>（見積もり {{ task.minutes }}分）</span>
+          }
+        </p>
+      </div>
+      <div class="task-actions">
+        <a
+          mat-icon-button
+          aria-label="カレンダーで見る"
+          matTooltip="カレンダーで見る"
+          routerLink="/calendar"
+          [queryParams]="{ task: task.id, date: dateKey(task.plan.start) }"
+        >
+          <mat-icon>calendar_month</mat-icon>
+        </a>
+        @if (task.status === 'pending') {
+          <button
+            mat-icon-button
+            type="button"
+            aria-label="課題を編集"
+            matTooltip="課題を編集"
+            (click)="actions.edit(task)"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+        }
+        @if (task.status !== 'completed') {
+          <button
+            mat-icon-button
+            type="button"
+            aria-label="予定を調整"
+            matTooltip="予定を調整"
+            (click)="actions.plan(task, 'adjust')"
+          >
+            <mat-icon>edit_calendar</mat-icon>
+          </button>
+        }
+        @if (task.status !== 'active') {
+          <button
+            mat-icon-button
+            type="button"
+            aria-label="課題を削除"
+            matTooltip="課題を削除"
+            (click)="confirmDelete(task)"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        }
+        @if (task.status !== 'completed') {
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="actions.start(task)"
+            [disabled]="store.start.pending() || task.status === 'active'"
+          >
+            はじめる
+          </button>
+        }
+      </div>
+    </li>
+  } @empty {
+    <li class="empty">
+      <h2>
+        {{ filter() === 'completed' ? '完了した課題はまだありません' : 'まだ課題がありません' }}
+      </h2>
+    </li>
+  }
+</ul>

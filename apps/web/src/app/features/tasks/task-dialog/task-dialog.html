@@ -1,0 +1,179 @@
+<h2 mat-dialog-title>{{ editing ? '課題の内容を調整' : '課題を登録' }}</h2>
+@if (pending()) {
+  <mat-progress-bar mode="indeterminate" aria-label="課題を準備中" />
+}
+<mat-dialog-content>
+  @if (missing()) {
+    <p class="error" role="alert">この課題は見つかりません。閉じて、課題を選び直してください。</p>
+  } @else {
+    <mat-button-toggle-group
+      class="mode"
+      [value]="mode()"
+      (change)="setMode($event.value)"
+      aria-label="課題の入力方法"
+      [disabled]="locked()"
+    >
+      <mat-button-toggle value="manual">手入力</mat-button-toggle>
+      <mat-button-toggle value="ai">AIに相談</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <div class="panel" [hidden]="mode() !== 'ai'">
+      @if (aiOpened()) {
+        <app-assistant
+          composer="dialog"
+          [selectedTask]="task()"
+          [fixedTask]="true"
+          (openSettings)="openSettings()"
+        />
+        @if (!editing && aiEnabled()) {
+          <details class="disclosure extract">
+            <summary>文章から課題を取り出す</summary>
+            <mat-form-field appearance="outline">
+              <mat-label>課題をまとめて入力</mat-label>
+              <textarea
+                matInput
+                [formControl]="extractText"
+                rows="3"
+                maxlength="6000"
+                placeholder="金曜までにレポート2時間、来週の発表資料1時間"
+              ></textarea>
+            </mat-form-field>
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="extract()"
+              [disabled]="tasks.extract.pending() || !extractText.value.trim()"
+            >
+              {{ tasks.extract.pending() ? '取り出しています…' : '課題を取り出す' }}
+            </button>
+            @if (extractError(); as message) {
+              <p class="error" role="alert">{{ message }}</p>
+            }
+            @if (candidates().length) {
+              <ul class="candidates" aria-label="取り出した課題の候補">
+                @for (candidate of candidates(); track $index) {
+                  <li>
+                    <div>
+                      <strong>{{ candidate.title }}</strong>
+                      <span class="muted">
+                        締切 {{ candidate.deadline | dateTime }} · {{ candidate.minutes }}分
+                      </span>
+                    </div>
+                    <button mat-button type="button" (click)="useCandidate(candidate)">
+                      この内容で入力
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </details>
+        }
+      }
+    </div>
+
+    <form class="panel form" [hidden]="mode() !== 'manual'" [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline">
+        <mat-label>課題名</mat-label>
+        <input matInput formControlName="title" maxlength="200" required />
+        @if (serverError('title'); as message) {
+          <mat-error>{{ message }}</mat-error>
+        } @else if (form.controls.title.hasError('required')) {
+          <mat-error>課題名を入力してください。</mat-error>
+        }
+      </mat-form-field>
+
+      <app-deadline-field formControlName="deadline" />
+      @if (serverError('deadline'); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+
+      <div class="minutes-row">
+        <mat-form-field appearance="outline" class="minutes-field">
+          <mat-label>必要時間（分）</mat-label>
+          <input matInput type="number" min="1" max="720" formControlName="minutes" required />
+          @if (serverError('minutes'); as message) {
+            <mat-error>{{ message }}</mat-error>
+          } @else if (form.controls.minutes.invalid) {
+            <mat-error>1〜720分で入力してください。</mat-error>
+          }
+        </mat-form-field>
+        <div class="presets" role="group" aria-label="必要時間をすばやく選ぶ">
+          @for (preset of minutePresets; track preset.value) {
+            <button
+              type="button"
+              [matButton]="minutesValue() === preset.value ? 'tonal' : 'outlined'"
+              [attr.aria-pressed]="minutesValue() === preset.value"
+              [disabled]="pending()"
+              (click)="setMinutes(preset.value)"
+            >
+              {{ preset.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <details class="disclosure" [open]="editing">
+        <summary>詳細を追加</summary>
+        <div class="details">
+          <mat-form-field appearance="outline">
+            <mat-label>目的（任意）</mat-label>
+            <input matInput formControlName="why" maxlength="200" />
+            @if (serverError('why'); as message) {
+              <mat-error>{{ message }}</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>作業リンク（任意）</mat-label>
+            <input
+              matInput
+              type="url"
+              formControlName="url"
+              placeholder="https://docs.google.com/…"
+            />
+            @if (serverError('url'); as message) {
+              <mat-error>{{ message }}</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>やること・メモ</mat-label>
+            <textarea matInput formControlName="notes" rows="2" maxlength="4000"></textarea>
+            @if (serverError('notes'); as message) {
+              <mat-error>{{ message }}</mat-error>
+            }
+          </mat-form-field>
+        </div>
+      </details>
+
+      @if (change(); as candidate) {
+        @if (data.taskId; as taskId) {
+          <app-task-change [taskId]="taskId" [input]="candidate.input" [draft]="candidate.draft" />
+        }
+      }
+    </form>
+  }
+  @if (error(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  @if (!editing) {
+    @if (wallet.value(); as wallet) {
+      <p class="reward">
+        新しい課題の登録で視聴＋{{ wallet.rules.registrationRewardSeconds | duration }}
+        <br />
+        残高の上限{{ wallet.rules.balanceCapSeconds | duration }}まで
+        @if (sleep.night()) {
+          （夜の報酬は翌朝）
+        }
+      </p>
+    }
+  }
+  <button mat-button type="button" (click)="close()" [disabled]="locked()">
+    {{ mode() === 'ai' ? '閉じる' : 'キャンセル' }}
+  </button>
+  @if (mode() === 'manual' && !missing()) {
+    <button mat-flat-button type="button" (click)="save()" [disabled]="pending() || form.invalid">
+      {{ pending() ? '処理中…' : editing ? '変更内容を確認' : '登録する' }}
+    </button>
+  }
+</mat-dialog-actions>

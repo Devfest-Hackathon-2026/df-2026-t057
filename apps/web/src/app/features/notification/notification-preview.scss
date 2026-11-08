@@ -1,0 +1,173 @@
+@use '@angular/material' as mat;
+
+:host {
+  --notice-scene: var(--dpg-sys-pachinko-scene);
+  --notice-on-scene: var(--dpg-sys-on-pachinko-scene);
+  --notice-card: var(--dpg-sys-pachinko-container);
+  --notice-on-card: var(--dpg-sys-on-pachinko-container);
+  --notice-accent: var(--dpg-sys-notice-container);
+  --notice-on-accent: var(--dpg-sys-on-notice-container);
+
+  display: block;
+  height: 100%;
+}
+
+:host(.mahjong) {
+  --notice-scene: var(--dpg-sys-mahjong-scene);
+  --notice-on-scene: var(--dpg-sys-on-mahjong-scene);
+  --notice-card: var(--dpg-sys-mahjong-container);
+  --notice-on-card: var(--dpg-sys-on-mahjong-container);
+}
+
+:host(.simple) {
+  --notice-scene: var(--mat-sys-surface-container);
+  --notice-on-scene: var(--mat-sys-on-surface);
+  --notice-card: var(--mat-sys-surface);
+  --notice-on-card: var(--mat-sys-on-surface);
+  --notice-accent: var(--mat-sys-primary);
+  --notice-on-accent: var(--mat-sys-on-primary);
+}
+
+.backdrop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 3rem 1rem 2rem;
+  overflow: auto;
+  background-color: var(--notice-scene);
+  color: var(--notice-on-scene);
+  animation: notice-enter 0.5s ease-out;
+
+  @include mat.dialog-overrides(
+    (
+      subhead-color: var(--notice-on-scene),
+      supporting-text-color: var(--notice-on-card),
+      content-padding: 1.5rem 1.25rem,
+    )
+  );
+  @include mat.button-overrides(
+    (
+      outlined-label-text-color: var(--notice-on-scene),
+      outlined-outline-color: var(--notice-on-scene),
+      filled-container-color: var(--notice-accent),
+      filled-label-text-color: var(--notice-on-accent),
+    )
+  );
+}
+
+:host(.pachinko) .backdrop {
+  background-image: url('/gold-light.png');
+  background-position: center;
+  background-size: cover;
+  background-blend-mode: soft-light;
+}
+
+.preview-label {
+  position: absolute;
+  top: 1rem;
+  inset-inline-end: 1rem;
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid currentcolor;
+  border-radius: var(--mat-sys-corner-full);
+  font: var(--mat-sys-label-medium);
+}
+
+.content {
+  width: min(32rem, 100%);
+  text-align: center;
+}
+
+.heading {
+  margin: 0.5rem 0 1.25rem;
+  font: var(--mat-sys-display-small);
+  font-weight: 800;
+}
+
+.companion {
+  display: inline-block;
+  max-width: 34em;
+  margin: 0 0 1rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--mat-sys-corner-large) var(--mat-sys-corner-large) var(--mat-sys-corner-large)
+    var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-large);
+}
+
+.notice-task {
+  margin-bottom: 1.5rem;
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--notice-card);
+  color: var(--notice-on-card);
+  overflow-wrap: anywhere;
+
+  h3 {
+    font: var(--mat-sys-title-large);
+  }
+
+  p {
+    font: var(--mat-sys-body-medium);
+  }
+}
+
+:host(.simple) .notice-task {
+  border: 1px solid var(--mat-sys-outline-variant);
+}
+
+.task-icon {
+  margin-bottom: 0.5rem;
+}
+
+.why {
+  font: var(--mat-sys-body-large);
+}
+
+.reward {
+  display: block;
+  font: var(--mat-sys-label-large);
+}
+
+.error {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  font: var(--mat-sys-body-medium);
+}
+
+.notice-buttons {
+  display: grid;
+  gap: 0.625rem;
+
+  button {
+    width: 100%;
+    min-height: 3rem;
+  }
+}
+
+:host(.reduced) .backdrop {
+  animation: none;
+}
+
+@keyframes notice-enter {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop {
+    animation: none;
+  }
+}

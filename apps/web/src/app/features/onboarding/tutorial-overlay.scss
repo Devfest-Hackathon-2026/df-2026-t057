@@ -1,0 +1,66 @@
+.tour-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+}
+
+.tour-dim {
+  position: absolute;
+  inset: 0;
+  background: var(--mat-sys-scrim);
+  opacity: 0.55;
+}
+
+.tour-spot {
+  position: absolute;
+  border-radius: var(--mat-sys-corner-large);
+  outline: 4px solid var(--mat-sys-tertiary-container);
+  box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--mat-sys-scrim) 55%, transparent);
+  transition: all 0.25s ease;
+  pointer-events: none;
+}
+
+.tour-card {
+  position: absolute;
+  width: min(22.5rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  padding: 1.25rem 1.25rem 0.875rem;
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
+  box-shadow: var(--mat-sys-level3);
+  transition:
+    top 0.25s ease,
+    left 0.25s ease;
+
+  h2 {
+    margin: 0.75rem 0 0.5rem;
+  }
+}
+
+.tour-count {
+  margin-inline-end: auto;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+}
+
+.tour-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+}
+
+.reduced .tour-spot,
+.reduced .tour-card {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-spot,
+  .tour-card {
+    transition: none;
+  }
+}

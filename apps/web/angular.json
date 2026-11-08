@@ -30,7 +30,22 @@
               }
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.scss",
+              {
+                "input": "@fullcalendar/angular/skeleton.css",
+                "bundleName": "fullcalendar",
+                "inject": false
+              },
+              {
+                "input": "@fullcalendar/angular/themes/classic/theme.css",
+                "bundleName": "fullcalendar",
+                "inject": false
+              },
+              {
+                "input": "src/app/features/calendar/workspace/fullcalendar-theme.scss",
+                "bundleName": "fullcalendar",
+                "inject": false
+              }
             ]
           },
           "configurations": {
@@ -38,13 +53,13 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "800kB",
+                  "maximumError": "1.2MB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "8kB",
+                  "maximumError": "16kB"
                 }
               ],
               "outputHashing": "all"

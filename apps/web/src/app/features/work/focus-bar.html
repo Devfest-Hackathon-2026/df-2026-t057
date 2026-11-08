@@ -1,0 +1,33 @@
+@if (work.session(); as session) {
+  <section class="focus-bar" aria-label="作業タイマー">
+    <div class="summary">
+      <span class="status-dot" [class.paused]="!session.running" aria-hidden="true"></span>
+      <strong class="title">{{ task()?.title ?? '作業中の課題' }}</strong>
+      <span class="clock" role="timer" aria-live="off">{{ clock() }}</span>
+      <span class="limit">/ {{ work.limitMinutes() }}分</span>
+      @if (!session.running) {
+        <span class="paused-label">一時停止中</span>
+      }
+    </div>
+    <div class="actions">
+      <button mat-button type="button" (click)="toggle()" [disabled]="busy()">
+        {{ session.running ? '一時停止' : '再開' }}
+      </button>
+      <button mat-button type="button" (click)="actions.confirmWork()" [disabled]="busy()">
+        ここまで取り組んだ
+      </button>
+      <button mat-flat-button type="button" (click)="complete()" [disabled]="busy() || !task()">
+        課題を完了
+      </button>
+    </div>
+    <mat-progress-bar
+      class="progress"
+      mode="determinate"
+      [value]="work.progress()"
+      aria-label="作業の進捗"
+    />
+    @if (error(); as error) {
+      <p class="error" role="alert">{{ error.message }}</p>
+    }
+  </section>
+}
