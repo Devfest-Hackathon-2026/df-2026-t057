@@ -94,3 +94,24 @@ test('deadline is chosen from quick days, a calendar and a time list', async ({ 
     }),
   ).toBe('18:00');
 });
+
+test('on a phone the consultation step switches to the consultation view', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calendar?tutorial');
+  const card = page.locator('.tour-card');
+  await card.getByRole('button', { name: '案内を見る', exact: true }).click();
+  // 狭い画面ではカレンダーと相談の片方しか出ない。「相談」の段階では相談を出して強調する。
+  while (!((await card.getByRole('heading').textContent()) ?? '').includes('相談')) {
+    const title = (await card.getByRole('heading').textContent()) ?? '';
+    await card.getByRole('button', { name: '次へ', exact: true }).click();
+    await expect(card.getByRole('heading')).not.toHaveText(title);
+  }
+  await expect(card.getByRole('heading')).toHaveText('言葉で相談することもできます');
+  await expect(page.getByRole('radio', { name: '相談・詳細', exact: true })).toBeChecked();
+  await expect(page.locator('[data-tour="assistant"]')).toBeVisible();
+  await expect(page.locator('.tour-spot')).toBeVisible();
+  // 戻るとカレンダーの段階になり、カレンダーを出す。
+  await card.getByRole('button', { name: '戻る', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'カレンダー', exact: true })).toBeChecked();
+  await expect(page.locator('.tour-spot')).toBeVisible();
+});

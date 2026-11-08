@@ -2,6 +2,7 @@ import { hoursFromNow, taskInput, withoutId } from '../support/api';
 import { expect, test } from '../support/fixtures';
 import { expectNoHorizontalScroll } from '../support/layout';
 import { enableAi, fulfillProblem, Gate, mockAssistant } from '../support/routes';
+import { taskAction } from '../support/pages';
 
 test('registration dialog supports conversation and manual input without losing drafts', async ({
   page,
@@ -100,7 +101,7 @@ test('task content consultation previews, rejects stale confirmation and saves w
   });
 
   await page.goto('/tasks');
-  const open = () => page.getByRole('button', { name: '課題を編集' }).first().click();
+  const open = () => taskAction(page, '課題を編集');
   await open();
   const dialog = page.getByRole('dialog', { name: '課題の内容を調整' });
   await expect(dialog.getByText('相談する予定')).toBeVisible();
@@ -159,7 +160,7 @@ test('manual content edits require a fresh preview after changing the form', asy
 }) => {
   await api.createTask({ id: 'manual-edit', title: '編集前', deadline: hoursFromNow(4) });
   await page.goto('/tasks');
-  await page.getByRole('button', { name: '課題を編集' }).click();
+  await taskAction(page, '課題を編集');
   const dialog = page.getByRole('dialog', { name: '課題の内容を調整' });
   await dialog.getByRole('radio', { name: '手入力', exact: true }).click();
   await dialog.getByLabel('課題名', { exact: true }).fill('手動の変更');
