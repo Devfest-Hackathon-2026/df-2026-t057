@@ -694,6 +694,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calendar/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Google カレンダーとの連携をやめる。保存した OAuth トークンと変更通知のチャンネルを破棄し、同期待ちのジョブを取り消す。
+         *     課題は残し、カレンダーの予定との結び付き（`calendarLinked`）だけを外す。専用の DOPAGAKI カレンダー自体は消さない。
+         *     連携していないときに呼んでも 200（何もしない）。
+         */
+        post: operations["disconnectCalendar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/calendar/sync": {
         parameters: {
             query?: never;
@@ -2507,6 +2528,29 @@ export interface operations {
             };
         };
     };
+    disconnectCalendar: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 解除後の連携状態 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     syncCalendar: {
         parameters: {
             query?: never;
@@ -2552,6 +2596,13 @@ export interface operations {
             };
             /** @description 照合できなかった */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description この環境ではカレンダー連携を使えない */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

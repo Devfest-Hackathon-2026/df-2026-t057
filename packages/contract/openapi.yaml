@@ -909,6 +909,22 @@ paths:
           description: 管理画面へ戻す
           headers:
             Location: { schema: { type: string } }
+  /calendar/disconnect:
+    post:
+      tags: [calendar]
+      operationId: disconnectCalendar
+      description: |
+        Google カレンダーとの連携をやめる。保存した OAuth トークンと変更通知のチャンネルを破棄し、同期待ちのジョブを取り消す。
+        課題は残し、カレンダーの予定との結び付き（`calendarLinked`）だけを外す。専用の DOPAGAKI カレンダー自体は消さない。
+        連携していないときに呼んでも 200（何もしない）。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200':
+          description: 解除後の連携状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarStatus' }
+        default: { $ref: '#/components/responses/Problem' }
   /calendar/sync:
     post:
       tags: [calendar]
@@ -935,6 +951,7 @@ paths:
       responses:
         '204': { description: 受け付けた }
         '403': { description: 照合できなかった }
+        '404': { description: この環境ではカレンダー連携を使えない }
 
   # ───────────────────────── realtime ─────────────────────────
   /events:
