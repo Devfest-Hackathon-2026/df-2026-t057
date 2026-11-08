@@ -26,25 +26,40 @@
 
   <div class="tile next" data-tour="next">
     @if (next(); as task) {
-      <p class="summary-label">
-        {{ text().calendar.workspace.nextWithDate(task.plan.start | monthDay) }}
-      </p>
+      <div class="next-heading">
+        <p class="summary-label">{{ text().calendar.workspace.next }}</p>
+        <time class="next-date" [attr.datetime]="task.plan.start">
+          {{ task.plan.start | longDate }}
+        </time>
+      </div>
       <button mat-button type="button" class="next-task" (click)="select(task)">
         <span class="next-task-title">{{ task.title }}</span>
         <mat-icon iconPositionEnd>chevron_right</mat-icon>
       </button>
       <div class="next-footer">
-        <p class="next-time">
-          <mat-icon>schedule</mat-icon>
-          <time [attr.datetime]="task.plan.start">
-            {{ task.plan.start | time }}–
-            @if (!sameDay(task.plan.start, task.plan.end)) {
-              {{ task.plan.end | monthDay }}
-            }
-            {{ task.plan.end | time }}
-          </time>
-          <span>{{ text().calendar.workspace.minutes(task.plan | planMinutes) }}</span>
-        </p>
+        <dl class="next-time">
+          <div>
+            <dt>{{ text().calendar.workspace.startLabel }}</dt>
+            <dd>
+              <time [attr.datetime]="task.plan.start">{{ task.plan.start | time }}</time>
+            </dd>
+          </div>
+          <div>
+            <dt>{{ text().calendar.workspace.endLabel }}</dt>
+            <dd>
+              <time [attr.datetime]="task.plan.end">
+                @if (!sameDay(task.plan.start, task.plan.end)) {
+                  <small>{{ task.plan.end | monthDay }}</small>
+                }
+                {{ task.plan.end | time }}
+              </time>
+            </dd>
+          </div>
+          <div>
+            <dt>{{ text().calendar.workspace.workMinutesLabel }}</dt>
+            <dd>{{ text().calendar.workspace.minutes(task.plan | planMinutes) }}</dd>
+          </div>
+        </dl>
         <div class="next-actions">
           <button
             mat-icon-button
@@ -62,8 +77,8 @@
             (click)="start(task, 'next')"
             [disabled]="tasks.start.pending() || work.session() !== null"
           >
+            <mat-icon>play_arrow</mat-icon>
             {{ text().calendar.workspace.start }}
-            <mat-icon iconPositionEnd>play_arrow</mat-icon>
           </button>
         </div>
       </div>

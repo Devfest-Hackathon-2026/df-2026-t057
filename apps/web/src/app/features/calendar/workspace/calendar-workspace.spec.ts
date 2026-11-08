@@ -65,7 +65,7 @@ describe('CalendarWorkspace', () => {
     const element = await render();
     const credit = element.querySelector('[data-tour="credit"]')?.textContent ?? '';
     expect(credit).toContain('制限なし');
-    expect(credit).not.toContain('今日、視聴できる時間');
+    expect(credit).not.toContain('今日 視聴できる時間');
   });
 
   it('作業中は次の課題を開始できない', async () => {

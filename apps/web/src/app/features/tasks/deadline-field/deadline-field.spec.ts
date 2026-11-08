@@ -79,4 +79,39 @@ describe('DeadlineField', () => {
     const alert = (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]');
     expect(alert?.textContent).toContain('は過ぎています。未来の日時を選んでください。');
   });
+
+  it('任意の分をフォームへ渡し、不正な時刻ではフォームを無効にする', async () => {
+    const fixture = TestBed.createComponent(Host);
+    const control = fixture.componentInstance.control;
+    control.setValue('2099-01-01T12:15');
+    await fixture.whenStable();
+    const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'input[role="combobox"]',
+    );
+    expect(input).not.toBeNull();
+    if (!input) return;
+    for (const [time, valid] of [
+      ['12:17', true],
+      ['25:61', false],
+      ['', false],
+      ['23:59', true],
+    ] as const) {
+      input.value = time;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('blur'));
+      await fixture.whenStable();
+      expect(control.value).toBe(`2099-01-01T${time}`);
+      expect(control.valid).toBe(valid);
+      if (!valid) {
+        expect(
+          (fixture.nativeElement as HTMLElement).querySelector('mat-error')?.textContent,
+        ).toContain('00:00〜23:59で入力してください');
+      }
+    }
+    control.setValue('2099-01-01T12:17');
+    control.disable();
+    await fixture.whenStable();
+    expect(input.value).toBe('12:17');
+    expect(input.disabled).toBe(true);
+  });
 });

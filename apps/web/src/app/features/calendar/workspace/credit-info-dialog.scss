@@ -1,3 +1,35 @@
+// MatDialogの背景固定とフォーカス管理を使い、本文の端でも背面へスクロールを渡さない。
+:host {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 2rem);
+}
+
+.heading {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-inline-end: 1rem;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.close {
+  flex: none;
+  border-radius: var(--mat-sys-corner-full);
+  background: var(--mat-sys-surface-container-highest);
+}
+
+mat-dialog-content {
+  min-height: 0;
+  overscroll-behavior-y: contain;
+}
+
 .balance {
   display: flex;
   flex-wrap: wrap;

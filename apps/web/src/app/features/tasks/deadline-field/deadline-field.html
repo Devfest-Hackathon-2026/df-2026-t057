@@ -33,11 +33,42 @@
     </mat-form-field>
     <mat-form-field appearance="outline">
       <mat-label>{{ text().tasks.deadlineField.timeLabel }}</mat-label>
-      <mat-select [value]="time()" (valueChange)="setTime($event)" [disabled]="disabled()">
+      <input
+        matInput
+        #timeInput
+        #timeTrigger="matAutocompleteTrigger"
+        [matAutocomplete]="timeOptions"
+        [formControl]="timeControl"
+        (blur)="onTouched()"
+        [pattern]="timePattern.source"
+        placeholder="HH:mm"
+        maxlength="5"
+        required
+      />
+      <button
+        mat-icon-button
+        matIconSuffix
+        type="button"
+        [attr.aria-label]="text().tasks.deadlineField.openTimeOptions"
+        [attr.aria-expanded]="timeTrigger.panelOpen"
+        [disabled]="disabled()"
+        (click)="timeInput.focus(); timeTrigger.openPanel()"
+      >
+        <mat-icon>arrow_drop_down</mat-icon>
+      </button>
+      <mat-autocomplete #timeOptions="matAutocomplete" (opened)="scrollToTime()">
         @for (option of times(); track option) {
-          <mat-option [value]="option">{{ option }}</mat-option>
+          <mat-option
+            [value]="option"
+            [attr.data-time]="option"
+            [class.current-time]="option === time()"
+          >
+            {{ option }}
+          </mat-option>
         }
-      </mat-select>
+      </mat-autocomplete>
+      <mat-hint>{{ text().tasks.deadlineField.timeHint }}</mat-hint>
+      <mat-error>{{ text().tasks.deadlineField.timeError }}</mat-error>
     </mat-form-field>
   </div>
   @if (summary(); as summary) {

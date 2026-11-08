@@ -60,7 +60,7 @@ test('available credit respects the remaining daily limit and explains the selec
   await expect(home.credit).toHaveText('1分30秒');
   await home.creditHelp.click();
   const dialog = page.getByRole('dialog', { name: '視聴時間について' });
-  await expect(dialog).toContainText('今日、視聴できる時間');
+  await expect(dialog).toContainText('今日 視聴できる時間');
   await expect(dialog).toContainText('1分30秒');
   await expect(dialog).toContainText('持っている時間 24分');
   await expect(dialog).toContainText('作業を記録すると、5分につき視聴1分');
@@ -83,7 +83,7 @@ test('available credit respects the remaining daily limit and explains the selec
   await expect(home.summary).toContainText('視聴の支援');
   await home.creditHelp.click();
   await expect(dialog).toContainText('自分で管理する');
-  await expect(dialog).not.toContainText('今日、視聴できる時間');
+  await expect(dialog).not.toContainText('今日 視聴できる時間');
 });
 
 test('credit explanation fits narrow screens and does not change state or a consultation draft', async ({

@@ -1,4 +1,15 @@
-<h2 mat-dialog-title>{{ text().calendar.creditInfoDialog.title }}</h2>
+<div class="heading">
+  <h2 mat-dialog-title>{{ text().calendar.creditInfoDialog.title }}</h2>
+  <button
+    mat-icon-button
+    type="button"
+    class="close"
+    mat-dialog-close
+    [aria-label]="text().calendar.creditInfoDialog.close"
+  >
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
 <mat-dialog-content>
   @if (wallet.value(); as current) {
     <div class="balance">
@@ -98,8 +109,3 @@
     </button>
   </details>
 </mat-dialog-content>
-<mat-dialog-actions align="end">
-  <button mat-button type="button" mat-dialog-close>
-    {{ text().calendar.creditInfoDialog.close }}
-  </button>
-</mat-dialog-actions>

@@ -36,6 +36,7 @@ import { LocaleStore } from '../../../core/i18n/locale.store';
 import {
   DateTimePipe,
   MonthDayPipe,
+  LongDatePipe,
   PlanMinutesPipe,
   TimePipe,
   localDateKey,
@@ -75,6 +76,7 @@ export function validDate(value: string | undefined): string | undefined {
     MatIconModule,
     MatTooltipModule,
     MonthDayPipe,
+    LongDatePipe,
     PlanMinutesPipe,
     TimePipe,
   ],

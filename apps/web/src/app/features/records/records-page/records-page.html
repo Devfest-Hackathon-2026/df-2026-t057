@@ -1,8 +1,4 @@
-<app-page-heading
-  eyebrow="EVERY LITTLE COUNTS"
-  [heading]="text().records.page.heading"
-  [lead]="text().records.page.lead"
-/>
+<app-page-heading [heading]="text().records.page.heading" />
 
 @if (records.load.error(); as error) {
   <div class="error" role="alert">

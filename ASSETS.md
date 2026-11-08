@@ -17,5 +17,6 @@
 | Google API Go client、golang.org/x/oauth2 | Google提供GoパッケージのLICENSE | BSD-3-Clause |
 | RxJS / tslib | npmパッケージのLICENSE | Apache-2.0 |
 | Go標準ライブラリ | [go.dev](https://go.dev/) | BSD-3-Clause |
+| js-yaml / picomatch | [js-yaml](https://github.com/nodeca/js-yaml)、[picomatch](https://github.com/micromatch/picomatch) | MIT。開発依存のみ。CIの実際のYAMLとパス条件を読み、変更範囲の判定漏れを回帰テストする |
 
 開発時のみ使うCLI、esbuild、TypeScript、Playwright、Prettier等の正確なバージョンは `package-lock.json`、Goの依存関係は `api/go.sum` で固定しています。製品のAI処理はVertex AIのGeminiを利用します。

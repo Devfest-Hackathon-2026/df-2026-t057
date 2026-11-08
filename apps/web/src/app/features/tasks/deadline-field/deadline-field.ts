@@ -5,16 +5,29 @@ import {
   forwardRef,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
-import { NG_VALUE_ACCESSOR, type ControlValueAccessor } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  FormControl,
+  ReactiveFormsModule,
+  Validators,
+  NG_VALIDATORS,
+  NG_VALUE_ACCESSOR,
+  type AbstractControl,
+  type ControlValueAccessor,
+  type ValidationErrors,
+  type Validator,
+} from '@angular/forms';
+import { MatAutocomplete, MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
+import { MatIconModule } from '@angular/material/icon';
 import type { WebMessages } from '@dopagaki/messages';
 import { LocaleStore } from '../../../core/i18n/locale.store';
-import { addDays, dateKey } from '../local-datetime';
+import { addDays, dateKey, fromLocalInput } from '../local-datetime';
 
 const pad = (value: number): string => String(value).padStart(2, '0');
 
@@ -62,7 +75,7 @@ export function quickDates(today: Date, text: DeadlineFieldText): QuickDate[] {
 }
 
 /**
- * 締切の入力。日付（すばやい選択・カレンダー）と15分刻みの時刻を選ぶ。
+ * 締切の入力。日付と時刻の候補を選ぶか、1分単位で時刻を入力する。
  * 値はこの端末の `YYYY-MM-DDTHH:mm`。
  */
 @Component({
@@ -72,16 +85,19 @@ export function quickDates(today: Date, text: DeadlineFieldText): QuickDate[] {
     MatDatepickerModule,
     MatFormFieldModule,
     MatInputModule,
-    MatSelectModule,
+    MatAutocompleteModule,
+    MatIconModule,
+    ReactiveFormsModule,
   ],
   templateUrl: './deadline-field.html',
   styleUrl: './deadline-field.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => DeadlineField), multi: true },
+    { provide: NG_VALIDATORS, useExisting: forwardRef(() => DeadlineField), multi: true },
   ],
 })
-export class DeadlineField implements ControlValueAccessor {
+export class DeadlineField implements ControlValueAccessor, Validator {
   private readonly locale = inject(LocaleStore);
   protected readonly text = this.locale.web;
   protected readonly value = signal('');
@@ -101,19 +117,31 @@ export class DeadlineField implements ControlValueAccessor {
         hour12: false,
       }),
   );
+  protected readonly timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  protected readonly timeControl = new FormControl('', {
+    nonNullable: true,
+    validators: [
+      (control: AbstractControl): ValidationErrors | null => Validators.required(control),
+      Validators.pattern(this.timePattern),
+    ],
+  });
+  private readonly autocomplete = viewChild(MatAutocomplete);
 
   protected readonly date = computed(() => this.value().slice(0, 10));
-  protected readonly time = computed(() => this.value().slice(11, 16) || '23:59');
+  protected readonly time = computed(() => this.value().slice(11));
   protected readonly dateObject = computed(() => {
     const [year, month, day] = this.date().split('-').map(Number);
     return year && month && day ? new Date(year, month - 1, day) : null;
   });
   protected readonly times = computed(() =>
-    times.includes(this.time()) ? times : [...times, this.time()].sort(),
+    !this.timePattern.test(this.time()) || times.includes(this.time())
+      ? times
+      : [...times, this.time()].sort(),
   );
   protected readonly summary = computed<Summary | null>(() => {
-    const target = new Date(this.value());
-    if (Number.isNaN(target.getTime())) return null;
+    const iso = fromLocalInput(this.value());
+    if (!iso) return null;
+    const target = new Date(iso);
     const text = this.text().tasks.deadlineField;
     const deadline = this.summaryFormat().format(target);
     const left = target.getTime() - Date.now();
@@ -124,8 +152,15 @@ export class DeadlineField implements ControlValueAccessor {
   private onChange: (value: string) => void = () => undefined;
   protected onTouched: () => void = () => undefined;
 
+  constructor() {
+    this.timeControl.valueChanges.pipe(takeUntilDestroyed()).subscribe((time) => {
+      this.setTime(time);
+    });
+  }
+
   writeValue(value: unknown): void {
     this.value.set(typeof value === 'string' ? value : '');
+    this.timeControl.setValue(this.time(), { emitEvent: false });
   }
 
   registerOnChange(fn: (value: string) => void): void {
@@ -136,8 +171,15 @@ export class DeadlineField implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
+  validate(control: AbstractControl): ValidationErrors | null {
+    const value: unknown = control.value;
+    return typeof value === 'string' && fromLocalInput(value) ? null : { datetime: true };
+  }
+
   setDisabledState(disabled: boolean): void {
     this.disabled.set(disabled);
+    if (disabled) this.timeControl.disable({ emitEvent: false });
+    else this.timeControl.enable({ emitEvent: false });
   }
 
   protected setDate(key: string): void {
@@ -152,8 +194,21 @@ export class DeadlineField implements ControlValueAccessor {
     this.update(`${this.date()}T${time}`);
   }
 
+  protected scrollToTime(): void {
+    // 候補を絞らず、現在の入力付近から選べるようにする。
+    requestAnimationFrame(() => {
+      const panel = this.autocomplete()?.panel.nativeElement as HTMLElement | undefined;
+      if (this.timePattern.test(this.time())) {
+        panel?.querySelector(`[data-time="${this.time()}"]`)?.scrollIntoView({ block: 'center' });
+      }
+    });
+  }
+
   private update(value: string): void {
     this.value.set(value);
+    if (this.timeControl.value !== this.time()) {
+      this.timeControl.setValue(this.time(), { emitEvent: false });
+    }
     this.onChange(value);
     this.onTouched();
   }

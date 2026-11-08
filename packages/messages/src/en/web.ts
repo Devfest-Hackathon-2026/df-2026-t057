@@ -26,7 +26,6 @@ export const web: WebMessages = {
   about: {
     page: {
       heading: 'About this app',
-      lead: 'What DOPAGAKI is aiming for.',
       heroHeadingFirst: 'Not a ban,',
       heroHeadingSecond: 'but a healthy distance.',
       heroBody:
@@ -195,11 +194,13 @@ export const web: WebMessages = {
       summaryRegion: 'Viewing time and next task',
       creditInfo: 'About viewing time',
       next: 'Next task',
-      nextWithDate: (date: string) => `Next task · ${date}`,
       minutes: (minutes: number) => `${minutes} min`,
       previewNotice: 'Try a notification',
       startNext: 'Start the next task',
       start: 'Start',
+      startLabel: 'Start',
+      endLabel: 'End',
+      workMinutesLabel: 'Work time',
       startFailed: (reason: string) => `Couldn't start. ${reason}`,
       nextEmpty: 'No upcoming tasks yet',
       nextEmptyNote: 'Add a task and the time to work on it will show up here.',
@@ -399,7 +400,6 @@ export const web: WebMessages = {
   records: {
     page: {
       heading: 'Your progress',
-      lead: 'Every task you finish moves you forward.',
       reload: 'Reload',
       completedLabel: 'Tasks completed in the past 12 weeks',
       countUnit: 'completed',
@@ -701,6 +701,9 @@ export const web: WebMessages = {
       inAWeek: 'In a week',
       dateLabel: 'Due date',
       timeLabel: 'Due time',
+      openTimeOptions: 'Show deadline time options',
+      timeHint: 'You can enter any minute',
+      timeError: 'Enter a time from 00:00 to 23:59',
       remainingDays: (days, hours) =>
         `${plural(days, 'day')}${hours ? ` ${plural(hours, 'hour')}` : ''} left`,
       remainingHours: (hours) => `${plural(hours, 'hour')} left`,

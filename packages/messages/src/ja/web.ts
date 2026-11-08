@@ -25,7 +25,6 @@ export const web = {
   about: {
     page: {
       heading: 'このアプリについて',
-      lead: 'DOPAGAKIが目指していること。',
       // 2行に分けて表示する。
       heroHeadingFirst: '禁止ではなく、',
       heroHeadingSecond: '距離感を。',
@@ -186,7 +185,7 @@ export const web = {
 
   calendar: {
     common: {
-      availableToday: '今日、視聴できる時間',
+      availableToday: '今日 視聴できる時間',
       support: '視聴の支援',
       unlimited: '制限なし',
     },
@@ -196,11 +195,13 @@ export const web = {
       summaryRegion: '視聴できる時間と次の課題',
       creditInfo: '視聴時間について',
       next: '次の課題',
-      nextWithDate: (date: string) => `次の課題 · ${date}`,
       minutes: (minutes: number) => `${minutes}分`,
       previewNotice: '通知を試す',
       startNext: '次の課題をはじめる',
       start: 'はじめる',
+      startLabel: '開始',
+      endLabel: '終了',
+      workMinutesLabel: '作業時間',
       startFailed: (reason: string) => `はじめられませんでした。${reason}`,
       nextEmpty: '次の課題はまだありません',
       nextEmptyNote: '課題を登録すると、取りかかる予定がここに並びます。',
@@ -396,7 +397,6 @@ export const web = {
   records: {
     page: {
       heading: '積み上げの記録',
-      lead: '終わらせた分だけ、ちゃんと前に進んでいる。',
       reload: '再読み込み',
       completedLabel: '過去12週間に完了した課題',
       countUnit: '件',
@@ -691,6 +691,9 @@ export const web = {
       inAWeek: '1週間後',
       dateLabel: '締切日',
       timeLabel: '締切時刻',
+      openTimeOptions: '締切時刻の候補を開く',
+      timeHint: '1分単位で入力できます',
+      timeError: '00:00〜23:59で入力してください',
       remainingDays: (days: number, hours: number) => `あと${days}日${hours ? `${hours}時間` : ''}`,
       remainingHours: (hours: number) => `あと${hours}時間`,
       remainingMinutes: (minutes: number) => `あと${minutes}分`,
