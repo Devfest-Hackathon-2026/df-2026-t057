@@ -24,9 +24,13 @@ flowchart TD
   Verify -->|失敗| Rollback[切替前のリビジョンと配分へ戻して失敗終了]
 ```
 
-[check.yml](../.github/workflows/check.yml) の `deploy` は、同じ実行の `check` が成功し、イベントがmainへのpushで、配信対象のファイルが変わったときだけ動く。PRでは配信もOIDC認証も行わない。資料だけ・拡張だけの変更は配信しない。`shared/` が変わればWebにも影響するため配信対象。
+[check.yml](../.github/workflows/check.yml) は、最新mainの配信対象変更について本番用イメージを一度だけ作る。デモモードのコンテナーで全E2Eを通した後、圧縮した同じイメージとイメージIDを3日保存のartifactで[cd.yml](../.github/workflows/cd.yml)へ渡す。CDは同じワークフロー実行のartifact IDで取得し、ロード後のイメージIDが一致した場合だけ既存のレジストリへpushする。CDでの再ビルドは行わない。レジストリのdigestを指定する配信前後の確認と復旧は `deploy/cloud-run.sh` を維持する。
 
-mainの実行は直列にし、実行中の配信を新しいpushで打ち切らない。PRの古い検証は従来どおり取り消す。mainの待機枠はGitHub Actionsのconcurrencyに従い最新1件へ置き換わり、中間の全コミットを必ず配信する方式ではない。
+PRでは、ビルド設定・依存や受け渡しを変えた場合にコンテナーを検証するが、GoogleのOIDC認証・レジストリへのpush・本番更新は行わない。通常のアプリPRは必要なビルドとスモーク、重要な変更は全E2Eを実行する。
+
+mainへのpushでも、資料・テスト・CI専用の変更では本番配信しない。API/Web/関連共通パッケージの実行コード、イメージの入力、CDワークフローや配信スクリプトの変更を配信対象にする。拡張だけの実行コードは対象外だが、Dockerfileが参照するworkspaceの依存manifest・lockの変更はビルド入力として保守的に扱う。
+
+古いCIはジョブ単位で取り消し、手動検証とmainの自動検証の取消グループは分ける。集約checkとCD開始時にGitHubの最新mainを照合する。CDは `dopagaki-production` グループで直列実行し、開始済みの配信は新しいpushで中断しない。中間のすべてのコミットを必ず配信する方式ではない。
 
 ## 認証と権限
 

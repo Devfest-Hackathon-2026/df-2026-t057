@@ -1,0 +1,27 @@
+name: Set up Go
+description: Install pinned Go tools and restore compilation and module caches
+inputs:
+  lint:
+    description: Install golangci-lint
+    default: 'false'
+  cache-suffix:
+    description: Separate API test cache from the complete E2E build cache
+    default: ''
+runs:
+  using: composite
+  steps:
+    - uses: jdx/mise-action@v3
+      with:
+        install_args: ${{ inputs.lint == 'true' && 'go golangci-lint' || 'go' }}
+        cache: true
+    - name: Cache Go dependencies and compilation
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+          ~/.cache/golangci-lint
+        key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-${{ hashFiles('apps/api/**/*.go', 'apps/api/.golangci.yml') }}${{ inputs.cache-suffix }}
+        restore-keys: |
+          go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-${{ hashFiles('apps/api/**/*.go', 'apps/api/.golangci.yml') }}
+          go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml', 'apps/api/go.sum') }}-

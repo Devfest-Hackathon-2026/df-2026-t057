@@ -10,6 +10,7 @@
 
 | 文書 | 内容 |
 |---|---|
+| [CIの3ジョブ分離とCD切り出し](ci-jobs-2026-11-08.md) | 並列検証・失敗時の再実行・必須check・キャッシュ・配信条件 |
 | [CIの節約](ci-savings-2026-11-08.md) | 変更範囲による検証の選択、Go・pnpm・Dockerのキャッシュ、判定の回帰テストと実測の区別 |
 | [新ルールの実YouTube確認](shorts-time-policy-verification-2026-11-07.md) | main b3fc7b0の拡張更新、5分の選択、前面再生と一時停止、途中終了、再読み込み後の記録保持の実測 |
 | [iPhoneのショートカット連携](iphone-shortcut.md) | YouTubeを開いた瞬間の相棒の一言、接続キーとAPI、作り方と未確認の範囲 |

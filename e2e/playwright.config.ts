@@ -26,17 +26,22 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1080 } },
     },
   ],
-  webServer: {
-    command: `go run ./cmd/server`,
-    cwd: '../apps/api',
-    env: {
-      APP_MODE: 'demo',
-      APP_URL: baseURL,
-      PORT: String(port),
-      STATIC_DIR: '../web/dist/web/browser',
-    },
-    url: `${baseURL}/api/health`,
-    reuseExistingServer: !process.env['CI'],
-    timeout: 120_000,
-  },
+  ...(process.env['E2E_EXTERNAL_SERVER'] === '1'
+    ? {}
+    : {
+        webServer: {
+          command:
+            process.env['E2E_USE_BUILD'] === '1' ? '../../dist/api/server' : 'go run ./cmd/server',
+          cwd: '../apps/api',
+          env: {
+            APP_MODE: 'demo',
+            APP_URL: baseURL,
+            PORT: String(port),
+            STATIC_DIR: '../web/dist/web/browser',
+          },
+          url: `${baseURL}/api/health`,
+          reuseExistingServer: !process.env['CI'],
+          timeout: 120_000,
+        },
+      }),
 });

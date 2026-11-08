@@ -136,61 +136,68 @@ test('connects automatically, counts foreground Shorts and keeps one viewing ses
   await expect.poll(() => videoPaused(youtube)).toBe(true);
 });
 
-test('presents a due task with a companion line and runs the work timer', async ({
-  context,
-  api,
-  app,
-}) => {
-  test.setTimeout(120_000);
-  await routeYouTube(context, { autoplay: false });
-  const { page: youtube, overlay } = await openShorts(context, 'dopagaki-notice');
-  expect(app.url()).toContain('/calendar');
-  // 開始時刻を迎えた課題（締切30分前に30分の作業）。
-  const task = await api.createTask({ title: '拡張の動作を確認する', deadline: hoursFromNow(0.5) });
+test(
+  'presents a due task with a companion line and runs the work timer',
+  { tag: '@smoke' },
+  async ({ context, api, app }) => {
+    test.setTimeout(120_000);
+    await routeYouTube(context, { autoplay: false });
+    const { page: youtube, overlay } = await openShorts(context, 'dopagaki-notice');
+    expect(app.url()).toContain('/calendar');
+    // 開始時刻を迎えた課題（締切30分前に30分の作業）。
+    const task = await api.createTask({
+      title: '拡張の動作を確認する',
+      deadline: hoursFromNow(0.5),
+    });
 
-  const notice = overlay.getByRole('dialog', { name: '課題をはじめる時間です' });
-  await expect(notice.getByRole('heading', { name: 'そろそろ、やるか。' })).toBeVisible({
-    timeout: 30_000,
-  });
-  await expect(notice.getByRole('heading', { name: '拡張の動作を確認する' })).toBeVisible();
-  // デモには AI がないので、相棒の一言は決まった文になる。
-  await expect(notice).toContainText('一緒に始めよっか');
-  await expect(notice.getByRole('button', { name: '作業をはじめる', exact: true })).toBeFocused();
-  await expectAccessibleInBothSchemes(youtube, overlayOnly);
+    const notice = overlay.getByRole('dialog', { name: '課題をはじめる時間です' });
+    await expect(notice.getByRole('heading', { name: 'そろそろ、やるか。' })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(notice.getByRole('heading', { name: '拡張の動作を確認する' })).toBeVisible();
+    // デモには AI がないので、相棒の一言は決まった文になる。
+    await expect(notice).toContainText('一緒に始めよっか');
+    await expect(notice.getByRole('button', { name: '作業をはじめる', exact: true })).toBeFocused();
+    await expectAccessibleInBothSchemes(youtube, overlayOnly);
 
-  // スヌーズの案は確認するだけ。OK を押すまで予定は変わらない。
-  await notice.getByRole('button', { name: '10分スヌーズ・予定を確認', exact: true }).click();
-  const draft = overlay.getByRole('dialog', { name: '変更する予定を確認' });
-  await expect(draft.getByRole('heading', { name: 'スヌーズ後の予定を確認' })).toBeVisible();
-  await expect(draft.getByRole('button', { name: 'OK・この予定に変更' })).toBeVisible();
-  await expectAccessibleInBothSchemes(youtube, overlayOnly);
-  await draft.getByRole('button', { name: 'キャンセル', exact: true }).click();
-  expect((await api.task(task.id)).plan.start).toBe(task.plan.start);
+    // スヌーズの案は確認するだけ。OK を押すまで予定は変わらない。
+    await notice.getByRole('button', { name: '10分スヌーズ・予定を確認', exact: true }).click();
+    const draft = overlay.getByRole('dialog', { name: '変更する予定を確認' });
+    await expect(draft.getByRole('heading', { name: 'スヌーズ後の予定を確認' })).toBeVisible();
+    await expect(draft.getByRole('button', { name: 'OK・この予定に変更' })).toBeVisible();
+    await expectAccessibleInBothSchemes(youtube, overlayOnly);
+    await draft.getByRole('button', { name: 'キャンセル', exact: true }).click();
+    expect((await api.task(task.id)).plan.start).toBe(task.plan.start);
 
-  await notice.getByRole('button', { name: '作業をはじめる', exact: true }).click();
-  const timer = overlay.getByRole('region', { name: 'DOPAGAKI 作業タイマー' });
-  await expect(timer).toBeVisible();
-  await expect.poll(async () => (await api.workSession())?.taskId).toBe(task.id);
-  await timer.getByRole('button', { name: '一時停止', exact: true }).click();
-  await expect(timer.getByRole('button', { name: '再開', exact: true })).toBeVisible();
-  await expect.poll(async () => (await api.workSession())?.running).toBe(false);
-  await timer.getByRole('button', { name: '再開', exact: true }).click();
-  await expect(timer.getByRole('button', { name: '一時停止', exact: true })).toBeVisible();
-  await timer.getByRole('button', { name: '課題を完了', exact: true }).click();
-  await expect(overlay.getByRole('status').filter({ hasText: '作業を記録しました' })).toBeVisible();
-  await expect(timer).toBeHidden();
-  expect((await api.task(task.id)).status).toBe('completed');
+    await notice.getByRole('button', { name: '作業をはじめる', exact: true }).click();
+    const timer = overlay.getByRole('region', { name: 'DOPAGAKI 作業タイマー' });
+    await expect(timer).toBeVisible();
+    await expect.poll(async () => (await api.workSession())?.taskId).toBe(task.id);
+    await timer.getByRole('button', { name: '一時停止', exact: true }).click();
+    await expect(timer.getByRole('button', { name: '再開', exact: true })).toBeVisible();
+    await expect.poll(async () => (await api.workSession())?.running).toBe(false);
+    await timer.getByRole('button', { name: '再開', exact: true }).click();
+    await expect(timer.getByRole('button', { name: '一時停止', exact: true })).toBeVisible();
+    await timer.getByRole('button', { name: '課題を完了', exact: true }).click();
+    await expect(
+      overlay.getByRole('status').filter({ hasText: '作業を記録しました' }),
+    ).toBeVisible();
+    await expect(timer).toBeHidden();
+    expect((await api.task(task.id)).status).toBe('completed');
 
-  // 次の課題のスヌーズを確定すると、予定が後ろへずれる。
-  const next = await api.createTask({ title: 'スヌーズする課題', deadline: hoursFromNow(0.5) });
-  await expect(notice.getByRole('heading', { name: 'スヌーズする課題' })).toBeVisible({
-    timeout: 30_000,
-  });
-  await notice.getByRole('button', { name: '10分スヌーズ・予定を確認', exact: true }).click();
-  await draft.getByRole('button', { name: 'OK・この予定に変更' }).click();
-  await expect(draft).toBeHidden();
-  await expect(overlay.getByRole('status').filter({ hasText: '少し後ろにずらそう' })).toBeVisible();
-  await expect
-    .poll(async () => Date.parse((await api.task(next.id)).plan.start))
-    .toBeGreaterThan(Date.parse(next.plan.start));
-});
+    // 次の課題のスヌーズを確定すると、予定が後ろへずれる。
+    const next = await api.createTask({ title: 'スヌーズする課題', deadline: hoursFromNow(0.5) });
+    await expect(notice.getByRole('heading', { name: 'スヌーズする課題' })).toBeVisible({
+      timeout: 30_000,
+    });
+    await notice.getByRole('button', { name: '10分スヌーズ・予定を確認', exact: true }).click();
+    await draft.getByRole('button', { name: 'OK・この予定に変更' }).click();
+    await expect(draft).toBeHidden();
+    await expect(
+      overlay.getByRole('status').filter({ hasText: '少し後ろにずらそう' }),
+    ).toBeVisible();
+    await expect
+      .poll(async () => Date.parse((await api.task(next.id)).plan.start))
+      .toBeGreaterThan(Date.parse(next.plan.start));
+  },
+);

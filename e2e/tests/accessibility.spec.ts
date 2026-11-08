@@ -8,7 +8,7 @@ import { expandPanel, workspace } from '../support/pages';
 // 主な画面と、開いたダイアログを WCAG 2.2 AA で検査する（ライト・ダーク）。
 // 画面は 320px 幅（400% 拡大と同じ）と 720px 幅（200% 拡大と同じ）でも横スクロールを出さない。
 
-test('calendar before the first task', async ({ page }) => {
+test('calendar before the first task', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/calendar');
   await expect(page.getByRole('heading', { name: '予定はまだありません' })).toBeVisible();
   await expectAccessibleInBothSchemes(page);
