@@ -143,7 +143,6 @@ export class SettingsPage {
     { value: 1800, label: '30分' },
   ];
   protected readonly syncStatusLabels = syncStatusLabels;
-  protected readonly shortcutUrl = `${location.origin}/api/shortcut/open`;
   protected readonly browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   protected readonly mainForm = new FormGroup({

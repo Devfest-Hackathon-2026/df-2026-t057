@@ -27,10 +27,27 @@ test('a Shortcuts key is shown once, answers like the iPhone automation, and can
       headers: { Authorization: `Shortcut ${key}` },
     });
     expect(opened.status()).toBe(200);
-    const body = (await opened.json()) as { title: string; message: string; url: string };
-    expect(body.title).toContain('DOPAGAKI');
+    const body = (await opened.json()) as {
+      title: string;
+      message: string;
+      url: string;
+      stop: string;
+      minutesLeft?: number;
+    };
+    expect(body.title).toBe('相棒');
+    expect(body.stop).toBe('no');
+    expect(body.message).toMatch(/^今日あと\d+分。/);
     expect(body.message.length).toBeGreaterThan(0);
     expect(body.url).toContain('?notification=');
+
+    // 閉じたときは、開いてから使った時間を振り返る一言を返す（視聴時間は変えない）。
+    const closed = await phone.post('/api/shortcut/close', {
+      headers: { Authorization: `Shortcut ${key}` },
+    });
+    expect(closed.status()).toBe(200);
+    const closedBody = (await closed.json()) as { title: string; message: string };
+    expect(closedBody.title).toBe('相棒');
+    expect(closedBody.message).toMatch(/^YouTube、/);
 
     // キーは発行したときにだけ表示する。開き直すと見えない。
     await page.reload();

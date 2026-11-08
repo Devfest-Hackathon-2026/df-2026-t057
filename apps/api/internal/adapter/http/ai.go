@@ -17,9 +17,9 @@ func (c CompanionLines) Line(ctx context.Context, uid, moment, taskID string) (s
 	return l.Text, l.Generated, err
 }
 
-// AppOpenLine は YouTube を開いたときの一言（ショートカット用）。
-func (c CompanionLines) AppOpenLine(ctx context.Context, uid, taskID string) (string, error) {
-	l, err := c.Service.Line(ctx, uid, companion.MomentAppOpen, taskID)
+// ShortcutLine はショートカットの通知に出す一言（YouTube を開いたとき・視聴時間が0分のとき）。
+func (c CompanionLines) ShortcutLine(ctx context.Context, uid string, moment companion.Moment, taskID string) (string, error) {
+	l, err := c.Service.Line(ctx, uid, moment, taskID)
 	return l.Text, err
 }
 

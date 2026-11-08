@@ -68,6 +68,10 @@ func (fakeOpens) AppOpenCounts(context.Context, *store.Tx, string, time.Time) (i
 	return 2, 5, true, nil
 }
 
+func (fakeOpens) AppUseMinutes(context.Context, *store.Tx, string, time.Time) (int, int, error) {
+	return 12, 40, nil
+}
+
 type world struct {
 	runner *store.Runner
 	clock  *clock.Fake
@@ -148,7 +152,7 @@ func TestLineIsGeneratedCachedAndSentWithProgress(t *testing.T) {
 	req := gen.last
 	if req.Moment != MomentNotice || req.Task == nil || req.Task.Why != "単位を落とさない" || req.Progress.StreakDays != 1 ||
 		req.Progress.CompletedTotal != 1 || req.Progress.RecentCompleted[0] != "演習" || req.Progress.YouTubeAppOpens == nil ||
-		req.Progress.ViewingMinutesLeft <= 0 {
+		req.Progress.ViewingMinutesLeft <= 0 || req.Progress.YouTubeAppOpens.MinutesToday != 12 {
 		t.Fatalf("request: %+v", req)
 	}
 

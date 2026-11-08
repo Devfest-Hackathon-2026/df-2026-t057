@@ -139,7 +139,7 @@ func build(ctx context.Context, cfg config.Config, log *slog.Logger) (*app, erro
 	recs := records.New(clk, profiles, tasks, wallets, views)
 	lines := companion.New(runner, clk, companion.Deps{Tasks: tasks, Profiles: profiles, Wallet: wallets, Sleep: sleeps, Generator: generator})
 	companionLines := apihttp.CompanionLines{Service: lines}
-	shortcuts := shortcut.New(runner, clk, tasks, profiles, companionLines, cfg.AppURL, log)
+	shortcuts := shortcut.New(runner, clk, tasks, wallets, profiles, companionLines, cfg.AppURL, log)
 	// 相棒の一言は YouTube を開いた回数を参考にし、ショートカットは相棒の一言を使う。互いに使うので、作った後に結ぶ。
 	lines.AppOpens = shortcuts
 	consult := assistant.New(runner, clk, ids, assistant.Deps{Tasks: tasks, Profiles: profiles, Wallet: wallets, Sleep: sleeps, Sessions: sessions, AppOpens: shortcuts, Calendar: calendarInfo{hooks}, Model: model})

@@ -345,7 +345,7 @@
       </mat-expansion-panel-header>
       <div class="panel-body">
         <p>
-          iPhoneのYouTubeアプリを開いたときに、次の課題に触れた相棒の一言を通知で出します。止めたりはしません。
+          iPhoneでYouTubeアプリを開いたときと閉じたときに、相棒が通知で一言かけます。視聴時間が0分のときは、DOPAGAKIを開きます。YouTubeは止めません。
         </p>
         @if (shortcut.issuedKey(); as key) {
           <p class="hint" role="status">
@@ -361,15 +361,15 @@
           <details class="disclosure">
             <summary>ショートカットの作り方</summary>
             <ol>
+              <li>配布された「DOPAGAKI」と「DOPAGAKI-close」を追加し、それぞれにこのキーを貼る</li>
               <li>
-                ショートカットアプリ →「オートメーション」→「App」→ YouTube、「開いている」を選ぶ
+                「オートメーション」→「新規オートメーション」→「アプリ」→
+                YouTube・「開いている」・「すぐに実行」→ DOPAGAKI
               </li>
-              <li>「すぐに実行」を選び、新規ショートカットを作る</li>
+              <li>同じように「閉じている」で DOPAGAKI-close を選ぶ</li>
               <li>
-                「URLの内容を取得」：URL に {{ shortcutUrl }}、方法 POST、ヘッダに Authorization
-                ＝「Shortcut 接続キー」（Shortcut &lt;key&gt;）
+                候補に出ないときは「新規の空のオートメーション」→「ショートカットを実行」で選ぶ
               </li>
-              <li>「辞書の値を取得」で message を取り出し、「通知を表示」で表示する</li>
             </ol>
           </details>
         } @else if (shortcut.value(); as status) {

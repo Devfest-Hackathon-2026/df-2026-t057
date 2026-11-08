@@ -763,7 +763,7 @@ paths:
     post:
       tags: [shortcut]
       operationId: openFromShortcut
-      description: iPhone で YouTube を開いたときにショートカットが呼ぶ。アカウントを作らない。
+      description: iPhone で YouTube アプリが前面に来たときにショートカットが呼ぶ。アカウントを作らない。今日の視聴時間が0分なら stop が yes になり、ショートカットが url を開く（YouTube は止めない）。
       security: [{ shortcut: [] }]
       responses:
         '200':
@@ -771,6 +771,19 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ShortcutOpen' }
+        default: { $ref: '#/components/responses/Problem' }
+  /shortcut/close:
+    post:
+      tags: [shortcut]
+      operationId: closeFromShortcut
+      description: iPhone で YouTube アプリが前面から外れたときにショートカットが呼ぶ。直前に開いてから使った時間を振り返り用に記録する。視聴時間の残高は変えない。アカウントを作らない。
+      security: [{ shortcut: [] }]
+      responses:
+        '200':
+          description: 通知に表示する内容
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShortcutClose' }
         default: { $ref: '#/components/responses/Problem' }
 
   # ───────────────────────── companion ─────────────────────────
@@ -1601,6 +1614,21 @@ components:
         configured: { type: boolean }
         createdAt: { type: string, format: date-time }
     ShortcutOpen:
+      type: object
+      required: [title, message, url, stop]
+      properties:
+        title: { type: string }
+        message: { type: string }
+        url: { type: string, format: uri }
+        stop:
+          type: string
+          enum: ['yes', 'no']
+          description: ショートカットの「もし」は文字列で比べるので、真偽値ではなく文字列にする。yes なら url を開く
+        minutesLeft:
+          type: integer
+          minimum: 0
+          description: 今日あと何分見られるか。残高を使わないモード（reminder・self）では返さない
+    ShortcutClose:
       type: object
       required: [title, message, url]
       properties:

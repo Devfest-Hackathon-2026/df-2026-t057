@@ -509,7 +509,23 @@ func (s *Server) OpenFromShortcut(ctx context.Context, _ oapi.OpenFromShortcutRe
 	if err != nil {
 		return nil, err
 	}
-	return oapi.OpenFromShortcut200JSONResponse{Title: n.Title, Message: n.Message, Url: n.URL}, nil
+	stop := oapi.No
+	if n.Stop {
+		stop = oapi.Yes
+	}
+	return oapi.OpenFromShortcut200JSONResponse{Title: n.Title, Message: n.Message, Url: n.URL, Stop: stop, MinutesLeft: n.MinutesLeft}, nil
+}
+
+func (s *Server) CloseFromShortcut(ctx context.Context, _ oapi.CloseFromShortcutRequestObject) (oapi.CloseFromShortcutResponseObject, error) {
+	key, ok := cutScheme(rawAuthorization(ctx), "Shortcut ")
+	if !ok {
+		return nil, apperr.Unauthenticated("shortcut.key_malformed")
+	}
+	n, err := s.Shortcut.Close(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	return oapi.CloseFromShortcut200JSONResponse{Title: n.Title, Message: n.Message, Url: n.URL}, nil
 }
 
 // ───────── companion / assistant ─────────

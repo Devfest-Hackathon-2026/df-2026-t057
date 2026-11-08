@@ -32,9 +32,11 @@ type Sleep interface {
 	GetTx(ctx context.Context, tx *store.Tx, uid string, now time.Time) (sleep.State, error)
 }
 
-// AppOpens は iPhone で YouTube アプリを開いた回数（shortcut が実装する）。ショートカットを設定していなければ configured は false。
+// AppOpens は iPhone で YouTube アプリを開いた回数と使った分数（shortcut が実装する）。ショートカットを設定していなければ configured は false。
 type AppOpens interface {
 	AppOpenCounts(ctx context.Context, tx *store.Tx, uid string, now time.Time) (today, week int, configured bool, err error)
+	// AppUseMinutes は開いてから閉じるまでの分数（今日と直近7日）。
+	AppUseMinutes(ctx context.Context, tx *store.Tx, uid string, now time.Time) (today, week int, err error)
 }
 
 // Generator は AI で一言を作る（adapter/gemini が実装する）。呼ぶたびに AI の利用回数を1回使う。

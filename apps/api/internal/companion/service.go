@@ -121,7 +121,7 @@ func (s *Service) progress(ctx context.Context, uid string, now time.Time, loc *
 	return p, err
 }
 
-// ReadAppOpens はアプリを開いた回数を読む。ショートカットを設定していない（または source が nil の）ときは nil。
+// ReadAppOpens はアプリを開いた回数と使った分数を読む。ショートカットを設定していない（または source が nil の）ときは nil。
 func ReadAppOpens(ctx context.Context, tx *store.Tx, source AppOpens, uid string, now time.Time) (*OpenCounts, error) {
 	if source == nil {
 		return nil, nil
@@ -130,7 +130,11 @@ func ReadAppOpens(ctx context.Context, tx *store.Tx, source AppOpens, uid string
 	if err != nil || !configured {
 		return nil, err
 	}
-	return &OpenCounts{Today: today, Last7Days: week}, nil
+	minutesToday, minutesWeek, err := source.AppUseMinutes(ctx, tx, uid, now)
+	if err != nil {
+		return nil, err
+	}
+	return &OpenCounts{Today: today, Last7Days: week, MinutesToday: minutesToday, MinutesLast7Days: minutesWeek}, nil
 }
 
 type cachedLine struct {
