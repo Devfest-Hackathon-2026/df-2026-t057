@@ -70,3 +70,5 @@ E2E_PORT=4317 pnpm test:e2e --workers=4
 | 15分刻みの候補と現在の入力 | [time-options.png](assets/ui-adjustments/time-options.png) |
 
 最終確認：`pnpm generate` は生成物に差分なし、`pnpm check` と `pnpm test`・ビルドが成功。管理画面は修正後にも136件成功し、全E2Eは再試行なしで58件が一括成功（1.9分）。実画面の画像も確認した。
+
+PR作成直前にPR #31もマージされたため、最新main `ad2d5c8`（拡張ID固定）を履歴を書き換えずに取り込んだ。UI変更との重複はない。取り込み後も拡張の単体132件と、固定IDでビルドし直した拡張の接続・計測・通知のE2E 3件が再試行なしで成功（1.7分）。
