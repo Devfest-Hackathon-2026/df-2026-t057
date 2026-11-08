@@ -5,6 +5,8 @@ runs:
   steps:
     - uses: jdx/mise-action@v3
       with:
+        # Node側もキャッシュがない場合は同じ取得経路を使う。
+        fetch_from_github: false
         install_args: node pnpm
         cache: true
     - name: Find pnpm store
