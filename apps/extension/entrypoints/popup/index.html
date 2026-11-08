@@ -19,8 +19,44 @@
         <p id="focus"></p>
         <div id="work-actions" class="row"></div>
       </section>
+      <form id="task-form" class="task-form" aria-labelledby="task-heading" novalidate hidden>
+        <h2 id="task-heading" class="heading"></h2>
+        <div class="field">
+          <label id="task-title-label" for="task-title"></label>
+          <input id="task-title" type="text" maxlength="200" autocomplete="off" required />
+        </div>
+        <div class="field">
+          <label id="task-deadline-label" for="task-deadline"></label>
+          <input id="task-deadline" type="datetime-local" required />
+        </div>
+        <div class="field">
+          <label id="task-minutes-label" for="task-minutes"></label>
+          <input id="task-minutes" type="number" min="1" max="720" required />
+          <div id="task-presets" class="row" role="group"></div>
+        </div>
+        <details class="details">
+          <summary id="task-details"></summary>
+          <div class="field">
+            <label id="task-why-label" for="task-why"></label>
+            <input id="task-why" type="text" maxlength="200" />
+          </div>
+          <div class="field">
+            <label id="task-url-label" for="task-url"></label>
+            <input id="task-url" type="url" maxlength="2000" placeholder="https://" />
+          </div>
+          <div class="field">
+            <label id="task-notes-label" for="task-notes"></label>
+            <textarea id="task-notes" rows="2" maxlength="4000"></textarea>
+          </div>
+        </details>
+        <div class="row actions">
+          <button id="task-cancel" type="button" class="button text"></button>
+          <button id="task-submit" type="submit" class="button filled"></button>
+        </div>
+      </form>
       <p id="status" class="status" role="status"></p>
-      <div class="stack">
+      <div id="links" class="stack">
+        <button id="add-task" type="button" class="button tonal" hidden></button>
         <button id="open" type="button" class="button filled"></button>
         <button id="permission" type="button" class="button outlined"></button>
       </div>

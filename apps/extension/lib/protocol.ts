@@ -7,6 +7,7 @@ import {
   extensionStateSchema,
   extensionTaskSchema,
   idSchema,
+  taskCreateInputSchema,
   workRecordSchema,
 } from './schemas';
 
@@ -31,6 +32,7 @@ export const requestSchema = z.discriminatedUnion('type', [
     /** true なら API から取り直す（再接続のボタンなど）。false なら変更通知で最新なら手元の状態を返す。 */
     refresh: z.boolean(),
   }),
+  z.object({ type: z.literal('CREATE_TASK'), input: taskCreateInputSchema }),
   z.object({ type: z.literal('START_TASK'), taskId: idSchema }),
   z.object({ type: z.literal('COMPLETE_TASK'), taskId: idSchema }),
   z.object({ type: z.literal('PAUSE_WORK') }),

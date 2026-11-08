@@ -149,6 +149,14 @@ export async function handleRequest(
       }
       return stateReply(sender);
     }
+    case 'CREATE_TASK': {
+      if (sender.url !== chrome.runtime.getURL('popup.html'))
+        throw new ExtensionError('untrustedSender');
+      await api.createTask(request.input);
+      // 登録の報酬で視聴時間が増えるので、残高も取り直す。
+      await refetch(['tasks', 'wallet', 'viewing']);
+      return stateReply(sender);
+    }
     case 'START_TASK': {
       const version = connectionVersion();
       const workSession = await api.startTask(request.taskId);

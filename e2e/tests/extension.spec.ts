@@ -201,3 +201,55 @@ test(
       .toBeGreaterThan(Date.parse(next.plan.start));
   },
 );
+
+test('registers a task from the popup', async ({ context, worker, api, app }) => {
+  expect(app.url()).toContain('/calendar');
+  const popup = await context.newPage();
+  const popupUrl = new URL('popup.html', worker.url()).href;
+  const addTask = popup.getByRole('button', { name: '課題を登録', exact: true });
+  // ポップアップは開いたときに一度だけ状態を読むので、管理画面からの接続が済むまで開き直す。
+  await expect(async () => {
+    await popup.goto(popupUrl);
+    await expect(addTask).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+
+  const before = (await api.tasks()).items.length;
+  await addTask.click();
+  const form = popup.getByRole('form', { name: '課題を登録' });
+  const title = form.getByLabel('課題名', { exact: true });
+  await expect(title).toBeFocused();
+  await expect(form.getByRole('button', { name: '30分', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  // 課題名が空なら送らず、欄に理由を出す。
+  await form.getByRole('button', { name: '登録する', exact: true }).click();
+  expect(await title.evaluate((input: HTMLInputElement) => input.validationMessage)).toBe(
+    '課題名を入力してください。',
+  );
+  expect((await api.tasks()).items).toHaveLength(before);
+
+  await title.fill('ポップアップから登録する');
+  // 端末のタイムゾーンは Asia/Tokyo（UTC+9、夏時間なし）なので、3時間後の東京の時刻を入れる。
+  const deadline = new Date(Date.now() + (3 + 9) * 3_600_000).toISOString().slice(0, 16);
+  await form.getByLabel('締切', { exact: true }).fill(deadline);
+  await form.getByRole('button', { name: '1時間', exact: true }).click();
+  await expect(form.getByLabel('必要時間（分）', { exact: true })).toHaveValue('60');
+  await form.getByText('詳細を追加', { exact: true }).click();
+  await form.getByLabel('目的（任意）', { exact: true }).fill('拡張から登録できるか確かめる');
+  await expectAccessibleInBothSchemes(popup);
+
+  await form.getByRole('button', { name: '登録する', exact: true }).click();
+  await expect(
+    popup.getByRole('status').filter({ hasText: '「ポップアップから登録する」を登録しました。' }),
+  ).toBeVisible();
+  await expect(form).toBeHidden();
+  await expect(addTask).toBeFocused();
+  const { items } = await api.tasks();
+  expect(items).toHaveLength(before + 1);
+  const task = items.find((item) => item.title === 'ポップアップから登録する');
+  expect(task?.minutes).toBe(60);
+  expect(task?.why).toBe('拡張から登録できるか確かめる');
+  expect(Date.parse(task?.deadline ?? '')).toBe(Date.parse(`${deadline}:00+09:00`));
+});
