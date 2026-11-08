@@ -64,3 +64,9 @@ E2Eで退会受付の再送が403になる不具合を再現した。生成さ�
 - 保守スクリプトの`bash -n`、`git diff --check`：成功。
 
 本番配信・マージ・クラウド設定は未実施。実環境の未確認項目は残したまま区別している。
+
+## 配信前の権限確認（2026-11-08）
+
+PR #30の本番反映指示を受け、Cloud Runの実行用SAの既存割り当てとカスタムロールを読み取り確認した。Firebaseの失効確認に必要な`firebaseauth.users.get`がなかったため、`PROJECT_ID=devfest-2026-513816 bash deploy/setup-readiness-auth.sh`を実行した。
+
+`dopagakiFirebaseSessionVerification`の許可が`firebaseauth.users.get`だけであることと、`dopagaki-runtime`への無条件の割り当てを再取得して確認した。退会清掃の有効化、利用者の削除、データのリセット、保守Schedulerの作成は実行していない。この段階ではアプリの配信前。
