@@ -38,6 +38,7 @@ mainの全面改修PR #29（`269efda`）を取り込み、旧`api/`・`web/`・`
 - `EXTENSION_IDS`：mainと同じカンマ区切り。認証専用ページのframe許可にも使う。
 - `ACCOUNT_CLEANUP_ENABLED`：liveの既定は`false`。有効化にはCalendarと保守OIDCの設定が必要。demoでは合成データの退会操作を利用できる。
 - `SCHEDULER_INVOKER`、`OIDC_AUDIENCE`、`APP_URL`：既存の保守認証を使う。旧案の`MAINTENANCE_EMAIL`は追加しない。
+- `deploy/setup-readiness-auth.sh`：Firebaseの失効・削除確認に必要な`firebaseauth.users.get`だけを実行用SAへ付与する。既存SAにこの権限がないことを本番配信前に確認した。退会の自動削除とは別の読み取り権限。
 - `deploy/setup-readiness-maintenance.sh`：毎分の清掃ジョブと`accountJobs.expiresAt`のTTLを用意する。**未実行**。
 - 実環境ではSchedulerのOIDC、Firebaseの失効確認・利用者削除、Secretの削除権限と、旧リビジョンの処理が終了したことを確認してから退会清掃を有効化する。
 - mainへのマージは自動配信を起動するため、今回の作業でマージはしない。
