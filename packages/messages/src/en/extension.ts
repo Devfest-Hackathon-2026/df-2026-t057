@@ -129,6 +129,21 @@ export const extension: ExtensionMessages = {
   popupStartNext: 'Start the next task',
   popupSignIn: 'Connect the extension with Google',
   popupTestNotice: 'Test notification',
+  popupAddTask: 'Add task',
+  popupTaskTitle: 'Task name',
+  popupTaskTitleRequired: 'Enter a task name.',
+  popupTaskDeadline: 'Deadline',
+  popupTaskDeadlinePast: 'Choose a future date and time for the deadline.',
+  popupTaskMinutes: 'Time needed (min)',
+  popupTaskMinutesRange: 'Enter 1–720 minutes.',
+  popupTaskPresets: 'Quick pick for time needed',
+  popupTaskPreset: (minutes) => (minutes < 60 ? `${minutes} min` : `${minutes / 60} hr`),
+  popupTaskDetails: 'Add details',
+  popupTaskWhy: 'Purpose (optional)',
+  popupTaskUrl: 'Work link (optional)',
+  popupTaskNotes: 'To-dos and notes',
+  popupTaskRegister: 'Add',
+  popupTaskCreated: (title) => `Added “${title}”.`,
 
   workReward(rewardSeconds: number, deferred: boolean): string {
     return rewardSeconds > 0

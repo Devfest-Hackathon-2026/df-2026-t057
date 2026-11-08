@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { execFile, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -15,14 +17,20 @@ const workflow = load(
 const cd = load(readFileSync(new URL('../.github/workflows/cd.yml', import.meta.url), 'utf8'));
 const filters = load(readFileSync(new URL('../.github/ci-paths.yaml', import.meta.url), 'utf8'));
 
-function selection(files, event = 'pull_request', outcomes = {}, current = 'true') {
+function selection(
+  files,
+  event = 'pull_request',
+  outcomes = {},
+  current = 'true',
+  redeploy = false,
+) {
   const flags = Object.fromEntries(
     Object.entries(filters).map(([key, patterns]) => [
       key,
       files.some(picomatch(patterns.flat(Infinity), { dot: true })),
     ]),
   );
-  const plan = planChecks(files, flags, event);
+  const plan = planChecks(files, flags, event, redeploy);
   const outputs = Object.fromEntries(
     Object.entries(plan).map(([key, value]) => [key, String(value)]),
   );
@@ -102,6 +110,27 @@ for (const [path, suite, deploy, image, generate] of cases) {
   });
 }
 
+test('Terraform PR validates the configuration without app checks, E2E or deployment', () => {
+  const { plan, results } = selection(['deploy/terraform/run.tf']);
+  assert.equal(results.terraform, 'success');
+  assert.equal(results.api, 'skipped');
+  assert.equal(results.e2e, 'skipped');
+  assert.equal(results.check, 'success');
+  assert.equal(plan.deploy, false);
+  assert.equal(plan.image, false);
+});
+
+test('app PR skips Terraform validation', () => {
+  assert.equal(selection(['apps/api/internal/wallet/domain.go']).results.terraform, 'skipped');
+});
+
+test('failed Terraform validation blocks the required check', () => {
+  assert.equal(
+    selection(['deploy/terraform/run.tf'], 'pull_request', { terraform: 'failure' }).results.check,
+    'failure',
+  );
+});
+
 for (const path of [
   'apps/web/src/app/app.ts',
   'apps/extension/content/notice.ts',
@@ -135,6 +164,59 @@ test('manual full validation has no deployment or schedule', () => {
   assert.deepEqual(Object.keys(cd.on), ['workflow_call']);
 });
 
+test('an explicit push redeploy validates all code and generates a tested production image', () => {
+  const { plan, results } = selection([], 'push', {}, 'true', true);
+  for (const key of ['api', 'web', 'extension', 'shared', 'generate', 'image', 'deploy'])
+    assert.equal(plan[key], true, key);
+  assert.equal(plan.suite, 'full');
+  for (const job of ['api', 'frontend', 'e2e', 'check', 'deploy'])
+    assert.equal(results[job], 'success', job);
+  assert.equal(selection([], 'push', {}, 'false', true).results.deploy, 'skipped');
+});
+
+for (const event of ['pull_request', 'workflow_dispatch']) {
+  test(`${event} cannot request a production redeploy`, () => {
+    const { plan, results } = selection([], event, {}, 'true', true);
+    assert.equal(plan.image, false);
+    assert.equal(plan.deploy, false);
+    assert.equal(results.deploy, 'skipped');
+  });
+}
+
+test('the workflow accepts explicit redeploy requests only from the main push commit', () => {
+  const env = workflow.jobs.changes.steps.find((step) => step.id === 'policy').env;
+  assert.equal(
+    env.REQUEST_DEPLOY,
+    "${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy]') }}",
+  );
+});
+
+test('the policy entry point passes an explicit deployment request into Actions outputs', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'dopagaki-redeploy-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const output = join(dir, 'output');
+  const run = spawnSync(process.execPath, [new URL('./ci-policy.mjs', import.meta.url).pathname], {
+    env: {
+      ...process.env,
+      CHANGES: JSON.stringify({ all_files: '[]' }),
+      EVENT_NAME: 'push',
+      REQUEST_DEPLOY: 'true',
+      GITHUB_OUTPUT: output,
+    },
+    encoding: 'utf8',
+  });
+  assert.equal(run.status, 0, run.stderr);
+  const outputs = Object.fromEntries(
+    readFileSync(output, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => line.split('=')),
+  );
+  for (const key of ['api', 'web', 'extension', 'shared', 'generate', 'image', 'deploy'])
+    assert.equal(outputs[key], 'true', key);
+  assert.equal(outputs.suite, 'full');
+});
+
 for (const job of ['changes', 'api', 'frontend', 'e2e']) {
   for (const result of ['failure', 'cancelled']) {
     test(`${job} ${result} fails check and blocks CD`, () => {
@@ -144,6 +226,9 @@ for (const job of ['changes', 'api', 'frontend', 'e2e']) {
       assert.equal(results.check, 'failure');
       assert.equal(results.deploy, 'skipped');
       if (job !== 'e2e') assert.equal(results.e2e, 'skipped');
+      const requested = selection([], 'push', { [job]: result }, 'true', true);
+      assert.equal(requested.results.check, 'failure');
+      assert.equal(requested.results.deploy, 'skipped');
     });
   }
 }
@@ -258,6 +343,57 @@ test('existing Go and pnpm cache fallbacks remain usable', () => {
     const cache = action.runs.steps.find((step) => step.uses?.startsWith('actions/cache@'));
     assert.ok(cache.with['restore-keys'].length > 0);
   }
+});
+
+test('cold Go and Node setup use the official mise mirror without disabling caches', () => {
+  for (const name of ['go', 'node']) {
+    const action = load(
+      readFileSync(new URL(`../.github/actions/setup-${name}/action.yml`, import.meta.url), 'utf8'),
+    );
+    const mise = action.runs.steps.find((step) => step.uses?.startsWith('jdx/mise-action@'));
+    assert.equal(mise.with.fetch_from_github, false, name);
+    assert.equal(mise.with.version, undefined, 'a pinned mise version bypasses the mirror');
+    assert.equal(mise.with.cache, true, name);
+    assert.ok(mise.with.install_args.includes(name === 'go' ? 'go' : 'node npm:pnpm'));
+  }
+});
+
+test('API lint uses the pinned official image and shares the existing caches as the runner user', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'dopagaki-lint-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const action = load(
+    readFileSync(new URL('../.github/actions/setup-go/action.yml', import.meta.url), 'utf8'),
+  );
+  assert.equal(action.runs.steps[0].with.install_args, 'go');
+  const lint = workflow.jobs.api.steps.find((step) => step.name === 'API lint');
+  assert.ok(lint, 'lint remains a required API step');
+  const output = join(dir, 'docker-args');
+  writeFileSync(
+    join(dir, 'docker'),
+    `#!${process.execPath}
+import { writeFileSync } from 'node:fs';
+writeFileSync(process.env.CALL_LOG, JSON.stringify(process.argv.slice(2)));
+`,
+    { mode: 0o755 },
+  );
+  const run = spawnSync('bash', ['-e', '-c', lint.run], {
+    cwd: new URL('../apps/api/', import.meta.url),
+    env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, CALL_LOG: output },
+    encoding: 'utf8',
+  });
+  assert.equal(run.status, 0, run.stderr);
+  const args = JSON.parse(readFileSync(output, 'utf8'));
+  const tools = readFileSync(new URL('../mise.toml', import.meta.url), 'utf8');
+  const version = (name) => tools.match(new RegExp(`^${name} = "([^"]+)"`, 'm'))[1];
+  assert.ok(args.includes(`golangci/golangci-lint:v${version('golangci-lint')}`));
+  assert.ok(args.includes(`GOTOOLCHAIN=go${version('go')}`));
+  for (const cache of ['go/pkg/mod', '.cache/go-build', '.cache/golangci-lint'])
+    assert.ok(
+      args.some((arg) => arg.startsWith(`${process.env.HOME}/${cache}:`)),
+      cache,
+    );
+  assert.equal(args[args.indexOf('--user') + 1], `${process.getuid()}:${process.getgid()}`);
+  assert.ok(workflow.jobs.api.steps.some((step) => step.run === 'go test -race ./...'));
 });
 
 test('smoke selection covers registration, signed-out privacy, extension work flow and accessibility', () => {

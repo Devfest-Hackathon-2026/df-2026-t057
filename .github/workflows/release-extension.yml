@@ -21,7 +21,7 @@ jobs:
       # Node と pnpm のバージョンは mise.toml を正とする（拡張のビルドに Go は使わない）。
       - uses: jdx/mise-action@v3
         with:
-          install_args: node pnpm
+          install_args: node npm:pnpm
           cache: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @dopagaki/extension typecheck

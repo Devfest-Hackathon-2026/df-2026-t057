@@ -53,7 +53,7 @@ SDKエラーには応答本文・トークン・URL・利用者入力が含ま�
 
 ## IAM縮小の準備
 
-Vertex AI Userは確認時466権限、Datastore Userは23権限を含んでいた。[変更案と適用手順](../deploy/iam/README.md)では、SDKが使う推論1権限・Firestoreデータ操作6権限へ絞る。Secret追加先から静的OAuth・Schedulerを外し、読取先もCalendar用の名前空間とSchedulerへ絞る。Secretのバージョンを指す名前も条件に含める。
+Vertex AI Userは確認時466権限、Datastore Userは23権限を含んでいた。変更案と適用手順（当時の `deploy/iam/`。2026-11-08からは [Terraform](../deploy/terraform/iam.tf) で管理）では、SDKが使う推論1権限・Firestoreデータ操作6権限へ絞る。Secret追加先から静的OAuth・Schedulerを外し、読取先もCalendar用の名前空間とSchedulerへ絞る。Secretのバージョンを指す名前も条件に含める。
 
 現在のポリシーから、他メンバー・バインディング・etagを保持した変更ファイルを作成した。対象バインディングだけを戻すファイル生成も確認した。条件式はGoogleのIAMリンターで検査し、指摘0件。**変更案の準備であり、本番適用・実権限での成功確認ではない。**
 

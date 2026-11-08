@@ -7,6 +7,7 @@ import {
   type ApiClient,
   type CompanionMoment,
   type Draft,
+  type TaskCreateInput,
 } from '@dopagaki/contract';
 import type { z } from 'zod';
 import { MANAGEMENT_ORIGIN } from '../lib/config';
@@ -59,6 +60,11 @@ export const api = {
   sleep: () => call(async (c) => parse(sleepStateSchema, (await c.GET('/sleep')).data)),
   profile: () => call(async (c) => parse(profileSchema, (await c.GET('/profile')).data)),
 
+  // 返ってくる課題は使わず、呼び出し元で一覧を取り直す。
+  createTask: (input: TaskCreateInput) =>
+    call(async (c) => {
+      await c.POST('/tasks', { params: { header: key() }, body: input });
+    }),
   startTask: (taskId: string) =>
     call(async (c) => {
       const result = await c.POST('/tasks/{taskId}/start', {

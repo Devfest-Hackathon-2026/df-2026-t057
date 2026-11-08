@@ -32,6 +32,8 @@ pnpm --filter @dopagaki/extension build
 
 `chrome://extensions` でデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」から `apps/extension/.output/chrome-mv3` を指定します。その後、管理画面を開き直すと同じユーザーのデータに接続されます。拡張IDは manifest の `key`（[`apps/extension/buildconfig/extension-key.ts`](apps/extension/buildconfig/extension-key.ts) の公開鍵）で `egongmmfglcolkgiappacmmbiiiogpmb` に固定しており、どの端末で読み込んでも同じなので、APIの live モードではこのIDを環境変数 `EXTENSION_IDS` に設定します。
 
+拡張のポップアップの「課題を登録」から、管理画面を開かずに課題名・締切・必要時間を入れて登録できます。
+
 拡張のポップアップにある「この作業サイトにタイマーを表示」を押すと、そのサイトだけにタイマーを表示する権限を求めます。最初からすべてのサイトへのアクセスは要求しません。
 
 ## Chrome拡張のリリース
@@ -130,10 +132,9 @@ AIは初期値で1人5回/分・30回/日、全体30回/分・300回/日に制�
 対象プロジェクトは `devfest-2026-513816`（番号 `1032251723022`）です。課金アカウントと予算はユーザー設定済みのものを使います。
 
 1. Firestore NativeデータベースとFirebaseのWebアプリを作成し、AuthenticationのGoogleプロバイダーを有効にします。Cloud Runのドメインを認証の許可ドメインへ追加します。Firestoreのクライアント用ルールは `deploy/firestore.rules` のとおり拒否し、APIのサービスアカウントだけで読み書きします。
-2. Calendar API、Secret Manager API、Vertex AI API、Cloud Run / Cloud Build / Artifact Registry APIを有効にします。
+2. Google Cloud側の設定（APIの有効化、サービスアカウントと権限、Cloud Run、Cloud Tasks、Cloud Scheduler、FirestoreのTTLとルール）は `deploy/terraform` のTerraformで作ります。手順は [deploy/terraform/README.md](deploy/terraform/README.md) にあります。
 3. Web用OAuthクライアントを作成し、リダイレクトURIに `https://<管理画面のオリジン>/api/calendar/callback` を設定します。スコープは `openid`、`email`、`calendar.app.created`。テスト公開中は利用者をテストユーザーへ追加します。
-4. `deploy/cloudrun.env.example.yaml` の公開設定を埋め、秘密情報を含まないローカル設定ファイルへ保存します。OAuth client secretはSecret Managerへ登録します。Cloud Tasksのキュー、呼び出し用のサービスアカウント、Cloud Schedulerの更新ジョブ、FirestoreのTTLは `deploy/setup-cloud-tasks.sh` で作ります。`.env`、トークン、鍵はコミットしません。
-5. 実行サービスアカウントにFirestore、Vertex AI、カレンダー用Secretの必要な権限を付与します。カレンダー接続時にユーザー別Secretを作るため、`secretmanager.secrets.create`、`secretmanager.versions.add`、`secretmanager.versions.access` を含む権限も必要です。公開設定・権限・イメージを確認してからCloud Runへ配信します。
+4. FirebaseのWebアプリの設定とOAuthのクライアントIDを `deploy/terraform/terraform.tfvars` に書きます。OAuth client secretはTerraformの外で、Secret Managerの `dopagaki-calendar-oauth` へ登録します。`.env`、トークン、鍵はコミットしません。
 
 Cloud Run向けのコンテナーは次で作成できます。
 
@@ -141,9 +142,9 @@ Cloud Run向けのコンテナーは次で作成できます。
 docker build -t dopagaki .
 ```
 
-Cloud Runは `min-instances=0`、`max-instances=2`、1 CPU / 512MiB、リクエストタイムアウト60秒を初期値とします。コンテナーは `APP_MODE=live` で動き、必要な設定（プロジェクト・`APP_URL`・Firebaseの設定）が無ければ起動しません。手元で `go run` したときの既定は `demo` です。認証なしで個人データへアクセスできません。環境変数は `.env.example`、公開値の例は `deploy/cloudrun.env.example.yaml` を参照してください。`GOOGLE_OAUTH_CLIENT_SECRET` はSecret Managerから環境変数へ渡します。
+Cloud Runは `min-instances=0`、`max-instances=2`、1 CPU / 512MiB、リクエストタイムアウト60秒を初期値とします。コンテナーは `APP_MODE=live` で動き、必要な設定（プロジェクト・`APP_URL`・Firebaseの設定）が無ければ起動しません。手元で `go run` したときの既定は `demo` です。認証なしで個人データへアクセスできません。環境変数は `.env.example`、本番の値は `deploy/terraform/run.tf` を参照してください。`GOOGLE_OAUTH_CLIENT_SECRET` はSecret Managerから環境変数へ渡します。
 
-Calendarの変更通知チャンネルは6日で期限が切れます。Cloud Schedulerから1日1回 `POST /api/internal/calendar/renew` を、OIDCトークン付きで呼びます（`deploy/setup-cloud-tasks.sh` が作成）。この更新ジョブが無いと継続して同期できません。
+Calendarの変更通知チャンネルは6日で期限が切れます。Cloud Schedulerから1日1回 `POST /api/internal/calendar/renew` を、OIDCトークン付きで呼びます（`deploy/terraform/outbox.tf` で作成）。この更新ジョブが無いと継続して同期できません。
 
 管理画面のAI相談は既存のFirebase認証・Vertex AI・Firestoreを使います。新しいGoogle OAuthスコープやChatアプリの配布は不要です。会話履歴は利用者ごとに保存し、拡張には渡しません。カードの登録は既存の課題登録、変更は予定確認画面、記憶は本人の作業傾向へ接続します。[設計と確認範囲](engineering/assistant.md)を参照してください。
 

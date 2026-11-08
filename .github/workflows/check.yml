@@ -24,6 +24,7 @@ jobs:
       image: ${{ steps.policy.outputs.image }}
       docker: ${{ steps.policy.outputs.docker }}
       deploy: ${{ steps.policy.outputs.deploy }}
+      terraform: ${{ steps.policy.outputs.terraform }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -37,6 +38,7 @@ jobs:
         env:
           CHANGES: ${{ toJSON(steps.changes.outputs) }}
           EVENT_NAME: ${{ github.event_name }}
+          REQUEST_DEPLOY: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy]') }}
         run: node deploy/ci-policy.mjs
   api:
     needs: changes
@@ -50,7 +52,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go
         with:
-          lint: 'true'
           cache-suffix: '-api'
       - name: Go format
         run: test -z "$(gofmt -l .)"
@@ -59,10 +60,17 @@ jobs:
         run: |-
           go generate ./...
           git diff --exit-code
-      - name: API lint and race tests
+      - name: API lint
         run: |-
-          golangci-lint run ./...
-          go test -race ./...
+          read -r go_version lint_version < <(python3 -c 'import tomllib; t = tomllib.load(open("../../mise.toml", "rb"))["tools"]; print(t["go"], t["golangci-lint"])')
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/app" -w /app \
+            -v "$HOME/go/pkg/mod:/.cache/mod" -e GOMODCACHE=/.cache/mod \
+            -v "$HOME/.cache/go-build:/.cache/go-build" -e GOCACHE=/.cache/go-build \
+            -v "$HOME/.cache/golangci-lint:/.cache/golangci-lint" -e GOLANGCI_LINT_CACHE=/.cache/golangci-lint \
+            -e GOTOOLCHAIN="go$go_version" \
+            "golangci/golangci-lint:v$lint_version" golangci-lint run --config .golangci.yml ./...
+      - name: API race tests
+        run: go test -race ./...
     concurrency:
       group: ci-${{ github.workflow }}-api-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
@@ -109,6 +117,30 @@ jobs:
         run: pnpm --filter @dopagaki/deploy test
     concurrency:
       group: ci-${{ github.workflow }}-frontend-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+  terraform:
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: deploy/terraform
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v3
+        with:
+          # setup-go と同じく、GitHub Releases の障害を避けて公式ミラーから mise を取る。
+          fetch_from_github: false
+          install_args: terraform
+          cache: true
+      - name: Terraform format and validate
+        run: |-
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+    concurrency:
+      group: ci-${{ github.workflow }}-terraform-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
   e2e:
     needs:
@@ -202,6 +234,7 @@ jobs:
       - changes
       - api
       - frontend
+      - terraform
       - e2e
     if: always()
     runs-on: ubuntu-latest

@@ -63,6 +63,74 @@ body {
   display: none;
 }
 
+/* .work などの display 指定より、hidden 属性を優先する。 */
+[hidden] {
+  display: none !important;
+}
+
+.task-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.heading {
+  margin: 0;
+  font: var(--mat-sys-title-medium);
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.field label {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+}
+
+.field input,
+.field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-large);
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible,
+.details summary:focus-visible {
+  outline: 3px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+.details .field + .field {
+  margin-top: 0.75rem;
+}
+
+.details summary {
+  min-height: 1.5rem;
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-label-large);
+  cursor: pointer;
+}
+
+.details[open] summary {
+  margin-bottom: 0.75rem;
+}
+
+.actions {
+  justify-content: flex-end;
+}
+
 .status {
   min-height: 1.25rem;
   margin: 0;

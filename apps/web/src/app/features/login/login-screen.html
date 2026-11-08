@@ -1,65 +1,11 @@
 @let t = text().login.screen;
 <main class="landing">
-  <img class="logo" src="/logo.png" alt="DOPAGAKI" width="210" height="47" />
+  <img class="logo" src="/logo.png" alt="DOPAGAKI" width="460" height="120" />
   <h1>{{ t.headline }}</h1>
-
-  <ol class="flow" [attr.aria-label]="t.flowLabel">
-    <li class="step">
-      <div class="object paper" aria-hidden="true">
-        <div class="paper-heading">
-          <span>{{ t.sampleTask }}</span>
-          <span class="ai-label">AI</span>
-        </div>
-        <div class="paper-task">
-          <mat-icon>check</mat-icon>
-          {{ t.sampleStepRead }}
-        </div>
-        <div class="paper-task">
-          <mat-icon>check</mat-icon>
-          {{ t.sampleStepWrite }}
-        </div>
-      </div>
-      <p class="caption">{{ t.stepSplit }}</p>
-    </li>
-    <li class="step">
-      <div class="object clock">
-        <div class="clock-face" aria-hidden="true">
-          <strong>{{ completed() ? t.sampleDone : '25:00' }}</strong>
-          <small>{{ completed() ? t.sampleTask : t.sampleTimerTotal }}</small>
-        </div>
-        <button
-          mat-flat-button
-          type="button"
-          [attr.aria-label]="completed() ? t.replayComplete : t.tryComplete"
-          (click)="completed.set(!completed())"
-        >
-          <mat-icon>check</mat-icon>
-          {{ completed() ? t.again : t.complete }}
-        </button>
-      </div>
-      <p class="caption">{{ t.stepTimer }}</p>
-    </li>
-    <li class="step">
-      <div class="object browser" aria-hidden="true">
-        <span class="browser-bar"></span>
-        <div class="video">
-          <mat-icon>play_arrow</mat-icon>
-          <span class="shorts">Shorts</span>
-        </div>
-        <span class="reward" [class.earned]="completed()">
-          {{ completed() ? t.sampleRewardEarned : t.sampleRewardHint }}
-        </span>
-      </div>
-      <p class="caption">{{ t.stepShorts }}</p>
-    </li>
-  </ol>
-
-  <span class="visually-hidden" role="status">
-    {{ completed() ? t.sampleExplanation : '' }}
-  </span>
+  <p class="description">{{ t.description }}</p>
 
   <button
-    mat-stroked-button
+    mat-flat-button
     type="button"
     class="login"
     (click)="auth.login()"
@@ -74,7 +20,6 @@
       {{ loginLabel() }}
     </span>
   </button>
-  <p class="platform">{{ t.platform }}</p>
   <p class="status" role="status">
     @if (signingIn()) {
       {{ t.continueInGoogle }}
@@ -94,7 +39,4 @@
       <button mat-button type="button" (click)="auth.clearError()">{{ t.close }}</button>
     </div>
   }
-  <footer class="footer">
-    <a href="/privacy.html" target="_blank" rel="noopener">{{ t.privacy }}</a>
-  </footer>
 </main>
