@@ -1,8 +1,4 @@
-<app-page-heading
-  eyebrow="EVERY LITTLE COUNTS"
-  heading="積み上げの記録"
-  lead="終わらせた分だけ、ちゃんと前に進んでいる。"
-/>
+<app-page-heading heading="積み上げの記録" />
 
 @if (records.load.error(); as error) {
   <div class="error" role="alert">
@@ -177,5 +173,16 @@
     >
       {{ ledger.more.pending() ? '読み込んでいます…' : 'もっと見る' }}
     </button>
+  }
+</section>
+
+<section aria-labelledby="weekly-heading">
+  <h2 id="weekly-heading">週ごとの振り返り</h2>
+  <p>記録を開始してからの操作を、本人のタイムゾーン・月曜始まりで集計します。</p>
+  @for (w of records.value()?.weeks ?? []; track w.start) {
+    <p>
+      {{ w.start }}：開始 {{ w.starts }}回（予定どおり {{ w.onTime }}回）· スヌーズ
+      {{ w.snoozes }}回 · 作業 {{ w.workSeconds | duration }}
+    </p>
   }
 </section>

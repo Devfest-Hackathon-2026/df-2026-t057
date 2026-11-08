@@ -1,0 +1,58 @@
+# 共通のツール・設定を変えたら、PRでも全体を検証する。
+full: &full
+  - 'package.json'
+  - 'pnpm-lock.yaml'
+  - 'pnpm-workspace.yaml'
+  - '.npmrc'
+  - 'mise.toml'
+  - '.nvmrc'
+  - 'eslint.config.js'
+  - 'stylelint.config.js'
+  - 'tsconfig.base.json'
+  - '.prettierrc.json'
+  - '.prettierignore'
+  - '.github/**'
+code:
+  - *full
+  - 'apps/**'
+  - 'packages/**'
+  - 'e2e/**'
+  - 'deploy/**'
+  - 'Dockerfile'
+  - '.dockerignore'
+api:
+  - *full
+  - 'apps/api/**'
+  - 'packages/contract/**'
+web:
+  - *full
+  - 'apps/web/**'
+  - 'packages/**'
+extension:
+  - *full
+  - 'apps/extension/**'
+  - 'packages/**'
+shared:
+  - *full
+  - 'packages/**'
+generate:
+  - *full
+  - 'apps/api/**'
+  - 'packages/contract/**'
+  - 'packages/tokens/**'
+e2e:
+  - *full
+  - 'apps/**'
+  - 'packages/**'
+  - 'e2e/**'
+e2e_sources:
+  - 'e2e/**'
+deploy:
+  - *full
+  - 'apps/api/**'
+  - 'apps/web/**'
+  # bridgeも管理画面の依存。共通パッケージはすべて配信対象に含める。
+  - 'packages/**'
+  - 'Dockerfile'
+  - '.dockerignore'
+  - 'deploy/cloud-run.sh'

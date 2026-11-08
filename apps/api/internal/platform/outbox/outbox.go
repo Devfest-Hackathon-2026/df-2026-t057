@@ -259,3 +259,23 @@ func HasPending(ctx context.Context, tx *store.Tx, uid string, kinds []Kind, sub
 	}
 	return false, nil
 }
+
+// Retry resets failed jobs and redispatches them only after the transaction commits.
+func (o *Outbox) Retry(ctx context.Context, uid string) error {
+	return o.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
+		jobs, err := store.List[Job](ctx, tx, store.Query{Collection: store.UserCollection(uid, Collection), Filters: []store.Filter{{Field: "status", Op: store.Eq, Value: string(StatusFailed)}}})
+		if err != nil {
+			return err
+		}
+		for _, j := range jobs {
+			j.Status, j.Attempts, j.LastError = StatusPending, 0, ""
+			j.UpdatedAt = o.clock.Now()
+			if err := tx.Set(ref(uid, j.ID), j); err != nil {
+				return err
+			}
+			tx.AfterCommit(func() { o.dispatch(context.WithoutCancel(ctx), uid, j.ID) })
+		}
+		_, err = tx.Touch(ctx, uid, store.ResourceCalendar)
+		return err
+	})
+}

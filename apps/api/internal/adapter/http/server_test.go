@@ -12,10 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/account"
 	apihttp "github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/http"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/http/oapi"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/config"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/id"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/realtime"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/testkit"
 )
@@ -36,7 +38,8 @@ func newServer(t *testing.T, mode config.Mode) (*httptest.Server, *testkit.World
 	w := testkit.New(t, time.Date(2026, 11, 8, 12, 0, 0, 0, testkit.JST))
 	cfg := config.Config{Mode: mode, AppURL: "http://app.test", ExtensionIDs: []string{"abcdefghijklmnopabcdefghijklmnop"}}
 	api, err := apihttp.NewAPI(apihttp.Deps{
-		Config: cfg, Clock: w.Clock, Log: w.Log, Verifier: fakeVerifier{}, Idempotency: w.Idempotency,
+		Accounts: &account.Service{Runner: w.Runner, Clock: w.Clock, IDs: id.Random{}, Data: w.Store, Enabled: true},
+		Config:   cfg, Clock: w.Clock, Log: w.Log, Verifier: fakeVerifier{}, Idempotency: w.Idempotency,
 		Profiles: w.Profiles, Tasks: w.Tasks, Work: w.Work, Wallet: w.Wallet, Viewing: w.Viewing, Sleep: w.Sleep,
 		Records: w.Records, Shortcut: w.Shortcut, Events: realtime.NewHub(w.Store, w.Log),
 	})
@@ -289,5 +292,24 @@ func TestDisconnectCalendar(t *testing.T) {
 	// 連携していないときに呼んでも 200。
 	if r := call(t, srv, "POST", "/api/calendar/disconnect", "", "Idempotency-Key", "disc-0003"); r.status != 200 || r.body["connected"] != false {
 		t.Fatalf("disconnect while disconnected: %d %s", r.status, r.raw)
+	}
+}
+
+func TestDeletionResponseReplayAfterFence(t *testing.T) {
+	srv, _ := newServer(t, config.ModeDemo)
+	first := call(t, srv, "POST", "/api/account/deletion", `{"confirmation":"DELETE"}`, "Idempotency-Key", "deletion-request")
+	if first.status != 202 {
+		t.Fatalf("first=%d error=%v", first.status, first.body["code"])
+	}
+
+	second := call(t, srv, "POST", "/api/account/deletion", `{"confirmation":"DELETE"}`, "Idempotency-Key", "deletion-request")
+	if second.status != 202 {
+		t.Fatalf("second=%d error=%v", second.status, second.body["code"])
+	}
+	if first.body["receipt"] != second.body["receipt"] {
+		t.Fatal("receipt changed on retry")
+	}
+	if got := call(t, srv, "GET", "/api/tasks", ""); got.status != 403 {
+		t.Fatalf("closed request=%d", got.status)
 	}
 }

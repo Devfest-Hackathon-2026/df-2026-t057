@@ -4,6 +4,7 @@ package firebaseauth
 import (
 	"context"
 	"fmt"
+	"time"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
@@ -32,7 +33,7 @@ func New(ctx context.Context, projectID string) (*Verifier, error) {
 
 // Verify は ID トークンを確かめ、利用者を返す。Google のアカウントの ID は、google.com のプロバイダーが1つだけのときに使う。
 func (v *Verifier) Verify(ctx context.Context, idToken string) (apihttp.Principal, error) {
-	token, err := v.client.VerifyIDToken(ctx, idToken)
+	token, err := v.client.VerifyIDTokenAndCheckRevoked(ctx, idToken)
 	if err != nil {
 		return apihttp.Principal{}, apperr.Unauthenticated("auth.expired").Wrap(err)
 	}
@@ -40,7 +41,7 @@ func (v *Verifier) Verify(ctx context.Context, idToken string) (apihttp.Principa
 }
 
 func principal(token *auth.Token) apihttp.Principal {
-	p := apihttp.Principal{UID: token.UID}
+	p := apihttp.Principal{UID: token.UID, AuthTime: time.Unix(token.AuthTime, 0)}
 	if email, ok := token.Claims["email"].(string); ok {
 		p.Email = email
 	}
@@ -50,4 +51,11 @@ func principal(token *auth.Token) apihttp.Principal {
 		}
 	}
 	return p
+}
+
+func (v *Verifier) Delete(ctx context.Context, uid string) error {
+	if err := v.client.DeleteUser(ctx, uid); err != nil && !auth.IsUserNotFound(err) {
+		return fmt.Errorf("delete firebase user: %w", err)
+	}
+	return nil
 }

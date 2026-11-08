@@ -4,6 +4,176 @@
  */
 
 export interface paths {
+    "/tasks/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description listArchivedTasks */
+        get: operations["listArchivedTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description archiveTask */
+        post: operations["archiveTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{taskId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description restoreTask */
+        post: operations["restoreTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description exportAccount */
+        get: operations["exportAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description deleteAccount */
+        post: operations["deleteAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/deletion-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description getDeletionStatus */
+        post: operations["getDeletionStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/account/cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description cleanupAccounts */
+        post: operations["cleanupAccounts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calendar/conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description listCalendarConflicts */
+        get: operations["listCalendarConflicts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calendar/conflicts/{taskId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description resolveCalendarConflict */
+        post: operations["resolveCalendarConflict"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calendar/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description retryCalendar */
+        post: operations["retryCalendar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -655,7 +825,8 @@ export interface paths {
          *     カードは何も保存しない。本人が押したときに、それぞれのエンドポイントで確定する。
          */
         post: operations["sendAssistantMessage"];
-        delete?: never;
+        /** @description deleteAssistantTurns */
+        delete: operations["deleteAssistantTurns"];
         options?: never;
         head?: never;
         patch?: never;
@@ -857,7 +1028,7 @@ export interface components {
             code: components["schemas"]["FieldCode"];
         };
         /** @enum {string} */
-        ProblemCode: "internal" | "request.malformed" | "request.too_large" | "request.invalid" | "origin.forbidden" | "auth.required" | "auth.expired" | "idempotency.key_required" | "idempotency.key_reused" | "idempotency.in_progress" | "precondition.required" | "precondition.failed" | "external.failed" | "not_found" | "task.not_found" | "task.limit_reached" | "task.already_completed" | "task.not_editable" | "task.another_active" | "task.duplicate" | "plan.start_in_past" | "plan.deadline_passed" | "plan.insufficient_time" | "plan.invalid_changes" | "plan.changes_mismatch" | "work.no_session" | "work.session_mismatch" | "work.active" | "viewing.policy_missing" | "viewing.session_active" | "viewing.extend_mismatch" | "viewing.exhausted" | "viewing.session_required" | "viewing.session_unknown" | "memory.full" | "assistant.busy" | "assistant.turn_conflict" | "assistant.context_changed" | "ai.unavailable" | "ai.rate_limited" | "ai.failed" | "ai.unreadable" | "ai.no_tasks" | "shortcut.key_malformed" | "shortcut.key_invalid" | "shortcut.rate_limited" | "calendar.unavailable" | "calendar.not_connected" | "calendar.reauth_required" | "demo.only" | "demo.tasks_exist";
+        ProblemCode: "account.cleanup_disabled" | "account.reauth_required" | "account.closed" | "task.not_completed" | "calendar.invalid_event" | "internal" | "request.malformed" | "request.too_large" | "request.invalid" | "origin.forbidden" | "auth.required" | "auth.expired" | "idempotency.key_required" | "idempotency.key_reused" | "idempotency.in_progress" | "precondition.required" | "precondition.failed" | "external.failed" | "not_found" | "task.not_found" | "task.limit_reached" | "task.already_completed" | "task.not_editable" | "task.another_active" | "task.duplicate" | "plan.start_in_past" | "plan.deadline_passed" | "plan.insufficient_time" | "plan.invalid_changes" | "plan.changes_mismatch" | "work.no_session" | "work.session_mismatch" | "work.active" | "viewing.policy_missing" | "viewing.session_active" | "viewing.extend_mismatch" | "viewing.exhausted" | "viewing.session_required" | "viewing.session_unknown" | "memory.full" | "assistant.busy" | "assistant.turn_conflict" | "assistant.context_changed" | "ai.unavailable" | "ai.rate_limited" | "ai.failed" | "ai.unreadable" | "ai.no_tasks" | "shortcut.key_malformed" | "shortcut.key_invalid" | "shortcut.rate_limited" | "calendar.unavailable" | "calendar.not_connected" | "calendar.reauth_required" | "demo.only" | "demo.tasks_exist";
         /**
          * @description 入力項目ごとのエラーの種類
          * @enum {string}
@@ -1121,6 +1292,14 @@ export interface components {
             requiresSession: boolean;
         };
         Records: {
+            weeks?: {
+                /** Format: date */
+                start: string;
+                starts: number;
+                onTime: number;
+                snoozes: number;
+                workSeconds: number;
+            }[];
             /** @description 今日までの84日（古い順） */
             days: {
                 /** Format: date */
@@ -1296,14 +1475,26 @@ export interface components {
             id: components["schemas"]["Id"];
             sleep: components["schemas"]["SleepInput"];
         };
+        CalendarConflict: {
+            task: components["schemas"]["Task"];
+            googleTitle: string;
+            googleNotes: string;
+            /** Format: date-time */
+            googleDeadline?: string;
+            etag: string;
+            revision: number;
+            deleted: boolean;
+            pending: boolean;
+        };
         CalendarStatus: {
             /** @description この環境でカレンダー連携を使える */
             enabled: boolean;
             connected: boolean;
             /** @enum {string} */
-            sync: "disconnected" | "synced" | "pending" | "failed";
+            sync: "disconnected" | "synced" | "pending" | "failed" | "reauth_required" | "conflict";
             /** Format: date-time */
             lastSync?: string;
+            conflicts?: number;
             /** @description 再試行しても反映できなかったジョブの数 */
             failedJobs: number;
         };
@@ -1343,6 +1534,261 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listArchivedTasks: {
+        parameters: {
+            query?: {
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Task"][];
+                        cursor?: string;
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    archiveTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    restoreTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    exportAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @constant */
+                    confirmation: "DELETE";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        receipt: string;
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getDeletionStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    receipt: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "pending" | "complete";
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    cleanupAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listCalendarConflicts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarConflict"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    resolveCalendarConflict: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description 取得したときの `ETag` */
+                "If-Match": components["parameters"]["IfMatch"];
+            };
+            path: {
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    choice: "app" | "google";
+                    etag: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    retryCalendar: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -1883,6 +2329,8 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @enum {string} */
+                    kind?: "snooze" | "adjust" | "edit";
                     changes: components["schemas"]["PlanChangeInput"][];
                 };
             };
@@ -2526,6 +2974,29 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AssistantTurn"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteAssistantTurns: {
+        parameters: {
+            query?: {
+                forgetMemory?: boolean;
+            };
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

@@ -247,7 +247,11 @@ func (s *Server) CommitDraft(ctx context.Context, req oapi.CommitDraftRequestObj
 	for i, c := range req.Body.Changes {
 		changes[i] = task.ChangeInput{TaskID: c.TaskId, After: planIn(c.After)}
 	}
-	l, err := s.Tasks.Commit(ctx, uidFrom(ctx), changes, ifMatch)
+	kind := ""
+	if req.Body.Kind != nil {
+		kind = string(*req.Body.Kind)
+	}
+	l, err := s.Tasks.CommitKind(ctx, uidFrom(ctx), changes, ifMatch, kind)
 	if err != nil {
 		return nil, err
 	}

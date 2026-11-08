@@ -43,6 +43,13 @@ export default defineBackground(() => {
     if (sender.id !== chrome.runtime.id) return false;
     const parsed = requestSchema.safeParse(message);
     if (!parsed.success) {
+      if (
+        typeof message === 'object' &&
+        message !== null &&
+        'target' in message &&
+        message.target === 'offscreen'
+      )
+        return false;
       sendResponse(errorReply(new ExtensionError(extensionCopy.operationUnknown)));
       return false;
     }
@@ -53,7 +60,7 @@ export default defineBackground(() => {
   });
 
   onStateChange((state) => {
-    void broadcast(state);
+    void broadcast();
     void scheduleTaskAlarm(state).catch((error: unknown) => {
       console.warn('DOPAGAKI: failed to schedule the notification', error);
     });

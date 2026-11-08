@@ -207,6 +207,9 @@ importers:
       '@dopagaki/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
+      firebase:
+        specifier: 13.2.0
+        version: 13.2.0(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(@angular/router@22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(@angular/platform-browser@22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)))(rxjs@7.8.2))(supports-color@8.1.1)
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -317,6 +320,12 @@ importers:
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
+      js-yaml:
+        specifier: 4.3.2
+        version: 4.3.2
+      picomatch:
+        specifier: 4.0.7
+        version: 4.0.7
 
   e2e:
     devDependencies:

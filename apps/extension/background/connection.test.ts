@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const ownAuth = vi.hoisted(() => vi.fn());
+vi.mock('./auth', () => ({ extensionConnection: ownAuth }));
+
 function fakeStorage() {
   const data = new Map<string, unknown>();
   return {
@@ -21,6 +24,7 @@ let local: ReturnType<typeof fakeStorage>;
 
 beforeEach(() => {
   vi.resetModules();
+  ownAuth.mockResolvedValue(null);
   session = fakeStorage();
   local = fakeStorage();
   vi.stubGlobal('chrome', { storage: { session, local } });
@@ -30,17 +34,17 @@ describe('replaceConnection', () => {
   it('replaces a refreshed token without clearing the account', async () => {
     const { connectionVersion, getConnection, replaceConnection } = await import('./connection');
     const clear = vi.fn(() => Promise.resolve());
-    expect(await replaceConnection({ authorization: 'Bearer a', accountId: 'u1' }, clear)).toBe(
+    expect(await replaceConnection({ authorization: 'Demo a', accountId: 'u1' }, clear)).toBe(
       'switched',
     );
     const version = connectionVersion();
-    expect(await replaceConnection({ authorization: 'Bearer b', accountId: 'u1' }, clear)).toBe(
+    expect(await replaceConnection({ authorization: 'Demo b', accountId: 'u1' }, clear)).toBe(
       'refreshed',
     );
     expect(clear).toHaveBeenCalledTimes(1);
     expect(connectionVersion()).toBe(version);
-    expect((await getConnection())?.authorization).toBe('Bearer b');
-    expect(await replaceConnection({ authorization: 'Bearer b', accountId: 'u1' }, clear)).toBe(
+    expect((await getConnection())?.authorization).toBe('Demo b');
+    expect(await replaceConnection({ authorization: 'Demo b', accountId: 'u1' }, clear)).toBe(
       'unchanged',
     );
   });
@@ -48,9 +52,9 @@ describe('replaceConnection', () => {
   it('clears everything and invalidates in-flight work when the account changes', async () => {
     const { connectionVersion, getConnection, replaceConnection } = await import('./connection');
     const clear = vi.fn(() => Promise.resolve());
-    await replaceConnection({ authorization: 'Bearer a', accountId: 'u1' }, clear);
+    await replaceConnection({ authorization: 'Demo a', accountId: 'u1' }, clear);
     const version = connectionVersion();
-    expect(await replaceConnection({ authorization: 'Bearer c', accountId: 'u2' }, clear)).toBe(
+    expect(await replaceConnection({ authorization: 'Demo c', accountId: 'u2' }, clear)).toBe(
       'switched',
     );
     expect(clear).toHaveBeenCalledTimes(2);
@@ -61,7 +65,7 @@ describe('replaceConnection', () => {
   it('forgets the connection on disconnect', async () => {
     const { getConnection, replaceConnection } = await import('./connection');
     const clear = vi.fn(() => Promise.resolve());
-    await replaceConnection({ authorization: 'Bearer a', accountId: 'u1' }, clear);
+    await replaceConnection({ authorization: 'Demo a', accountId: 'u1' }, clear);
     await replaceConnection(undefined, clear);
     expect(await getConnection()).toBeUndefined();
     expect(session.data.has('connection')).toBe(false);
@@ -71,9 +75,9 @@ describe('replaceConnection', () => {
   it('keeps the data when the same account reconnects after the browser restarts', async () => {
     const { replaceConnection } = await import('./connection');
     const clear = vi.fn(() => Promise.resolve());
-    await replaceConnection({ authorization: 'Bearer a', accountId: 'u1' }, clear);
+    await replaceConnection({ authorization: 'Demo a', accountId: 'u1' }, clear);
     session.data.clear(); // chrome.storage.session はブラウザーを閉じると消える
-    expect(await replaceConnection({ authorization: 'Bearer b', accountId: 'u1' }, clear)).toBe(
+    expect(await replaceConnection({ authorization: 'Demo b', accountId: 'u1' }, clear)).toBe(
       'refreshed',
     );
     expect(clear).toHaveBeenCalledTimes(1);
@@ -85,4 +89,16 @@ describe('replaceConnection', () => {
     const { getConnection } = await import('./connection');
     expect(await getConnection()).toBeUndefined();
   });
+});
+
+it('live uses SDK tokens across restart and rejects a different account', async () => {
+  const { getConnection } = await import('./connection');
+  local.data.set('accountId', 'u1');
+  session.data.set('connection', { authorization: 'Bearer expired', accountId: 'u1' });
+  ownAuth.mockResolvedValue({ authorization: 'Bearer refreshed', accountId: 'u1' });
+  expect((await getConnection())?.authorization).toBe('Bearer refreshed');
+  session.data.clear();
+  expect((await getConnection())?.accountId).toBe('u1');
+  ownAuth.mockResolvedValue({ authorization: 'Bearer other', accountId: 'u2' });
+  expect(await getConnection()).toBeUndefined();
 });

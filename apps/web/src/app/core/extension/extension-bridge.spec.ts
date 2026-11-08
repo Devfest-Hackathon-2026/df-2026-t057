@@ -47,20 +47,19 @@ describe('ExtensionBridge', () => {
     vi.restoreAllMocks();
   });
 
-  it('live は ID トークンで接続し、更新されるたびに送り直す', async () => {
+  it('live はアカウントIDだけを渡し、Webのトークンは送らない', async () => {
     TestBed.inject(ExtensionBridge);
     TestBed.tick();
     await flush();
     expect(posted.at(-1)).toEqual({
       type: 'DOPAGAKI_CONNECT',
       origin: location.origin,
-      authorization: 'Bearer t1',
       accountId: 'uid-1',
     });
     idToken.set('t2');
     TestBed.tick();
     await flush();
-    expect(posted.at(-1)).toMatchObject({ type: 'DOPAGAKI_CONNECT', authorization: 'Bearer t2' });
+    expect(posted.at(-1)).toMatchObject({ type: 'DOPAGAKI_CONNECT', accountId: 'uid-1' });
   });
 
   it('アカウントの切り替えとログアウトで切断を送る', async () => {
@@ -68,12 +67,12 @@ describe('ExtensionBridge', () => {
     TestBed.tick();
     await flush();
     TestBed.inject(AccountScope).reset();
-    expect(posted.at(-1)).toEqual({ type: 'DOPAGAKI_DISCONNECT' });
+    expect(posted.at(-1)).toEqual({ type: 'DOPAGAKI_DISCONNECT', accountId: 'uid-1' });
     signedIn.set(false);
     account.set(undefined);
     TestBed.tick();
     await flush();
-    expect(posted.at(-1)).toEqual({ type: 'DOPAGAKI_DISCONNECT' });
+    expect(posted.at(-1)).toEqual({ type: 'DOPAGAKI_DISCONNECT', accountId: 'uid-1' });
   });
 
   it('デモは拡張用のトークンを一度だけ発行して渡す', async () => {
@@ -104,7 +103,7 @@ describe('ExtensionBridge', () => {
     );
     await flush();
     expect(bridge.extensionVersion()).toBe('1.2.3');
-    expect(posted.at(-1)).toMatchObject({ type: 'DOPAGAKI_CONNECT', authorization: 'Bearer t1' });
+    expect(posted.at(-1)).toMatchObject({ type: 'DOPAGAKI_CONNECT', accountId: 'uid-1' });
   });
 
   it('ほかのオリジンや形の違うメッセージは無視する', async () => {

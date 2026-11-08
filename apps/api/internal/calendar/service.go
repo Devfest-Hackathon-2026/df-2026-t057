@@ -72,6 +72,7 @@ type Status struct {
 	Sync       SyncState
 	LastSync   *time.Time
 	FailedJobs int
+	Conflicts  int
 }
 
 // Status は連携の状態を返す。連携を使わない環境では enabled=false、disconnected。
@@ -89,7 +90,16 @@ func (s *Service) Status(ctx context.Context, uid string) (Status, error) {
 		if err != nil {
 			return err
 		}
-		st = Status{Enabled: true, Connected: c.Connected, Sync: DeriveSync(c.Connected, pending, failed), LastSync: c.LastSync, FailedJobs: failed}
+		conflicts, err := store.List[Conflict](ctx, tx, store.Query{Collection: store.UserCollection(uid, "calendarConflicts")})
+		if err != nil {
+			return err
+		}
+		st = Status{Conflicts: len(conflicts), Enabled: true, Connected: c.Connected, Sync: DeriveSync(c.Connected, pending, failed), LastSync: c.LastSync, FailedJobs: failed}
+		if c.Reauth {
+			st.Sync = SyncReauth
+		} else if st.Conflicts > 0 {
+			st.Sync = SyncConflict
+		}
 		return nil
 	})
 	return st, err
@@ -155,6 +165,9 @@ func (s *Service) callback(ctx context.Context, state, code, errParam string) er
 		return apperr.Forbidden("calendar.reauth_required")
 	}
 	uid := pending.UID
+	if err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error { return store.EnsureAccountOpen(ctx, tx, uid) }); err != nil {
+		return err
+	}
 	if err := s.Google.SaveToken(ctx, uid, grant.Token); err != nil {
 		return err
 	}
@@ -271,6 +284,7 @@ func (s *Service) finishConnect(ctx context.Context, uid string, ch newChannel, 
 		}
 		expires := store.Truncate(w.Expires)
 		c.Connected = true
+		c.Reauth = false
 		c.ChannelID, c.ChannelToken, c.ChannelResource, c.ChannelExpires = ch.id, ch.token, w.ResourceID, &expires
 		if _, err := enqueueOnce(ctx, tx, s.outbox, uid, outbox.KindSync, &c.SyncJob); err != nil {
 			return err
@@ -521,15 +535,16 @@ func (s *Service) renewChannel(ctx context.Context, old channelEntry, now time.T
 
 // Register はカレンダーのジョブの処理を Outbox に登録する。連携を使わない環境では何もしない。
 func (s *Service) Register(o *outbox.Outbox) {
+	s.handle(o, kindResolve, s.resolveJob)
 	if !s.cfg.Enabled {
 		return
 	}
-	o.Handle(outbox.KindTaskUpsert, s.upsertTask)
-	o.Handle(outbox.KindTaskDelete, s.deleteTask)
-	o.Handle(outbox.KindSleepUpsert, s.reconcileSleep)
-	o.Handle(outbox.KindSleepDelete, s.reconcileSleep)
-	o.Handle(outbox.KindExport, s.export)
-	o.Handle(outbox.KindSync, s.sync)
+	s.handle(o, outbox.KindTaskUpsert, s.upsertTask)
+	s.handle(o, outbox.KindTaskDelete, s.deleteTask)
+	s.handle(o, outbox.KindSleepUpsert, s.reconcileSleep)
+	s.handle(o, outbox.KindSleepDelete, s.reconcileSleep)
+	s.handle(o, outbox.KindExport, s.export)
+	s.handle(o, outbox.KindSync, s.sync)
 }
 
 // claim は、まだ始まっていないジョブの記録（slot）がこのジョブなら消す。始まった後の変更は新しいジョブで反映する。
@@ -633,6 +648,8 @@ func (s *Service) upsertTask(ctx context.Context, job outbox.Job) error {
 			return err
 		}
 		switch {
+		case c.ContentPending(link) && ExternallyEdited(link, ev):
+			return s.captureConflict(ctx, uid, t, ev, false)
 		case c.ContentPending(link):
 			if ev, err = s.patchContent(ctx, client, c.CalendarID, ev, t, loc); err != nil {
 				return err
@@ -1039,6 +1056,12 @@ func (s *Service) sync(ctx context.Context, job outbox.Job) error {
 			}
 			taskID := TaskIDFor(ch, v.eventTask, v.taskEvent)
 			l, linked := v.links[taskID]
+			if t, ok := v.tasks[taskID]; ok && linked && (c.ContentPending(l)) && (ch.Cancelled || ExternallyEdited(l, e)) {
+				if err := captureTx(ctx, tx, uid, t, e, ch.Cancelled); err != nil {
+					return err
+				}
+				continue
+			}
 			_, exists := v.tasks[taskID]
 			if ch.Cancelled {
 				if exists {

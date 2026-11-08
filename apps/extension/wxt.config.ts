@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'wxt';
+import { EXTENSION_ID } from './buildconfig/extension-key';
 import { managementMatches, manifestFor } from './buildconfig/manifest';
 import { resolveManagementOrigin, resolveVersion } from './buildconfig/release';
 
@@ -26,6 +27,10 @@ export default defineConfig({
     build: { target: 'chrome120' },
   }),
   hooks: {
+    // 配布するときに API の EXTENSION_IDS へ書く値なので、ビルドのたびに表示する。
+    'build:done': (wxt) => {
+      wxt.logger.info(`Extension ID: ${EXTENSION_ID}`);
+    },
     // 管理画面の content script は、ビルド時に決まるオリジンでだけ動かす。
     'entrypoints:resolved': (_wxt, entrypoints) => {
       for (const entrypoint of entrypoints) {

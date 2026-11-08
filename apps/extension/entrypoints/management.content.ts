@@ -30,12 +30,32 @@ export default defineContentScript({
           void send({
             type: 'CONNECT',
             origin: message.origin,
-            authorization: message.authorization,
+            ...(message.authorization ? { authorization: message.authorization } : {}),
             accountId: message.accountId,
-          }).then(announce);
+          });
           return;
         case 'DOPAGAKI_DISCONNECT':
-          void send({ type: 'DISCONNECT' });
+          void send({
+            type: 'DISCONNECT',
+            ...(message.accountId ? { accountId: message.accountId } : {}),
+          });
+          return;
+        case 'DOPAGAKI_DIAGNOSE':
+          void send({ type: 'DIAGNOSE' }).then((reply) => {
+            if (reply.ok)
+              window.postMessage(
+                {
+                  type: 'DOPAGAKI_DIAGNOSTIC',
+                  requestId: message.requestId,
+                  connected: reply.connected,
+                  ...(reply.accountId ? { accountId: reply.accountId } : {}),
+                  notifications: reply.notifications ?? 'denied',
+                },
+                MANAGEMENT_ORIGIN,
+              );
+          });
+          return;
+        case 'DOPAGAKI_DIAGNOSTIC':
           return;
         case 'DOPAGAKI_EXTENSION_READY':
           // 自分が送ったもの。

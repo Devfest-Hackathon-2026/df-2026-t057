@@ -159,6 +159,22 @@ func viewingOut(v viewing.View) oapi.Viewing {
 
 func recordsOut(r records.Records) oapi.Records {
 	var out oapi.Records
+	weeks := make([]struct {
+		OnTime      int                `json:"onTime"`
+		Snoozes     int                `json:"snoozes"`
+		Start       openapi_types.Date `json:"start"`
+		Starts      int                `json:"starts"`
+		WorkSeconds int                `json:"workSeconds"`
+	}, len(r.Weeks))
+	for i, w := range r.Weeks {
+		weeks[i].Start = date(w.Start)
+		weeks[i].Starts = w.Starts
+		weeks[i].OnTime = w.OnTime
+		weeks[i].Snoozes = w.Snoozes
+		weeks[i].WorkSeconds = w.WorkSeconds
+	}
+	out.Weeks = &weeks
+
 	out.Days = slices.Grow(out.Days, len(r.Days))[:len(r.Days)]
 	for i, d := range r.Days {
 		out.Days[i].Date, out.Days[i].Completed, out.Days[i].EarnedSeconds = date(d.Date), d.Completed, d.EarnedSeconds

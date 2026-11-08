@@ -1,4 +1,5 @@
 // content script・ポップアップからのメッセージを処理する。メッセージは呼び出し元（background.ts）で検証済み。
+import { authStatus, extensionConnection, signIn, receiveCredential, disconnectAuth } from './auth';
 import { extensionCopy } from '@dopagaki/messages';
 import { MANAGEMENT_ORIGIN } from '../lib/config';
 import type { OkReply, Request } from '../lib/protocol';
@@ -67,22 +68,72 @@ export async function handleRequest(
       if (
         !fromManagement(sender) ||
         new URL(request.origin).origin !== MANAGEMENT_ORIGIN ||
-        !AUTHORIZATION.test(request.authorization)
+        (request.authorization !== undefined && !AUTHORIZATION.test(request.authorization))
       ) {
         throw new ExtensionError(extensionCopy.untrustedSender);
       }
-      const result = await replaceConnection(
-        { authorization: request.authorization, accountId: request.accountId },
-        clearAccount,
-      );
+      const own = await extensionConnection();
+      const next =
+        request.authorization?.startsWith('Demo ') && own === undefined
+          ? { authorization: request.authorization, accountId: request.accountId }
+          : own;
+      if (next?.accountId !== request.accountId)
+        throw new ExtensionError('拡張のポップアップから同じGoogleアカウントで接続してください。');
+      const result = await replaceConnection(next, clearAccount);
       if (result !== 'unchanged') restartStream();
       // 状態は消さずに取り直す（トークンの更新・ブラウザーの再起動後の再接続）。
       // アカウントが変わったときは、前のアカウントのデータを消してから取り直す。
       if (result !== 'unchanged' || !(await getState())) await syncAll();
       return stateReply(sender);
     }
+    case 'AUTH_RESULT': {
+      if (sender.url !== chrome.runtime.getURL('offscreen.html'))
+        throw new ExtensionError(extensionCopy.untrustedSender);
+      await receiveCredential(request.credential);
+      return { ok: true, connected: false };
+    }
+    case 'SIGN_IN': {
+      if (sender.url !== chrome.runtime.getURL('popup.html'))
+        throw new ExtensionError(extensionCopy.untrustedSender);
+      await replaceConnection(undefined, clearAccount);
+      restartStream();
+      await signIn();
+      const own = await extensionConnection();
+      if (!own) throw new ExtensionError(extensionCopy.connectFromApp);
+      await replaceConnection(own, clearAccount);
+      restartStream();
+      await syncAll();
+      return stateReply(sender);
+    }
+    case 'TEST_NOTICE': {
+      if (sender.url !== chrome.runtime.getURL('popup.html'))
+        throw new ExtensionError(extensionCopy.untrustedSender);
+      await chrome.notifications.create('setup-test', {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icon-128.png'),
+        title: 'DOPAGAKI 接続テスト',
+        message: '通知が表示されたら管理画面で確認してください。',
+      });
+      return stateReply(sender);
+    }
+    case 'DIAGNOSE': {
+      if (!fromManagement(sender)) throw new ExtensionError(extensionCopy.untrustedSender);
+      const connection = await getConnection();
+      return {
+        ok: true,
+        connected: !!connection,
+        ...(connection ? { accountId: connection.accountId } : {}),
+        notifications: await chrome.notifications.getPermissionLevel(),
+      };
+    }
     case 'DISCONNECT': {
       if (!fromManagement(sender)) throw new ExtensionError(extensionCopy.untrustedSender);
+      if (request.accountId) {
+        const own = await authStatus();
+        const accountId = own.live ? own.accountId : (await getConnection())?.accountId;
+        if (accountId !== request.accountId) return { ok: true, connected: false };
+      }
+      await disconnectAuth();
       await replaceConnection(undefined, clearAccount);
       restartStream();
       return { ok: true, connected: false };

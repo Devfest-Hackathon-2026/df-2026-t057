@@ -11,7 +11,7 @@ import (
 type CalendarLink struct{ Service *calendar.Service }
 
 func calendarStatusOut(s calendar.Status) oapi.CalendarStatus {
-	return oapi.CalendarStatus{Enabled: s.Enabled, Connected: s.Connected, Sync: oapi.CalendarStatusSync(s.Sync), LastSync: s.LastSync, FailedJobs: s.FailedJobs}
+	return oapi.CalendarStatus{Enabled: s.Enabled, Connected: s.Connected, Sync: oapi.CalendarStatusSync(s.Sync), LastSync: s.LastSync, FailedJobs: s.FailedJobs, Conflicts: ptr(s.Conflicts)}
 }
 
 func (c CalendarLink) Status(ctx context.Context, uid string) (oapi.CalendarStatus, error) {
@@ -42,3 +42,14 @@ func (c CalendarLink) Webhook(ctx context.Context, channelID, token, state strin
 }
 
 func (c CalendarLink) Renew(ctx context.Context) error { return c.Service.Renew(ctx) }
+
+func (c CalendarLink) Conflicts(ctx context.Context, uid string) ([]calendar.Conflict, error) {
+	return c.Service.Conflicts(ctx, uid)
+}
+func (c CalendarLink) Resolve(ctx context.Context, uid, id, choice, etag string, rev int64) error {
+	return c.Service.Resolve(ctx, uid, id, choice, etag, rev)
+}
+func (c CalendarLink) Retry(ctx context.Context, uid string) (oapi.CalendarStatus, error) {
+	s, err := c.Service.Retry(ctx, uid)
+	return calendarStatusOut(s), err
+}

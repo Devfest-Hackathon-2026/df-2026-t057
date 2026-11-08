@@ -11,6 +11,8 @@ GitHub ReleaseのAssetsから dopagaki-extension-vX.Y.Z.zip をダウンロー�
 5. 拡張のポップアップで「接続済み」を確認します。YouTubeを開いていた場合も再読み込みしてください。
 
 読み込み後も、展開したフォルダーは削除・移動せず保管してください。
+拡張IDは egongmmfglcolkgiappacmmbiiiogpmb に固定されています（どの端末・フォルダーで読み込んでも同じです）。
+chrome://extensions のDOPAGAKIに表示されるIDが一致することを確認してください。
 作業サイトにタイマーを表示する場合は、そのサイトで拡張の「この作業サイトにタイマーを表示」を押して許可します。
 
 更新方法
@@ -22,6 +24,8 @@ Chrome Web Store版ではなく、ZIPを展開して読み込む開発版です�
   APP_URL=<管理画面のURL> RELEASE_TAG=vX.Y.Z pnpm --filter @dopagaki/extension zip
 を実行します。apps/extension/.output/ に dopagaki-extension-X.Y.Z-chrome.zip（manifest.json が直下にあるZIP）と、
 展開済みのフォルダー chrome-mv3/ ができます。chrome-mv3 フォルダーを「パッケージ化されていない拡張機能を読み込む」で選べます。
+拡張IDは manifest の key（apps/extension/buildconfig/extension-key.ts の公開鍵）で固定しており、ビルド時に表示されます。
+APIの live モードは、環境変数 EXTENSION_IDS に書いた拡張IDからの要求だけを受け付けます。
 
 SHA256SUMS.txt は配布ZIPのSHA-256チェックサムです。
 配布元: https://github.com/a-sumikawa/devfest-2026/releases

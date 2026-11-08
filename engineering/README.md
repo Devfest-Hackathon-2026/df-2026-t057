@@ -1,5 +1,7 @@
 # DOPAGAKI 開発記録
 
+- [実利用に向けた6項目の実装と検証](live-readiness-implementation-2026-11-08.md)
+
 構成、判断の理由、不具合の原因、運用、検証結果を残す。発表や引き継ぎでは、この記録から根拠をたどれるようにする。
 
 対象はDOPAGAKI。仕様の優先順位は、最新のユーザー指示、確定した会話と指定Slack投稿、現在の実装の順とする。
@@ -8,6 +10,7 @@
 
 | 文書 | 内容 |
 |---|---|
+| [CIの節約](ci-savings-2026-11-08.md) | 変更範囲による検証の選択、Go・pnpm・Dockerのキャッシュ、判定の回帰テストと実測の区別 |
 | [新ルールの実YouTube確認](shorts-time-policy-verification-2026-11-07.md) | main b3fc7b0の拡張更新、5分の選択、前面再生と一時停止、途中終了、再読み込み後の記録保持の実測 |
 | [iPhoneのショートカット連携](iphone-shortcut.md) | YouTubeを開いた瞬間の相棒の一言、接続キーとAPI、作り方と未確認の範囲 |
 | [継続的デプロイ](continuous-deployment.md) | mainの検証後の自動配信、鍵なし認証、候補確認とロールバック |

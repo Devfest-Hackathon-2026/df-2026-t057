@@ -37,6 +37,221 @@ tags:
   - name: internal
 
 paths:
+  /tasks/archived:
+    get:
+      tags:
+        - records
+      operationId: listArchivedTasks
+      description: listArchivedTasks
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  cursor: &id001
+                    type: string
+        default: &id002
+          $ref: '#/components/responses/Problem'
+      parameters:
+        - in: query
+          name: cursor
+          schema: *id001
+  /tasks/{taskId}/archive:
+    post:
+      tags:
+        - tasks
+      operationId: archiveTask
+      description: archiveTask
+      responses:
+        '204':
+          description: 成功
+        default: *id002
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+  /tasks/{taskId}/restore:
+    post:
+      tags:
+        - tasks
+      operationId: restoreTask
+      description: restoreTask
+      responses:
+        '204':
+          description: 成功
+        default: *id002
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+  /account/export:
+    get:
+      tags:
+        - profile
+      operationId: exportAccount
+      description: exportAccount
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+        default: *id002
+  /account/deletion:
+    post:
+      tags:
+        - profile
+      operationId: deleteAccount
+      description: deleteAccount
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - receipt
+                properties:
+                  receipt: *id001
+        default: *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - confirmation
+              properties:
+                confirmation:
+                  type: string
+                  const: DELETE
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+  /account/deletion-status:
+    post:
+      tags:
+        - profile
+      operationId: getDeletionStatus
+      description: getDeletionStatus
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - pending
+                      - complete
+        default: *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - receipt
+              properties:
+                receipt:
+                  type: string
+                  minLength: 64
+                  maxLength: 64
+      security: []
+  /internal/account/cleanup:
+    post:
+      tags:
+        - internal
+      operationId: cleanupAccounts
+      description: cleanupAccounts
+      responses:
+        '204':
+          description: 成功
+        default: *id002
+      security:
+        - scheduler: []
+  /calendar/conflicts:
+    get:
+      tags:
+        - calendar
+      operationId: listCalendarConflicts
+      description: listCalendarConflicts
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarConflict'
+        default: *id002
+  /calendar/conflicts/{taskId}/resolve:
+    post:
+      tags:
+        - calendar
+      operationId: resolveCalendarConflict
+      description: resolveCalendarConflict
+      responses:
+        '202':
+          description: 成功
+        default: *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - choice
+                - etag
+              properties:
+                choice:
+                  type: string
+                  enum:
+                    - app
+                    - google
+                etag: *id001
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+  /calendar/retry:
+    post:
+      tags:
+        - calendar
+      operationId: retryCalendar
+      description: retryCalendar
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarStatus'
+        default: *id002
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
   # ───────────────────────── system ─────────────────────────
   /health:
     get:
@@ -412,6 +627,7 @@ paths:
               type: object
               required: [changes]
               properties:
+                kind: { type: string, enum: [snooze, adjust, edit] }
                 changes:
                   type: array
                   minItems: 1
@@ -831,6 +1047,22 @@ paths:
 
   # ───────────────────────── assistant ─────────────────────────
   /assistant/turns:
+    delete:
+      tags:
+        - assistant
+      operationId: deleteAssistantTurns
+      description: deleteAssistantTurns
+      responses:
+        '204':
+          description: 成功
+        default:
+          $ref: '#/components/responses/Problem'
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - in: query
+          name: forgetMemory
+          schema:
+            type: boolean
     get:
       tags: [assistant]
       operationId: listAssistantTurns
@@ -1137,6 +1369,11 @@ components:
       type: string
       enum:
         # 共通
+        - account.cleanup_disabled
+        - account.reauth_required
+        - account.closed
+        - task.not_completed
+        - calendar.invalid_event
         - internal
         - request.malformed
         - request.too_large
@@ -1535,6 +1772,28 @@ components:
       type: object
       required: [days, totals, practice]
       properties:
+        weeks:
+          type: array
+          items:
+            type: object
+            required:
+              - start
+              - starts
+              - onTime
+              - snoozes
+              - workSeconds
+            properties:
+              start:
+                type: string
+                format: date
+              starts:
+                type: integer
+              onTime:
+                type: integer
+              snoozes:
+                type: integer
+              workSeconds:
+                type: integer
         days:
           type: array
           description: 今日までの84日（古い順）
@@ -1747,14 +2006,42 @@ components:
         sleep: { $ref: '#/components/schemas/SleepInput' }
 
     # ── calendar ──
+    CalendarConflict:
+      type: object
+      required:
+        - task
+        - googleTitle
+        - googleNotes
+        - etag
+        - revision
+        - deleted
+        - pending
+      properties:
+        task:
+          $ref: '#/components/schemas/Task'
+        googleTitle: &id001
+          type: string
+        googleNotes: *id001
+        googleDeadline:
+          type: string
+          format: date-time
+        etag: *id001
+        revision:
+          type: integer
+        deleted:
+          type: boolean
+        pending:
+          type: boolean
     CalendarStatus:
       type: object
       required: [enabled, connected, sync, failedJobs]
       properties:
         enabled: { type: boolean, description: この環境でカレンダー連携を使える }
         connected: { type: boolean }
-        sync: { type: string, enum: [disconnected, synced, pending, failed] }
+        sync:
+          { type: string, enum: [disconnected, synced, pending, failed, reauth_required, conflict] }
         lastSync: { type: string, format: date-time }
+        conflicts: { type: integer }
         failedJobs: { type: integer, description: 再試行しても反映できなかったジョブの数 }
 
     # ── realtime ──

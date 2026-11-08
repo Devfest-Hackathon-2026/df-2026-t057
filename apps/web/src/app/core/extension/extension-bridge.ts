@@ -23,18 +23,37 @@ export class ExtensionBridge {
   private readonly api = inject(API_CLIENT);
   private readonly scope = inject(AccountScope);
   private demoAuthorization: string | undefined;
-  private lastConnect: PageMessage | undefined;
+  private lastConnect: Extract<PageMessage, { type: 'DOPAGAKI_CONNECT' }> | undefined;
 
   /** 読み込まれている拡張の版。拡張がなければ undefined。 */
   readonly extensionVersion = signal<string | undefined>(undefined);
   /** デモの拡張用トークンの発行。 */
   readonly issueToken = new Operation(this.scope);
 
+  readonly diagnostic = signal<
+    { connected: boolean; accountId?: string; notifications: 'granted' | 'denied' } | undefined
+  >(undefined);
+  readonly diagnosing = signal(false);
+  private diagnosticId = '';
+  private diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
+  diagnose(): void {
+    this.diagnostic.set(undefined);
+    this.diagnosing.set(true);
+    this.diagnosticId = crypto.randomUUID();
+    this.post({ type: 'DOPAGAKI_DIAGNOSE', requestId: this.diagnosticId });
+    clearTimeout(this.diagnosticTimer);
+    this.diagnosticTimer = setTimeout(() => {
+      this.diagnosing.set(false);
+    }, 3000);
+  }
   constructor() {
     this.scope.onReset(() => {
+      this.diagnostic.set(undefined);
+      this.diagnosticId = '';
+      this.diagnosing.set(false);
+      clearTimeout(this.diagnosticTimer);
       this.demoAuthorization = undefined;
-      this.lastConnect = undefined;
-      this.post({ type: 'DOPAGAKI_DISCONNECT' });
+      this.disconnect();
     });
     effect(() => {
       const signedIn = this.auth.signedIn();
@@ -43,8 +62,7 @@ export class ExtensionBridge {
       const epoch = this.scope.epoch();
       untracked(() => {
         if (!signedIn || !account) {
-          if (this.lastConnect) this.post({ type: 'DOPAGAKI_DISCONNECT' });
-          this.lastConnect = undefined;
+          this.disconnect();
           return;
         }
         void this.connect(account.id, token, epoch);
@@ -55,6 +73,16 @@ export class ExtensionBridge {
     const listener = async (event: MessageEvent<unknown>): Promise<void> => {
       if (event.source !== window || event.origin !== location.origin) return;
       const message = (await validator)(event.data);
+      if (message?.type === 'DOPAGAKI_DIAGNOSTIC' && message.requestId === this.diagnosticId) {
+        this.diagnostic.set({
+          connected: message.connected,
+          ...(message.accountId ? { accountId: message.accountId } : {}),
+          notifications: message.notifications,
+        });
+        this.diagnosing.set(false);
+        clearTimeout(this.diagnosticTimer);
+        return;
+      }
       if (message?.type !== 'DOPAGAKI_EXTENSION_READY') return;
       this.extensionVersion.set(message.version);
       if (this.lastConnect) this.post(this.lastConnect);
@@ -65,6 +93,7 @@ export class ExtensionBridge {
     window.addEventListener('message', onMessage);
     inject(DestroyRef).onDestroy(() => {
       window.removeEventListener('message', onMessage);
+      clearTimeout(this.diagnosticTimer);
     });
   }
 
@@ -81,13 +110,13 @@ export class ExtensionBridge {
       id = await demoAccountId(authorization);
     } else {
       if (!idToken) return;
-      authorization = `Bearer ${idToken}`;
+      authorization = undefined;
     }
     if (this.scope.epoch() !== epoch) return;
     this.lastConnect = {
       type: 'DOPAGAKI_CONNECT',
       origin: location.origin,
-      authorization,
+      ...(authorization ? { authorization } : {}),
       accountId: id,
     };
     this.post(this.lastConnect);
@@ -102,6 +131,11 @@ export class ExtensionBridge {
     return this.demoAuthorization;
   }
 
+  private disconnect(): void {
+    if (this.lastConnect)
+      this.post({ type: 'DOPAGAKI_DISCONNECT', accountId: this.lastConnect.accountId });
+    this.lastConnect = undefined;
+  }
   private post(message: PageMessage): void {
     window.postMessage(message, location.origin);
   }

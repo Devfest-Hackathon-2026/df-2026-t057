@@ -23,10 +23,14 @@ export function toLocalInput(iso: string): string {
 export function fromLocalInput(local: string): string | undefined {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local)) return undefined;
   const date = new Date(local);
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+  return Number.isNaN(date.getTime()) || toLocalInput(date.toISOString()) !== local
+    ? undefined
+    : date.toISOString();
 }
 
-/** 締切の既定値：明日の 23:59。 */
+/** 新規入力の既定値：現在より後の次の15分刻み。保存済みの時刻は丸めない。 */
 export function defaultDeadline(now: Date = new Date()): string {
-  return `${dateKey(addDays(now, 1))}T23:59`;
+  const deadline = new Date(now);
+  deadline.setMinutes((Math.floor(now.getMinutes() / 15) + 1) * 15, 0, 0);
+  return toLocalInput(deadline.toISOString());
 }

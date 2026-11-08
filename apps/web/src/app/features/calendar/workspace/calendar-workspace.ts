@@ -34,6 +34,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import {
   DateTimePipe,
   MonthDayPipe,
+  LongDatePipe,
   PlanMinutesPipe,
   TimePipe,
   formatTime,
@@ -72,6 +73,7 @@ export function validDate(value: string | undefined): string | undefined {
     MatIconModule,
     MatTooltipModule,
     MonthDayPipe,
+    LongDatePipe,
     PlanMinutesPipe,
     TimePipe,
   ],
@@ -133,7 +135,7 @@ export class CalendarWorkspace {
   });
   protected readonly next = this.tasks.next;
   protected readonly creditLabel = computed(() =>
-    this.wallet.unlimited() ? '視聴の支援' : '今日、視聴できる時間',
+    this.wallet.unlimited() ? '視聴の支援' : '今日 視聴できる時間',
   );
   protected readonly creditValue = computed(() =>
     this.wallet.unlimited()
