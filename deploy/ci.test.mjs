@@ -354,7 +354,7 @@ test('cold Go and Node setup use the official mise mirror without disabling cach
     assert.equal(mise.with.fetch_from_github, false, name);
     assert.equal(mise.with.version, undefined, 'a pinned mise version bypasses the mirror');
     assert.equal(mise.with.cache, true, name);
-    assert.ok(mise.with.install_args.includes(name === 'go' ? 'go' : 'node pnpm'));
+    assert.ok(mise.with.install_args.includes(name === 'go' ? 'go' : 'node npm:pnpm'));
   }
 });
 
