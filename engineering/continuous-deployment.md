@@ -62,7 +62,7 @@ Googleの[Cloud Run配信の権限](https://docs.cloud.google.com/run/docs/deplo
 
 配信コマンドは各リソースの `--project` を必ず指定する。クォータプロジェクトを明示する `--billing-project` は配信SAのコマンドへ付けず、[サービスアカウントの所属プロジェクトを使う標準動作](https://docs.cloud.google.com/docs/quotas/set-quota-project)に従う。明示指定のためだけにプロジェクト全体の `serviceusage.services.use` 権限を追加しない。
 
-初回設定のコマンドは [setup-cd.sh](../deploy/setup-cd.sh)。API有効化、SA・Pool・Providerの作成、限定した4つの権限追加を順に行う。これは一度だけ実行するセットアップで、既存リソースの削除・上書きや、完全なIaCの代わりにはしない。再設定時は現在の状態を確認し、必要なコマンドだけ実行する。
+初回設定は当時 `deploy/setup-cd.sh` で行った。2026-11-08からは、配信SA・Pool・Provider・4つの権限を [Terraform](../deploy/terraform/github.tf) で管理する（[記録](terraform-2026-11-08.md)）。
 
 ## ビルドと切替
 

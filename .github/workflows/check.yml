@@ -24,6 +24,7 @@ jobs:
       image: ${{ steps.policy.outputs.image }}
       docker: ${{ steps.policy.outputs.docker }}
       deploy: ${{ steps.policy.outputs.deploy }}
+      terraform: ${{ steps.policy.outputs.terraform }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -109,6 +110,28 @@ jobs:
         run: pnpm --filter @dopagaki/deploy test
     concurrency:
       group: ci-${{ github.workflow }}-frontend-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+  terraform:
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: deploy/terraform
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v3
+        with:
+          install_args: terraform
+          cache: true
+      - name: Terraform format and validate
+        run: |-
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+    concurrency:
+      group: ci-${{ github.workflow }}-terraform-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
   e2e:
     needs:
@@ -202,6 +225,7 @@ jobs:
       - changes
       - api
       - frontend
+      - terraform
       - e2e
     if: always()
     runs-on: ubuntu-latest

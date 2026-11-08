@@ -1,5 +1,0 @@
-title: DOPAGAKI Gemini inference
-description: Invoke Gemini without model, endpoint or training administration.
-stage: GA
-includedPermissions:
-  - aiplatform.endpoints.predict
