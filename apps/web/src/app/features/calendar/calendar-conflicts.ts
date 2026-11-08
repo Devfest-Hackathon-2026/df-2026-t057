@@ -82,9 +82,11 @@ export class CalendarConflicts {
     );
   }
   async retry(): Promise<void> {
-    await this.operation.run(() =>
+    const result = await this.operation.run(() =>
       requireData(this.api.POST('/calendar/retry', { params: { header: ifMatch(0) } })),
     );
+    // 読み込み直すと同じ Operation のエラーが消え、失敗が見えなくなるので、ここで止める。
+    if (!result.ok) return;
     await this.calendar.refresh();
     await this.load();
   }

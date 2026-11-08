@@ -41,6 +41,17 @@ export class FocusBar {
       this.tasks.complete.error(),
   );
 
+  constructor() {
+    // タイマーは作業が始まるたびに作られる。前の作業で失敗した操作のエラーを持ち越さない。
+    for (const operation of [
+      this.work.pause,
+      this.work.resume,
+      this.work.confirm,
+      this.tasks.complete,
+    ])
+      operation.clearError();
+  }
+
   protected toggle(): void {
     if (this.work.session()?.running) void this.work.pauseWork();
     else void this.work.resumeWork();

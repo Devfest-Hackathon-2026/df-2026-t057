@@ -44,7 +44,7 @@ export class Archives {
   protected readonly operation = new Operation(inject(AccountScope));
   protected readonly items = signal<Task[]>([]);
   protected readonly cursor = signal<string | undefined>(undefined);
-  protected readonly loaded = signal(false);
+  readonly loaded = signal(false);
   async load(more: boolean): Promise<void> {
     await this.operation.run(
       () =>
