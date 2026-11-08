@@ -14,22 +14,23 @@ YouTube Shortsから、いま始める課題へ戻るためのChrome拡張と管
 
 ## ローカルで試す
 
-Node.js 24.15以上、Go 1.26以上が必要です。
+ツールのバージョンは [mise.toml](mise.toml) で固定しています。[mise](https://mise.jdx.dev/) を入れてから実行します。
 
 ```bash
-npm ci
-npm run dev
+mise install
+pnpm install
+pnpm dev
 ```
 
-[管理画面](http://127.0.0.1:4200)を開きます。`./dev.sh` でも起動でき、ブラウザーを `?tutorial=1` 付きで自動で開きます（Goが無ければ `.local/go` に取得します）。初回ログイン時は使い方の案内が1回だけ表示され、URLに `?tutorial=1` を付けるか右上の「使い方」からいつでも見直せます。ローカルデモではGoogle認証や有料APIを使いません。課題のない状態から登録するか、「サンプル3件で試す」を押せます。デモのデータはAPIのメモリー内にあり、APIを停止すると消えます。
+[管理画面](http://127.0.0.1:4200)を開きます。初回ログイン時は使い方の案内が1回だけ表示され、URLに `?tutorial=1` を付けるか右上の「使い方」からいつでも見直せます。ローカルデモではGoogle認証や有料APIを使いません。課題のない状態から登録するか、「サンプル3件で試す」を押せます。デモのデータはAPIのメモリー内にあり、APIを停止すると消えます。
 
 Chrome拡張は次のコマンドで作成します。
 
 ```bash
-npm run build:extension
+pnpm --filter @dopagaki/extension build
 ```
 
-`chrome://extensions` でデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」から `dist/extension` を指定します。その後、管理画面を開き直すと同じユーザーのデータに接続されます。
+`chrome://extensions` でデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」から `apps/extension/.output/chrome-mv3` を指定します。その後、管理画面を開き直すと同じユーザーのデータに接続されます。
 
 拡張のポップアップにある「この作業サイトにタイマーを表示」を押すと、そのサイトだけにタイマーを表示する権限を求めます。最初からすべてのサイトへのアクセスは要求しません。
 
@@ -43,7 +44,7 @@ npm run build:extension
 git tag v0.1.2 && git push origin v0.1.2
 ```
 
-失敗時はGitHub Actionsの実行結果を確認し、再実行できます。既に公開済みのReleaseは上書きしません。修正は新しいタグで公開してください。ローカルビルドは `package.json` のバージョンを使います。インストール済みの拡張の更新は手動です。
+失敗時はGitHub Actionsの実行結果を確認し、再実行できます。既に公開済みのReleaseは上書きしません。修正は新しいタグで公開してください。ローカルビルドは `apps/extension/package.json` のバージョンを使います。インストール済みの拡張の更新は手動です。
 
 ## 管理画面の構成
 
@@ -72,9 +73,13 @@ Chromeが終了・スリープ中の場合は通知できません。Chrome Alar
 
 | 部分 | 技術・役割 |
 |---|---|
-| 管理画面 | Angular 22、Angular Material / CDK、Material Symbols Rounded |
-| Chrome拡張 | Manifest V3、TypeScript、Chrome Alarms / Notifications / Storage |
-| API | Go、標準 `net/http`、Google公式SDK |
+| リポジトリ | pnpm workspaces のモノレポ（`apps/api`・`apps/web`・`apps/extension`・`packages/*`）。設計方針は [AGENTS.md](AGENTS.md) |
+| API仕様 | OpenAPI 3.1（`packages/contract/openapi.yaml`）。GoのサーバーとTSのクライアントを生成する |
+| 管理画面 | Angular 22（zoneless・signals）、Angular Material / CDK、Material Design 3 のデザイントークン（`packages/tokens`）、WCAG 2.2 AA |
+| Chrome拡張 | Manifest V3、WXT、TypeScript、Chrome Alarms / Notifications / Storage |
+| API | Go、標準 `net/http`、oapi-codegen、Google公式SDK。機能ごとのパッケージとポート＆アダプター |
+| 同期 | 状態が変わると SSE（`/api/events`）で通知し、管理画面と拡張がそのリソースだけを取り直す |
+| 外部連携の整合 | Outbox と Cloud Tasks。カレンダーへの反映は再試行つきで非同期に行う |
 | AI | Vertex AI / Gemini 3.8 Flash。課題を具体的な手順へ分解し、作業傾向を反映 |
 | 認証・永続化 | Firebase Authentication（Googleログイン）、Firestoreのトランザクション |
 | Google連携 | Google Calendar API。OAuthの更新トークンはSecret Managerに保存 |
@@ -127,7 +132,7 @@ AIは初期値で1人5回/分・30回/日、全体30回/分・300回/日に制�
 1. Firestore NativeデータベースとFirebaseのWebアプリを作成し、AuthenticationのGoogleプロバイダーを有効にします。Cloud Runのドメインを認証の許可ドメインへ追加します。Firestoreのクライアント用ルールは `deploy/firestore.rules` のとおり拒否し、APIのサービスアカウントだけで読み書きします。
 2. Calendar API、Secret Manager API、Vertex AI API、Cloud Run / Cloud Build / Artifact Registry APIを有効にします。
 3. Web用OAuthクライアントを作成し、リダイレクトURIに `https://<管理画面のオリジン>/api/calendar/callback` を設定します。スコープは `openid`、`email`、`calendar.app.created`。テスト公開中は利用者をテストユーザーへ追加します。
-4. `deploy/cloudrun.env.example.yaml` の公開設定を埋め、秘密情報を含まないローカル設定ファイルへ保存します。OAuth client secretとScheduler secretはSecret Managerへ登録します。`.env`、トークン、鍵はコミットしません。
+4. `deploy/cloudrun.env.example.yaml` の公開設定を埋め、秘密情報を含まないローカル設定ファイルへ保存します。OAuth client secretはSecret Managerへ登録します。Cloud Tasksのキュー、呼び出し用のサービスアカウント、Cloud Schedulerの更新ジョブ、FirestoreのTTLは `deploy/setup-cloud-tasks.sh` で作ります。`.env`、トークン、鍵はコミットしません。
 5. 実行サービスアカウントにFirestore、Vertex AI、カレンダー用Secretの必要な権限を付与します。カレンダー接続時にユーザー別Secretを作るため、`secretmanager.secrets.create`、`secretmanager.versions.add`、`secretmanager.versions.access` を含む権限も必要です。公開設定・権限・イメージを確認してからCloud Runへ配信します。
 
 Cloud Run向けのコンテナーは次で作成できます。
@@ -136,16 +141,16 @@ Cloud Run向けのコンテナーは次で作成できます。
 docker build -t dopagaki .
 ```
 
-Cloud Runは `min-instances=0`、`max-instances=2`、1 CPU / 512MiB、リクエストタイムアウト60秒を初期値とします。`APP_MODE=live` が標準で、認証なしで個人データへアクセスできません。環境変数は `.env.example`、公開値の例は `deploy/cloudrun.env.example.yaml` を参照してください。`GOOGLE_OAUTH_CLIENT_SECRET` と `SCHEDULER_SECRET` はSecret Managerから環境変数へ渡します。
+Cloud Runは `min-instances=0`、`max-instances=2`、1 CPU / 512MiB、リクエストタイムアウト60秒を初期値とします。コンテナーは `APP_MODE=live` で動き、必要な設定（プロジェクト・`APP_URL`・Firebaseの設定）が無ければ起動しません。手元で `go run` したときの既定は `demo` です。認証なしで個人データへアクセスできません。環境変数は `.env.example`、公開値の例は `deploy/cloudrun.env.example.yaml` を参照してください。`GOOGLE_OAUTH_CLIENT_SECRET` はSecret Managerから環境変数へ渡します。
 
-Calendarの変更通知チャンネルは6日で期限が切れます。Cloud Schedulerから1日1回 `POST /api/calendar/renew` を呼び、`Authorization: Bearer <SCHEDULER_SECRET>` を設定してください。この更新ジョブを設定しないと継続して同期できません。
+Calendarの変更通知チャンネルは6日で期限が切れます。Cloud Schedulerから1日1回 `POST /api/internal/calendar/renew` を、OIDCトークン付きで呼びます（`deploy/setup-cloud-tasks.sh` が作成）。この更新ジョブが無いと継続して同期できません。
 
-管理画面のAI相談は既存のFirebase認証・Vertex AI・Firestoreを使います。新しいGoogle OAuthスコープやChatアプリの配布は不要です。会話履歴は `assistantConversations/{uid}/turns` に保存し、拡張向けの状態APIには含めません。カードの登録は既存の課題登録、変更は予定確認画面、記憶は本人の作業傾向へ接続します。[設計と確認範囲](engineering/assistant.md)を参照してください。
+管理画面のAI相談は既存のFirebase認証・Vertex AI・Firestoreを使います。新しいGoogle OAuthスコープやChatアプリの配布は不要です。会話履歴は利用者ごとに保存し、拡張には渡しません。カードの登録は既存の課題登録、変更は予定確認画面、記憶は本人の作業傾向へ接続します。[設計と確認範囲](engineering/assistant.md)を参照してください。
 
 公開先が決まったら、そのオリジンに固定して拡張を再ビルドします。
 
 ```bash
-APP_URL=https://<管理画面のオリジン> npm run build:extension
+APP_URL=https://<管理画面のオリジン> pnpm --filter @dopagaki/extension build
 ```
 
 ## 実サービスでの確認
@@ -173,21 +178,15 @@ APP_URL=https://<管理画面のオリジン> npm run build:extension
 ## 検証
 
 ```bash
-npm run build
-npm test
-(cd api && go vet ./...)
-npx playwright install chromium
-npm run test:e2e
+pnpm generate   # API仕様からGoとTSのコードを生成する（CIでは差分が無いことを確かめる）
+pnpm check      # フォーマット・Lint（Go / TS / CSS / API仕様 / コントラスト）・型チェック
+pnpm test       # 単体テスト（Go・管理画面・拡張・共有パッケージ）
+pnpm build
+pnpm --filter @dopagaki/e2e exec playwright install chromium
+pnpm test:e2e   # e2e。WCAG 2.2 AA の自動検査（axe）を含む
 ```
 
-Goのテストでは、並行再送時の報酬、スヌーズ候補、競合の拒否、時間の重複、他ユーザーとの分離を確認します。Gemini SDKはローカルHTTP応答を使い、本人情報が渡ることと不正な時間割を拒否することを確認します。Playwrightは画面操作と、パッケージ化していない拡張の接続・計測・通知・タイマーを検証します。有料の外部APIは呼びません。
-
-Vertex AIの実接続テストは明示した場合だけ実行します。`gcloud` のログイン済みアカウントで、指定プロジェクトのGeminiへ架空の課題を送信します。このテストはAPI利用料金が発生し、通常のテストやCIではスキップされます。
-
-```bash
-cd api
-DOPAGAKI_LIVE_GCP=1 go test ./internal/app -run TestLiveGeminiPlanning -v -count=1
-```
+Goのテストでは、視聴時間の台帳から計算した残高とWalletの値が常に一致すること、再送しても報酬が二重に付かないこと（べき等性）、版の不一致の拒否、スヌーズ案の検証、時間の重複、利用者ごとの分離を確かめます。外部サービス（Gemini・Google Calendar・Cloud Tasks）はローカルのHTTP応答で確かめ、有料のAPIは呼びません。Firestoreのテストは、エミュレーター（`FIRESTORE_EMULATOR_HOST`）があるときだけ実行します。Playwrightは画面操作と、パッケージ化していない拡張の接続・計測・通知・タイマーを検証します。
 
 ## 提出に向けて
 
