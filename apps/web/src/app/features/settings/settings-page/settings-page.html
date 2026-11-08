@@ -73,7 +73,7 @@
       </mat-panel-description>
     </mat-expansion-panel-header>
     <form [formGroup]="sleepForm" (ngSubmit)="saveSleep()" class="panel-body">
-      <p class="hint">ショートを見ずに寝られた朝は、最大15分のボーナス。</p>
+      <p class="hint">ショートを見ずに寝られた朝は、最大{{ sleepBonus() }}のボーナス。</p>
       <div class="field-row">
         <mat-form-field appearance="outline">
           <mat-label>就寝</mat-label>

@@ -93,6 +93,8 @@ export function wallet(overrides: Partial<Wallet> = {}): Wallet {
       rewardSecondsPerUnit: 60,
       dailyRewardCapSeconds: 1200,
       registrationRewardSeconds: 300,
+      dailyRefillSeconds: 600,
+      sleepBonusSeconds: 900,
       viewingChoicesSeconds: [300, 600],
     },
     ...overrides,

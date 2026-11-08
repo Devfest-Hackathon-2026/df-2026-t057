@@ -1418,6 +1418,8 @@ components:
               rewardSecondsPerUnit,
               dailyRewardCapSeconds,
               registrationRewardSeconds,
+              dailyRefillSeconds,
+              sleepBonusSeconds,
               viewingChoicesSeconds,
             ]
           properties:
@@ -1426,6 +1428,10 @@ components:
             rewardSecondsPerUnit: { type: integer }
             dailyRewardCapSeconds: { type: integer }
             registrationRewardSeconds: { type: integer }
+            dailyRefillSeconds:
+              type: integer
+              description: rewards モードで毎日この秒数まで補充する（fixed モードは dailyLimitSeconds まで）
+            sleepBonusSeconds: { type: integer, description: Shorts を見ずに眠れた夜の報酬の上限 }
             viewingChoicesSeconds:
               type: array
               items: { type: integer }

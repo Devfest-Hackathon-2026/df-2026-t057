@@ -28,7 +28,11 @@
         <mat-icon>calendar_today</mat-icon>
         <div>
           <h3>毎日の補充</h3>
-          <p>初回10分。残高が少ない日は10分まで。受け取り操作は不要です。</p>
+          <p>
+            初回{{ labels().dailyRefill }}。残高が少ない日は{{
+              labels().dailyRefill
+            }}まで。受け取り操作は不要です。
+          </p>
         </div>
       </div>
       <div class="rule">

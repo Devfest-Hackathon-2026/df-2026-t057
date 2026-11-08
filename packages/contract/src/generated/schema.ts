@@ -1018,6 +1018,10 @@ export interface components {
                 rewardSecondsPerUnit: number;
                 dailyRewardCapSeconds: number;
                 registrationRewardSeconds: number;
+                /** @description rewards モードで毎日この秒数まで補充する（fixed モードは dailyLimitSeconds まで） */
+                dailyRefillSeconds: number;
+                /** @description Shorts を見ずに眠れた夜の報酬の上限 */
+                sleepBonusSeconds: number;
                 viewingChoicesSeconds: number[];
             };
         };

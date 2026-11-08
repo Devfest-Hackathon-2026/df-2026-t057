@@ -11,9 +11,9 @@
       </div>
       <h3>{{ card.sleep.bedtime }} 就寝 ・ {{ card.sleep.wake }} 起床</h3>
       <p class="card-note">
-        就寝1時間前からの課題の報酬は翌朝に受け取り。ショートを見ずに寝られた朝は最大15分（残高{{
-          balanceCap()
-        }}まで）。
+        就寝1時間前からの課題の報酬は翌朝に受け取り。ショートを見ずに寝られた朝は最大{{
+          sleepBonus()
+        }}（残高{{ balanceCap() }}まで）。
       </p>
       @if (!sleepSet()) {
         <button mat-flat-button type="button" (click)="setSleep()" [disabled]="pending()">

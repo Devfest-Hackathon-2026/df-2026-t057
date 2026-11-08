@@ -30,6 +30,7 @@ export class CreditInfoDialog {
       dailyRewardCap: durationLabel(rules?.dailyRewardCapSeconds ?? 1200),
       registration: durationLabel(rules?.registrationRewardSeconds ?? 300),
       balanceCap: durationLabel(rules?.balanceCapSeconds ?? 1800),
+      dailyRefill: durationLabel(rules?.dailyRefillSeconds ?? 600),
       dailyLimit: durationLabel(wallet?.policy.dailyLimitSeconds ?? 1800),
       choices: (rules?.viewingChoicesSeconds ?? [300, 600])
         .map((seconds) => durationLabel(seconds))

@@ -204,6 +204,9 @@ export class AssistantCardView {
       current.wake === card.sleep.wake
     );
   });
+  protected readonly sleepBonus = computed(() =>
+    durationLabel(this.wallet.value()?.rules.sleepBonusSeconds ?? 900),
+  );
   protected readonly balanceCap = computed(() =>
     durationLabel(this.wallet.value()?.rules.balanceCapSeconds ?? 1800),
   );

@@ -113,6 +113,9 @@ export class SettingsPage {
   protected readonly settings = inject(SettingsStore);
   protected readonly profile = inject(ProfileStore);
   protected readonly wallet = inject(WalletStore);
+  protected readonly sleepBonus = computed(() =>
+    durationLabel(this.wallet.value()?.rules.sleepBonusSeconds ?? 900),
+  );
   protected readonly sleep = inject(SleepStore);
   protected readonly shortcut = inject(ShortcutStore);
   protected readonly calendar = inject(CalendarStore);
