@@ -81,7 +81,8 @@ test('snooze commit, settings and responsive layout', async ({ page, api }) => {
   // 夜に実行すると、サンプルの予定が翌日や翌週になる。それぞれの予定の日を開いて確かめる。
   for (const task of (await api.tasks()).items) {
     await page.goto(`/calendar?date=${tokyoDate(task.plan.start)}`);
-    await expect(home.calendar.getByText(task.title)).toBeVisible();
+    // 日をまたぐ予定は週表示で2日に分かれて出るので、最初の1つを見る。
+    await expect(home.calendar.getByText(task.title).first()).toBeVisible();
   }
   await page.goto('/calendar');
   await expect(home.credit).toHaveText('25分');

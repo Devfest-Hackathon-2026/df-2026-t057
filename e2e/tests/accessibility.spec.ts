@@ -28,7 +28,8 @@ test.describe('main screens', () => {
     const [task] = (await api.tasks()).items;
     // 夜に実行すると3時間後の作業は翌日になるため、作成した予定の日を開く。
     await page.goto(`/calendar?date=${tokyoDate(task?.plan.start ?? '')}`);
-    await expect(workspace(page).calendar.getByText('検査用のレポート')).toBeVisible();
+    // 日をまたぐ予定は週表示で2日に分かれて出るので、最初の1つを見る。
+    await expect(workspace(page).calendar.getByText('検査用のレポート').first()).toBeVisible();
     await expectAccessibleInBothSchemes(page);
     await expectReflow(page);
   });
