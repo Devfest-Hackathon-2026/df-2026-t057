@@ -35,12 +35,29 @@ type fakeCalendar struct {
 	duplicate bool
 	patchErr  error
 	watchErr  error
+	// watchOnce が true なら、watchErr を1回だけ返す。
+	watchOnce bool
 	watches   []WatchRequest
 	stopped   []string
 	patches   int
+	// reminders はカレンダーごとの既定の通知（何分前か）。remindersErr を返すと書き換えに失敗する。
+	reminders    map[string][]int
+	remindersErr error
 }
 
-func newFakeCalendar() *fakeCalendar { return &fakeCalendar{events: map[string]Event{}} }
+func newFakeCalendar() *fakeCalendar {
+	return &fakeCalendar{events: map[string]Event{}, reminders: map[string][]int{}}
+}
+
+func (f *fakeCalendar) SetDefaultReminders(_ context.Context, calendarID string, minutes []int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.remindersErr != nil {
+		return f.remindersErr
+	}
+	f.reminders[calendarID] = slices.Clone(minutes)
+	return nil
+}
 
 func (f *fakeCalendar) touch(e Event) Event {
 	f.etag++
@@ -152,8 +169,11 @@ func (f *fakeCalendar) ListEvents(_ context.Context, _, syncToken, _ string) (Ev
 func (f *fakeCalendar) Watch(_ context.Context, _ string, req WatchRequest) (Watch, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.watchErr != nil {
-		return Watch{}, f.watchErr
+	if err := f.watchErr; err != nil {
+		if f.watchOnce {
+			f.watchErr = nil
+		}
+		return Watch{}, err
 	}
 	f.watches = append(f.watches, req)
 	return Watch{ResourceID: "res-" + req.ChannelID, Expires: req.Expires}, nil

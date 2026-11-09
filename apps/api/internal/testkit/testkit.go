@@ -84,7 +84,8 @@ func (p *FakePlanner) Adjust(context.Context, string, task.AdjustRequest) ([]tas
 
 type lines struct{}
 
-func (lines) AppOpenLine(context.Context, string, string) (string, error) { return "", nil }
+func (lines) NoticeLine(context.Context, string, string) (string, error)      { return "", nil }
+func (lines) BalanceZeroLine(context.Context, string, string) (string, error) { return "", nil }
 
 // New は now の時点の、メモリの保存先で組み立てた World を作る。AI は使えない（逆算の計画になる）。
 func New(t testing.TB, now time.Time) *World {
@@ -113,7 +114,7 @@ func NewWithBackend(t testing.TB, now time.Time, backend store.Backend) *World {
 	w.Work = worksession.New(w.Runner, w.Clock, w.IDs, w.Tasks, w.Wallet)
 	w.Viewing = viewing.New(w.Runner, w.Clock, w.Wallet, w.Nights)
 	w.Records = records.New(w.Clock, w.Profiles, w.Tasks, w.Wallet, w.Viewing)
-	w.Shortcut = shortcut.New(w.Runner, w.Clock, w.Tasks, w.Profiles, lines{}, "http://app.test", w.Log)
+	w.Shortcut = shortcut.New(w.Runner, w.Clock, w.Tasks, w.Wallet, w.Profiles, lines{}, "http://app.test", w.Log)
 	return w
 }
 

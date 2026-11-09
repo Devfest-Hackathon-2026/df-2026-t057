@@ -334,62 +334,98 @@ export const web: WebMessages = {
     overlay: {
       progress: 'Tour progress',
       skip: 'Skip',
-      begin: 'Take the tour',
+      begin: 'Start tutorial',
       close: 'Close',
       addTask: 'Add a task',
       end: 'End',
       back: 'Back',
       next: 'Next',
+      connect: 'Connect Google Calendar',
+      connecting: 'Opening Google…',
+      download: 'Open the release page',
+      opensInNewTab: ' (opens in a new tab)',
     },
     steps: {
       welcome: {
         title: 'Welcome to DOPAGAKI',
-        body: [
-          'DOPAGAKI plans your work backward from your deadlines, and the more you work, the more time you get for short videos.',
-          'All you need to remember: add a task, then start when you get a notification. This 1-minute tour shows you around.',
+        body: ['Add your tasks, and the more you work on them, the more Shorts time you earn.'],
+      },
+      google: {
+        title: 'Connect Google Calendar',
+        required: [
+          'Your task events go into a dedicated "DOPAGAKI" calendar.',
+          "You can't continue until it's connected.",
         ],
+        connected: ['Connected. Events go into the DOPAGAKI calendar.'],
+        unavailable: ["Google Calendar can't be connected here, so you can continue."],
       },
       add: {
-        title: 'Start by adding one task',
-        fields:
-          'You only enter three things: task name, deadline, and time needed. Pick the deadline from a calendar and a list of times.',
-        reward: (registration: string) =>
-          `Just adding a task gives you +${registration} of viewing.`,
+        title: 'Start by adding a task',
+        fields: 'Enter the task name, deadline, and time needed.',
+        reward: (registration: string) => `Adding a task earns you ${registration} of Shorts.`,
       },
       next: {
         title: 'Your start time is set for you',
-        body: [
-          'Your work plan, worked out backward from the deadline, appears here.',
-          'When it is time, you get a notification. Press "Start" to start the timer.',
-        ],
+        body: ['Work is planned back from the deadline and shown here.'],
+      },
+      notify: {
+        title: "You'll get a reminder on time",
+        body: ['It reaches you even while you watch Shorts.', 'Press Start to run the work timer.'],
       },
       credit: {
         title: 'Time you can watch today',
         reward: (work: string, reward: string) =>
-          `Log your work to get ${reward} of viewing for every ${work}.`,
-        extension: 'When you watch YouTube Shorts, the Chrome extension uses this time.',
+          `Every ${work} of work adds ${reward} of viewing.`,
+      },
+      extension: {
+        title: 'The Chrome extension spends it',
+        body: ['It only counts down while you watch YouTube Shorts.'],
+      },
+      extensionInstall: {
+        title: 'Get the Chrome extension',
+        missing: [
+          'Download the ZIP from the release page and unzip it.',
+          'Keep the unzipped folder.',
+        ],
+        detected: (version: string) => [
+          `Extension ${version} is loaded.`,
+          'Get new versions from the release page too.',
+        ],
+      },
+      extensionLoad: {
+        title: 'Load it into Chrome',
+        body: [
+          'Open chrome://extensions, turn on Developer mode, and load the unzipped "extension" folder.',
+        ],
+      },
+      extensionConnect: {
+        title: 'Connect the extension',
+        body: [
+          'In the extension popup, choose "Connect the extension with Google".',
+          'Pick the same account as here.',
+        ],
       },
       calendar: {
-        title: 'Check your plans on the calendar',
-        body: ['Select a plan to open its details, edit it, or adjust its time.'],
+        title: 'Check your plan on the calendar',
+        body: ['Select an event to open its details, edit it, or adjust the time.'],
       },
       assistant: {
-        title: 'You can also just describe it',
+        title: 'You can also just ask',
         body: [
-          'Write something like "Report due Friday, about 2 hours" and a draft plan is made for you.',
-          'Nothing is added until you review and confirm it.',
+          'Write "report by Friday, about 2 hours" and get a draft plan.',
+          'Nothing is saved until you confirm.',
         ],
       },
       settings: {
         title: 'Settings can wait',
         body: [
-          'Everything works as is. Once you are used to it, setting up "Night cutoff (bedtime)" and "Google integration" is handy.',
-          'You can replay this tour anytime from "Guide" at the top right.',
+          'Later, set your bedtime to mark the end of the day.',
+          'Open this guide again from Guide.',
         ],
       },
       ready: {
         title: "You're all set",
-        body: ["Let's start by adding one task for this week."],
+        body: ['Try adding one task for this week.'],
       },
     },
     setupStatus: {
@@ -601,25 +637,46 @@ export const web: WebMessages = {
       unavailable: "Google integration isn't set up in this environment.",
       privacy: 'Data handling and deletion requests',
       logout: 'Sign out',
+      reminders: {
+        title: 'Event notifications',
+        lead: 'Choose how long before the start time Google Calendar notifies you. This also applies to events you add by hand.',
+        notChosen: "You haven't chosen yet, so Google Calendar's own setting is used.",
+        none: 'Save with nothing selected to turn notifications off.',
+        limit: (max: number) => ` Choose up to ${max}.`,
+        label: (minutes: number) => {
+          if (minutes === 0) return 'At the start time';
+          const days = Math.floor(minutes / 1440);
+          const hours = Math.floor((minutes % 1440) / 60);
+          const rest = minutes % 60;
+          const parts = [
+            days > 0 ? `${days} ${days === 1 ? 'day' : 'days'}` : '',
+            hours > 0 ? `${hours} ${hours === 1 ? 'hour' : 'hours'}` : '',
+            rest > 0 ? `${rest} min` : '',
+          ].filter((part) => part !== '');
+          return `${parts.join(' ')} before`;
+        },
+        save: 'Save notifications',
+        saving: 'Saving…',
+        saved: 'Notifications saved. Updating Google Calendar.',
+      },
     },
     shortcut: {
       title: 'iPhone Shortcut',
       issued: 'Key issued',
       description:
-        "When you open the YouTube app on your iPhone, you'll get a short note from your companion about your next task. It won't block anything.",
+        "If you keep the YouTube app open on your iPhone, your companion will notify you when your viewing time runs out or when it's time to start a task. It won't block YouTube.",
       showOnce: 'This key is shown only once. Paste it into your shortcut.',
       key: 'Connection key',
       copy: 'Copy',
       copied: 'Key copied',
       copyFailed: "Couldn't copy. Select the key and copy it manually.",
       howTo: 'How to set up the shortcut',
-      stepAutomation:
-        'In the Shortcuts app, go to Automation → App → YouTube, and choose "Is Opened"',
-      stepRunImmediately: 'Choose "Run Immediately" and create a new shortcut',
-      stepRequest: (url: string) =>
-        `"Get Contents of URL": URL ${url}, method POST, header Authorization = "Shortcut <key>" (your connection key)`,
-      stepNotify:
-        'Use "Get Dictionary Value" to get message, then "Show Notification" to display it',
+      stepAdd:
+        'Add the distributed "DOPAGAKI" and "DOPAGAKI-close" shortcuts and paste this key into each',
+      stepOpened:
+        'Go to Automation → New Automation → App → YouTube, "Is Opened", "Run Immediately" → DOPAGAKI',
+      stepClosed: 'Do the same with "Is Closed" and choose DOPAGAKI-close',
+      stepBlank: "If it isn't listed, choose New Blank Automation → Run Shortcut and pick it there",
       issuedAt: (date: string) =>
         `Issued ${date}. If you lose the key, issue a new one (the old key will stop working).`,
       issue: 'Issue key',

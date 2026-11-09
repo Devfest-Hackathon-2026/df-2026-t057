@@ -37,6 +37,12 @@
   h2 {
     margin: 0.75rem 0 0.5rem;
   }
+
+  // 説明は3行までと短いので、行末に「す。」だけが残らないよう、日本語は文節で折り返す
+  h2,
+  p {
+    word-break: auto-phrase;
+  }
 }
 
 .tour-count {
@@ -63,4 +69,13 @@
   .tour-card {
     transition: none;
   }
+}
+
+.tour-error {
+  margin: 0.5rem 0 0;
+  color: var(--mat-sys-error);
+}
+
+.tour-link {
+  margin-top: 0.25rem;
 }

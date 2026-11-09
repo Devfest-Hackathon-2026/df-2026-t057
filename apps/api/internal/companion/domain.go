@@ -174,10 +174,13 @@ func SummarizeSleep(st sleep.State, now time.Time, loc *time.Location) SleepSumm
 	return s
 }
 
-// OpenCounts は iPhone で YouTube アプリを開いた回数（ショートカットを設定している場合だけ）。
+// OpenCounts は iPhone で YouTube アプリを開いた回数と使った分数（ショートカットを設定している場合だけ）。
+// 分数は Shorts 以外の動画も含むので、視聴時間の残高とは別に、振り返りにだけ使う。
 type OpenCounts struct {
-	Today     int `json:"today"`
-	Last7Days int `json:"last7Days"`
+	Today            int `json:"today"`
+	Last7Days        int `json:"last7Days"`
+	MinutesToday     int `json:"minutesToday"`
+	MinutesLast7Days int `json:"minutesLast7Days"`
 }
 
 // Progress は進み具合の要約（相棒の一言と相談の get_progress で使う）。

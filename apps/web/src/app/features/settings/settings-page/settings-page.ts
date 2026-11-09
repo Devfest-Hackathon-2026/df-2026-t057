@@ -1,5 +1,6 @@
 import { SetupStatus } from '../../onboarding/setup-status';
 import { CalendarConflicts } from '../../calendar/calendar-conflicts';
+import { CalendarReminders } from '../../calendar/calendar-reminders';
 import { AccountTools } from '../account-tools';
 import {
   ChangeDetectionStrategy,
@@ -95,6 +96,7 @@ function toDailyLimit(seconds: number): DailyLimit {
   imports: [
     SetupStatus,
     CalendarConflicts,
+    CalendarReminders,
     AccountTools,
     DateTimePipe,
     DurationPipe,
@@ -148,7 +150,6 @@ export class SettingsPage {
   protected readonly limits: readonly DailyLimit[] = [600, 1200, 1800];
   protected readonly locales = locales;
   protected readonly localeNames = localeNames;
-  protected readonly shortcutUrl = `${location.origin}/api/shortcut/open`;
   protected readonly browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   protected readonly mainForm = new FormGroup({

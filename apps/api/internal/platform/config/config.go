@@ -147,7 +147,7 @@ func Load(getenv func(string) string) (Config, error) {
 		def    int
 	}{
 		{"AI_USER_PER_MINUTE", &c.AI.UserPerMinute, 5},
-		{"AI_USER_PER_DAY", &c.AI.UserPerDay, 30},
+		{"AI_USER_PER_DAY", &c.AI.UserPerDay, 100},
 		{"AI_GLOBAL_PER_MINUTE", &c.AI.GlobalPerMinute, 30},
 		{"AI_GLOBAL_PER_DAY", &c.AI.GlobalPerDay, 300},
 	}
