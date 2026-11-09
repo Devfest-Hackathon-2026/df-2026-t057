@@ -81,7 +81,11 @@ export class LaunchParams {
     if (this.handledTutorial) return;
     this.handledTutorial = true;
     const fromNotice = this.query.snooze !== undefined || this.query.notification !== undefined;
-    if (this.query.tutorial) {
+    const resume = this.tutorial.takeResume();
+    if (resume !== undefined) {
+      // Google の同意画面から戻った。連携の段階から案内を続ける。
+      this.tutorial.start(resume);
+    } else if (this.query.tutorial) {
       this.strip(['tutorial']);
       this.tutorial.start();
     } else if (this.auth.mode() === 'live' && !fromNotice && !this.tutorial.seen()) {

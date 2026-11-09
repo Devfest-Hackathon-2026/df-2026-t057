@@ -653,6 +653,17 @@ func (s *Server) DisconnectCalendar(ctx context.Context, _ oapi.DisconnectCalend
 	return oapi.DisconnectCalendar200JSONResponse(st), nil
 }
 
+func (s *Server) SetCalendarReminders(ctx context.Context, req oapi.SetCalendarRemindersRequestObject) (oapi.SetCalendarRemindersResponseObject, error) {
+	if req.Body == nil || req.Body.Minutes == nil {
+		return nil, apperr.Invalid("request.invalid", apperr.Field("minutes", "required"))
+	}
+	st, err := s.Calendar.SetReminders(ctx, uidFrom(ctx), req.Body.Minutes)
+	if err != nil {
+		return nil, err
+	}
+	return oapi.SetCalendarReminders200JSONResponse(st), nil
+}
+
 func (s *Server) CalendarWebhook(ctx context.Context, req oapi.CalendarWebhookRequestObject) (oapi.CalendarWebhookResponseObject, error) {
 	state := ""
 	if req.Params.XGoogResourceState != nil {

@@ -3,6 +3,7 @@ package calendar
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -678,5 +679,96 @@ func TestDisconnectSucceedsWhenTokenDeleteFails(t *testing.T) {
 	}
 	if e.connection().Connected {
 		t.Fatal("still connected")
+	}
+}
+
+func TestSetRemindersAppliesToTheDopagakiCalendar(t *testing.T) {
+	e := newEnv(t)
+	st, err := e.svc.Status(e.ctx, uid)
+	if err != nil || st.Reminders != nil {
+		t.Fatalf("reminders before setting: %+v %v", st, err)
+	}
+	e.connect()
+	e.mustDrain()
+	if _, ok := e.cal.reminders["cal-1"]; ok {
+		t.Fatal("reminders changed before the user chose them")
+	}
+	st, err = e.svc.SetReminders(e.ctx, uid, []int{300, 1440, 300})
+	if err != nil || !slices.Equal(st.Reminders, []int{1440, 300}) || st.Sync != SyncPending {
+		t.Fatalf("set: %+v %v", st, err)
+	}
+	e.mustDrain()
+	if got := e.cal.reminders["cal-1"]; !slices.Equal(got, []int{1440, 300}) {
+		t.Fatalf("google reminders: %v", got)
+	}
+	// 空にすると、通知を出さない。
+	if _, err := e.svc.SetReminders(e.ctx, uid, []int{}); err != nil {
+		t.Fatal(err)
+	}
+	e.mustDrain()
+	if got, ok := e.cal.reminders["cal-1"]; !ok || len(got) != 0 {
+		t.Fatalf("cleared reminders: %v %v", got, ok)
+	}
+}
+
+func TestSetRemindersValidatesAndNeedsTheIntegration(t *testing.T) {
+	e := newEnv(t)
+	if _, err := e.svc.SetReminders(e.ctx, uid, []int{1440}); !errors.Is(err, apperr.Conflict("calendar.not_connected")) {
+		t.Fatalf("before connect: %v", err)
+	}
+	e.connect()
+	e.mustDrain()
+	if _, err := e.svc.SetReminders(e.ctx, uid, []int{-5}); apperr.As(err).Code != "request.invalid" {
+		t.Fatalf("invalid: %v", err)
+	}
+	if c := e.connection(); c.RemindersSet {
+		t.Fatalf("invalid input was saved: %+v", c)
+	}
+	disabled := NewService(e.runner, e.clock, fakeIDs{}, e.outbox, Config{}, Deps{})
+	if _, err := disabled.SetReminders(e.ctx, uid, []int{60}); !errors.Is(err, apperr.Unavailable("calendar.unavailable")) {
+		t.Fatalf("disabled: %v", err)
+	}
+}
+
+func TestRemindersSurviveReconnectingToANewCalendar(t *testing.T) {
+	e := newEnv(t)
+	e.connect()
+	e.mustDrain()
+	if _, err := e.svc.SetReminders(e.ctx, uid, []int{1440, 300}); err != nil {
+		t.Fatal(err)
+	}
+	e.mustDrain()
+	st, err := e.svc.Disconnect(e.ctx, uid)
+	if err != nil || !slices.Equal(st.Reminders, []int{1440, 300}) {
+		t.Fatalf("after disconnect: %+v %v", st, err)
+	}
+	// 本人が DOPAGAKI のカレンダーを消していた。つなぎ直すと、新しいカレンダーにも同じ通知を設定する。
+	e.cal.watchErr = ErrEventGone
+	e.cal.watchOnce = true
+	e.connect()
+	e.mustDrain()
+	if got := e.cal.reminders["cal-2"]; !slices.Equal(got, []int{1440, 300}) {
+		t.Fatalf("new calendar reminders: %v (all %v)", got, e.cal.reminders)
+	}
+}
+
+func TestReminderFailureIsReportedAndRetried(t *testing.T) {
+	e := newEnv(t)
+	e.connect()
+	e.mustDrain()
+	e.cal.remindersErr = apperr.External("external.failed", errors.New("boom"))
+	if _, err := e.svc.SetReminders(e.ctx, uid, []int{60}); err != nil {
+		t.Fatal(err)
+	}
+	if errs := e.drain(); len(errs) == 0 {
+		t.Fatal("failure was not reported")
+	}
+	e.cal.remindersErr = nil
+	if _, err := e.svc.SetReminders(e.ctx, uid, []int{60}); err != nil {
+		t.Fatal(err)
+	}
+	e.mustDrain()
+	if got := e.cal.reminders["cal-1"]; !slices.Equal(got, []int{60}) {
+		t.Fatalf("reminders after retry: %v", got)
 	}
 }

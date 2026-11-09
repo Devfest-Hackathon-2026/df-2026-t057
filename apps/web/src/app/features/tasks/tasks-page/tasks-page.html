@@ -54,48 +54,6 @@
             {{ text().tasks.page.archive }}
           </button>
         }
-        <a
-          mat-icon-button
-          [attr.aria-label]="text().tasks.page.viewInCalendar"
-          [matTooltip]="text().tasks.page.viewInCalendar"
-          routerLink="/calendar"
-          [queryParams]="{ task: task.id, date: dateKey(task.plan.start) }"
-        >
-          <mat-icon>calendar_month</mat-icon>
-        </a>
-        @if (task.status === 'pending') {
-          <button
-            mat-icon-button
-            type="button"
-            [attr.aria-label]="text().tasks.page.edit"
-            [matTooltip]="text().tasks.page.edit"
-            (click)="actions.edit(task)"
-          >
-            <mat-icon>edit</mat-icon>
-          </button>
-        }
-        @if (task.status !== 'completed') {
-          <button
-            mat-icon-button
-            type="button"
-            [attr.aria-label]="text().tasks.page.adjust"
-            [matTooltip]="text().tasks.page.adjust"
-            (click)="actions.plan(task, 'adjust')"
-          >
-            <mat-icon>edit_calendar</mat-icon>
-          </button>
-        }
-        @if (task.status !== 'active') {
-          <button
-            mat-icon-button
-            type="button"
-            [attr.aria-label]="text().tasks.page.delete"
-            [matTooltip]="text().tasks.page.delete"
-            (click)="confirmDelete(task)"
-          >
-            <mat-icon>delete</mat-icon>
-          </button>
-        }
         @if (task.status !== 'completed') {
           <button
             mat-stroked-button
@@ -106,6 +64,44 @@
             {{ text().tasks.page.start }}
           </button>
         }
+        <!-- アイコンだけのボタンが並ぶと区別しにくいので、主な操作以外は名前つきのメニューにまとめる -->
+        <button
+          mat-icon-button
+          type="button"
+          [matMenuTriggerFor]="more"
+          [attr.aria-label]="text().tasks.page.moreActions(task.title)"
+          [matTooltip]="text().tasks.page.moreActions(task.title)"
+        >
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #more="matMenu" xPosition="before">
+          <a
+            mat-menu-item
+            routerLink="/calendar"
+            [queryParams]="{ task: task.id, date: dateKey(task.plan.start) }"
+          >
+            <mat-icon>calendar_month</mat-icon>
+            <span>{{ text().tasks.page.viewInCalendar }}</span>
+          </a>
+          @if (task.status === 'pending') {
+            <button mat-menu-item type="button" (click)="actions.edit(task)">
+              <mat-icon>edit</mat-icon>
+              <span>{{ text().tasks.page.edit }}</span>
+            </button>
+          }
+          @if (task.status !== 'completed') {
+            <button mat-menu-item type="button" (click)="actions.plan(task, 'adjust')">
+              <mat-icon>edit_calendar</mat-icon>
+              <span>{{ text().tasks.page.adjust }}</span>
+            </button>
+          }
+          @if (task.status !== 'active') {
+            <button mat-menu-item type="button" (click)="confirmDelete(task)">
+              <mat-icon>delete</mat-icon>
+              <span>{{ text().tasks.page.delete }}</span>
+            </button>
+          }
+        </mat-menu>
       </div>
     </li>
   } @empty {

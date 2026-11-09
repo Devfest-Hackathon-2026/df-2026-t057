@@ -1201,6 +1201,35 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/CalendarStatus' }
         default: { $ref: '#/components/responses/Problem' }
+  /calendar/reminders:
+    put:
+      tags: [calendar]
+      operationId: setCalendarReminders
+      summary: DOPAGAKI のカレンダーの既定の通知を変える
+      description: |
+        予定の開始（取りかかる時刻）の何分前に通知するかを保存し、Google カレンダーの DOPAGAKI のカレンダーの
+        既定の通知へ反映するジョブを積む。DOPAGAKI が作る予定と、本人が Google カレンダーで手入力した予定の両方に効く。
+        空の一覧は通知しない。重複は除き、早い順に並べて保存する。連携していなければ 409。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [minutes]
+              properties:
+                minutes:
+                  type: array
+                  maxItems: 5
+                  items: { type: integer, minimum: 0, maximum: 40320 }
+      responses:
+        '200':
+          description: 保存後の連携状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarStatus' }
+        default: { $ref: '#/components/responses/Problem' }
   /calendar/webhook:
     post:
       tags: [calendar]
@@ -2048,6 +2077,10 @@ components:
         lastSync: { type: string, format: date-time }
         conflicts: { type: integer }
         failedJobs: { type: integer, description: 再試行しても反映できなかったジョブの数 }
+        reminders:
+          type: array
+          items: { type: integer }
+          description: 本人が選んだ通知（予定の開始の何分前か、早い順）。選んでいなければ省く（Google の設定のまま）
 
     # ── realtime ──
     Resource:

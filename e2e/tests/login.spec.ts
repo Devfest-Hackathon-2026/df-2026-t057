@@ -25,22 +25,11 @@ test(
     await expect(page.getByRole('navigation', { name: 'メインメニュー' })).toHaveCount(0);
     await expect(page.getByRole('banner')).toHaveCount(0);
 
-    await page.getByRole('button', { name: '課題完了のサンプルを試す', exact: true }).click();
-    await expect(page.getByText('＋5分', { exact: true })).toBeVisible();
-    await expect(page.getByRole('status').filter({ hasText: 'サンプル' })).toContainText(
-      '視聴時間が5分増えます',
-    );
-    await page
-      .getByRole('button', { name: '課題完了のサンプルをもう一度見る', exact: true })
-      .click();
-    await expect(page.getByText('作業で ＋5分', { exact: true })).toBeVisible();
+    await expect(page.getByRole('img', { name: 'DOPAGAKI', exact: true })).toBeVisible();
+    await expect(page.getByText('課題を進めた分だけ、Shortsを楽しめる。')).toBeVisible();
+    await expect(page.getByRole('button')).toHaveCount(1);
     // ログイン前は、個人のデータを読みに行かない。
     expect(apiRequests).toEqual(['/api/config']);
-    await expect(page.getByRole('link', { name: 'プライバシーポリシー' })).toHaveAttribute(
-      'href',
-      '/privacy.html',
-    );
-
     await page.setViewportSize({ width: 320, height: 844 });
     await expectNoHorizontalScroll(page);
     await expect(page.getByRole('button', { name: 'Googleでログイン', exact: true })).toBeVisible();

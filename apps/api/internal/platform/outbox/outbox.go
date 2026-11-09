@@ -29,6 +29,8 @@ const (
 	KindSync        Kind = "calendar.sync"
 	// KindExport は計画の変更（予定の説明の DOPAGAKI ブロック）をまとめて書き直す。
 	KindExport Kind = "calendar.export"
+	// KindReminders は DOPAGAKI のカレンダーの既定の通知を、本人が選んだ設定に合わせる。
+	KindReminders Kind = "calendar.reminders"
 )
 
 // Status はジョブの状態。

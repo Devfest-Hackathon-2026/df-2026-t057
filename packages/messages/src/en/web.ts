@@ -296,32 +296,15 @@ export const web: WebMessages = {
   login: {
     screen: {
       headline: 'Turn your to-dos into your next treat.',
-      flowLabel: 'How DOPAGAKI works (sample)',
-      sampleTask: 'Report',
-      sampleStepRead: 'Read sources',
-      sampleStepWrite: 'Write draft',
-      sampleDone: 'Done!',
-      sampleTimerTotal: '/ 25 min',
-      sampleRewardEarned: '+5 min',
-      sampleRewardHint: '+5 min for work',
-      stepSplit: 'AI breaks tasks down',
-      stepTimer: 'Work with a timer',
-      stepShorts: 'Enjoy Shorts',
-      tryComplete: 'Try completing the sample task',
-      replayComplete: 'Replay the sample task completion',
-      complete: 'Done',
-      again: 'Again',
-      sampleExplanation: 'Working for 25 minutes adds 5 minutes of viewing time. This is a sample.',
+      description: 'Make progress on your tasks and earn time for Shorts.',
       signIn: 'Sign in with Google',
       signingIn: 'Signing in…',
       loading: 'Loading…',
-      platform: 'A task manager that works with a Chrome extension',
       continueInGoogle: 'Continue in the Google window.',
       checking: 'Checking sign-in status…',
       configFailed: "Couldn't load settings.",
       reload: 'Reload',
       close: 'Close',
-      privacy: 'Privacy Policy',
     },
   },
 
@@ -351,62 +334,72 @@ export const web: WebMessages = {
     overlay: {
       progress: 'Tour progress',
       skip: 'Skip',
-      begin: 'Take the tour',
+      begin: 'Start tutorial',
       close: 'Close',
       addTask: 'Add a task',
       end: 'End',
       back: 'Back',
       next: 'Next',
+      connect: 'Connect Google Calendar',
+      connecting: 'Opening Google…',
     },
     steps: {
       welcome: {
         title: 'Welcome to DOPAGAKI',
-        body: [
-          'DOPAGAKI plans your work backward from your deadlines, and the more you work, the more time you get for short videos.',
-          'All you need to remember: add a task, then start when you get a notification. This 1-minute tour shows you around.',
+        body: ['Add your tasks, and the more you work on them, the more Shorts time you earn.'],
+      },
+      google: {
+        title: 'Connect Google Calendar',
+        required: [
+          'Your task events go into a dedicated "DOPAGAKI" calendar.',
+          "You can't continue until it's connected.",
         ],
+        connected: ['Connected. Events go into the DOPAGAKI calendar.'],
+        unavailable: ["Google Calendar can't be connected here, so you can continue."],
       },
       add: {
-        title: 'Start by adding one task',
-        fields:
-          'You only enter three things: task name, deadline, and time needed. Pick the deadline from a calendar and a list of times.',
-        reward: (registration: string) =>
-          `Just adding a task gives you +${registration} of viewing.`,
+        title: 'Start by adding a task',
+        fields: 'Enter the task name, deadline, and time needed.',
+        reward: (registration: string) => `Adding a task earns you ${registration} of Shorts.`,
       },
       next: {
         title: 'Your start time is set for you',
-        body: [
-          'Your work plan, worked out backward from the deadline, appears here.',
-          'When it is time, you get a notification. Press "Start" to start the timer.',
-        ],
+        body: ['Work is planned back from the deadline and shown here.'],
+      },
+      notify: {
+        title: "You'll get a reminder on time",
+        body: ['It reaches you even while you watch Shorts.', 'Press Start to run the work timer.'],
       },
       credit: {
         title: 'Time you can watch today',
         reward: (work: string, reward: string) =>
-          `Log your work to get ${reward} of viewing for every ${work}.`,
-        extension: 'When you watch YouTube Shorts, the Chrome extension uses this time.',
+          `Every ${work} of work adds ${reward} of viewing.`,
+      },
+      extension: {
+        title: 'The Chrome extension spends it',
+        body: ['It only counts down while you watch YouTube Shorts.'],
       },
       calendar: {
-        title: 'Check your plans on the calendar',
-        body: ['Select a plan to open its details, edit it, or adjust its time.'],
+        title: 'Check your plan on the calendar',
+        body: ['Select an event to open its details, edit it, or adjust the time.'],
       },
       assistant: {
-        title: 'You can also just describe it',
+        title: 'You can also just ask',
         body: [
-          'Write something like "Report due Friday, about 2 hours" and a draft plan is made for you.',
-          'Nothing is added until you review and confirm it.',
+          'Write "report by Friday, about 2 hours" and get a draft plan.',
+          'Nothing is saved until you confirm.',
         ],
       },
       settings: {
         title: 'Settings can wait',
         body: [
-          'Everything works as is. Once you are used to it, setting up "Night cutoff (bedtime)" and "Google integration" is handy.',
-          'You can replay this tour anytime from "Guide" at the top right.',
+          'Later, set your bedtime to mark the end of the day.',
+          'Open this guide again from Guide.',
         ],
       },
       ready: {
         title: "You're all set",
-        body: ["Let's start by adding one task for this week."],
+        body: ['Try adding one task for this week.'],
       },
     },
     setupStatus: {
@@ -607,6 +600,28 @@ export const web: WebMessages = {
       unavailable: "Google integration isn't set up in this environment.",
       privacy: 'Data handling and deletion requests',
       logout: 'Sign out',
+      reminders: {
+        title: 'Event notifications',
+        lead: 'Choose how long before the start time Google Calendar notifies you. This also applies to events you add by hand.',
+        notChosen: "You haven't chosen yet, so Google Calendar's own setting is used.",
+        none: 'Save with nothing selected to turn notifications off.',
+        limit: (max: number) => ` Choose up to ${max}.`,
+        label: (minutes: number) => {
+          if (minutes === 0) return 'At the start time';
+          const days = Math.floor(minutes / 1440);
+          const hours = Math.floor((minutes % 1440) / 60);
+          const rest = minutes % 60;
+          const parts = [
+            days > 0 ? `${days} ${days === 1 ? 'day' : 'days'}` : '',
+            hours > 0 ? `${hours} ${hours === 1 ? 'hour' : 'hours'}` : '',
+            rest > 0 ? `${rest} min` : '',
+          ].filter((part) => part !== '');
+          return `${parts.join(' ')} before`;
+        },
+        save: 'Save notifications',
+        saving: 'Saving…',
+        saved: 'Notifications saved. Updating Google Calendar.',
+      },
     },
     shortcut: {
       title: 'iPhone Shortcut',
@@ -750,6 +765,7 @@ export const web: WebMessages = {
       edit: 'Edit task',
       adjust: 'Adjust schedule',
       delete: 'Delete task',
+      moreActions: (title: string) => `More actions for “${title}”`,
       start: 'Start',
       empty: 'No tasks yet',
       emptyCompleted: 'No completed tasks yet',

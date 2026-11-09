@@ -1,5 +1,6 @@
 import { SetupStatus } from '../../onboarding/setup-status';
 import { CalendarConflicts } from '../../calendar/calendar-conflicts';
+import { CalendarReminders } from '../../calendar/calendar-reminders';
 import { AccountTools } from '../account-tools';
 import {
   ChangeDetectionStrategy,
@@ -95,6 +96,7 @@ function toDailyLimit(seconds: number): DailyLimit {
   imports: [
     SetupStatus,
     CalendarConflicts,
+    CalendarReminders,
     AccountTools,
     DateTimePipe,
     DurationPipe,

@@ -1,9 +1,9 @@
 import type { Config } from '../support/api';
 import { expectAccessibleInBothSchemes } from '../support/a11y';
 import { hoursFromNow } from '../support/api';
-import { expect, test } from '../support/fixtures';
+import { expect, test, tokyoDate } from '../support/fixtures';
 import { expectReflow } from '../support/layout';
-import { expandPanel, workspace } from '../support/pages';
+import { expandPanel, taskAction, workspace } from '../support/pages';
 
 // 主な画面と、開いたダイアログを WCAG 2.2 AA で検査する（ライト・ダーク）。
 // 画面は 320px 幅（400% 拡大と同じ）と 720px 幅（200% 拡大と同じ）でも横スクロールを出さない。
@@ -24,8 +24,10 @@ test.describe('main screens', () => {
     });
   });
 
-  test('calendar', async ({ page }) => {
-    await page.goto('/calendar');
+  test('calendar', async ({ page, api }) => {
+    const [task] = (await api.tasks()).items;
+    // 夜に実行すると3時間後の作業は翌日になるため、作成した予定の日を開く。
+    await page.goto(`/calendar?date=${tokyoDate(task?.plan.start ?? '')}`);
     await expect(workspace(page).calendar.getByText('検査用のレポート')).toBeVisible();
     await expectAccessibleInBothSchemes(page);
     await expectReflow(page);
@@ -117,7 +119,7 @@ test.describe('dialogs', () => {
   test('task edit dialog', async ({ page, api }) => {
     await api.createTask({ title: '編集を検査する課題', deadline: hoursFromNow(3) });
     await page.goto('/tasks');
-    await page.getByRole('button', { name: '課題を編集', exact: true }).click();
+    await taskAction(page, '課題を編集');
     const dialog = page.getByRole('dialog', { name: '課題の内容を調整' });
     await dialog.getByRole('radio', { name: '手入力', exact: true }).click();
     await dialog.getByLabel('課題名', { exact: true }).fill('編集後の課題');
@@ -129,7 +131,7 @@ test.describe('dialogs', () => {
   test('plan dialog', async ({ page, api }) => {
     await api.createTask({ title: '予定を検査する課題', deadline: hoursFromNow(3) });
     await page.goto('/tasks');
-    await page.getByRole('button', { name: '予定を調整', exact: true }).click();
+    await taskAction(page, '予定を調整');
     const dialog = page.getByRole('dialog', { name: '予定を調整' });
     await expect(dialog.getByLabel('開始', { exact: true })).toBeVisible();
     await dialog.getByText(/手順（\d+件）/).click();
@@ -164,8 +166,8 @@ test.describe('dialogs', () => {
 
   test('tutorial', async ({ page }) => {
     await page.goto('/calendar?tutorial');
-    await page.getByRole('button', { name: '案内を見る', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'まずは課題を1つ登録' })).toBeVisible();
+    await page.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Googleカレンダーを連携' })).toBeVisible();
     await expectAccessibleInBothSchemes(page);
   });
 });

@@ -1,7 +1,8 @@
+import { hoursFromNow } from '../support/api';
 import { expectAccessibleInBothSchemes } from '../support/a11y';
-import { expect, test, tokyoLocalInput } from '../support/fixtures';
+import { expect, test, tokyoDate, tokyoLocalInput } from '../support/fixtures';
 import { expectNoHorizontalScroll } from '../support/layout';
-import { workspace } from '../support/pages';
+import { taskAction, workspace } from '../support/pages';
 
 test('deadline accepts typed minutes, keeps them after saving and rejects invalid edits', async ({
   page,
@@ -52,7 +53,7 @@ test('deadline accepts typed minutes, keeps them after saving and rejects invali
   const [task] = (await api.tasks()).items;
   expect(tokyoLocalInput(task?.deadline ?? '')).toMatch(/T12:17$/);
   await page.goto('/tasks');
-  await page.getByRole('button', { name: '課題を編集', exact: true }).click();
+  await taskAction(page, '課題を編集');
   const edit = page.getByRole('dialog', { name: '課題の内容を調整' });
   await edit.getByRole('radio', { name: '手入力', exact: true }).click();
   const savedTime = edit.getByRole('combobox', { name: '締切時刻', exact: true });
@@ -143,4 +144,48 @@ test('structured task details and simplified page headings fit narrow and enlarg
   await page.getByRole('button', { name: '課題を登録', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '課題を登録' });
   expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
+
+test('week view shows task names instead of times', async ({ page, api }) => {
+  const task = await api.createTask({
+    title: 'レポートの構成をまとめる',
+    deadline: hoursFromNow(5),
+    minutes: 30,
+  });
+  // 日曜の夜に実行すると予定が翌週になるので、予定の日を含む週を開く。
+  await page.goto(`/calendar?view=week&date=${tokyoDate(task.plan.start)}`);
+  const calendar = workspace(page).calendar;
+  const name = calendar.locator('.event-name').first();
+  await expect(name).toBeVisible();
+  // 時刻を省き、課題名を2行まで出す（省略記号で切らない）。
+  await expect(calendar.locator('.event-clock')).toHaveCount(0);
+  await expect(name).toHaveText('レポートの構成をまとめる');
+  const fits = await name.evaluate((element) => element.scrollHeight <= element.clientHeight + 1);
+  expect(fits).toBe(true);
+  // 日表示では時刻も出す。
+  await page.getByRole('radio', { name: '日', exact: true }).click();
+  await expect(workspace(page).calendar.locator('.event-clock').first()).toBeVisible();
+});
+
+test('task rows keep the main action and put the rest in a labeled menu', async ({ page, api }) => {
+  await api.createTask({ title: '操作をまとめる課題', deadline: hoursFromNow(5) });
+  await page.goto('/tasks');
+  const row = page.getByRole('list', { name: '課題一覧' }).getByRole('listitem').first();
+  await expect(row.getByRole('button', { name: 'はじめる', exact: true })).toBeVisible();
+  await expect(row.getByRole('button', { name: '課題を編集' })).toHaveCount(0);
+  await row.getByRole('button', { name: '「操作をまとめる課題」のそのほかの操作' }).click();
+  const items = page.getByRole('menuitem');
+  await expect(items).toHaveCount(4);
+  for (const [index, name] of [
+    'カレンダーで見る',
+    '課題を編集',
+    '予定を調整',
+    '課題を削除',
+  ].entries()) {
+    await expect(items.nth(index)).toHaveAccessibleName(name);
+  }
+  await page.keyboard.press('Escape');
+  await expect(items).toHaveCount(0);
+  await taskAction(page, '課題を削除', '操作をまとめる課題');
+  await expect(page.getByRole('dialog')).toBeVisible();
 });

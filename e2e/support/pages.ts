@@ -22,3 +22,17 @@ export async function expandPanel(page: Page, name: string | RegExp): Promise<Lo
   if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
   return header;
 }
+
+/**
+ * 課題一覧の行の「そのほかの操作」メニューから項目を選ぶ。
+ * `row` を省くと最初の行。編集・予定の調整・削除・カレンダーで見るは、このメニューにある。
+ */
+export async function taskAction(page: Page, item: string, row?: string | number): Promise<void> {
+  const rows = page.getByRole('list', { name: '課題一覧' }).getByRole('listitem');
+  const target =
+    typeof row === 'string'
+      ? rows.filter({ hasText: row })
+      : rows.nth(typeof row === 'number' ? row : 0);
+  await target.getByRole('button', { name: /のそのほかの操作$/ }).click();
+  await page.getByRole('menuitem', { name: item, exact: true }).click();
+}
