@@ -28,4 +28,4 @@ Chrome Web Store版ではなく、ZIPを展開して読み込む開発版です�
 APIの live モードは、環境変数 EXTENSION_IDS に書いた拡張IDからの要求だけを受け付けます。
 
 SHA256SUMS.txt は配布ZIPのSHA-256チェックサムです。
-配布元: https://github.com/a-sumikawa/devfest-2026/releases
+配布元: https://github.com/Devfest-Hackathon-2026/df-2026-t057/releases
