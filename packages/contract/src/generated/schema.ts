@@ -751,8 +751,42 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description iPhone で YouTube を開いたときにショートカットが呼ぶ。アカウントを作らない。 */
+        /** @description iPhone で YouTube アプリが前面に来たときにショートカットが呼ぶ。開いた時刻を記録するだけで、通知はしない。action が wait なら、ショートカットは waitSeconds だけ待ってから /shortcut/check を呼ぶ。アカウントを作らない。 */
         post: operations["openFromShortcut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shortcut/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description 待ち終わったショートカットが呼ぶ。その回がまだ開いたままで、持ち時間を使い切ったか課題を始める時刻になっていれば、通知する内容を返す。時刻が後ろにずれていれば待ち直させる。閉じた・新しく開き直した・通知済みなら何もしない。 */
+        post: operations["checkFromShortcut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shortcut/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description iPhone で YouTube アプリが前面から外れたときにショートカットが呼ぶ。直前に開いてから使った時間を振り返り用に記録するだけで、通知はしない。視聴時間の残高は変えない。アカウントを作らない。 */
+        post: operations["closeFromShortcut"];
         delete?: never;
         options?: never;
         head?: never;
@@ -897,6 +931,28 @@ export interface paths {
         put?: never;
         /** Google カレンダーの変更を今すぐ取り込む */
         post: operations["syncCalendar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calendar/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * DOPAGAKI のカレンダーの既定の通知を変える
+         * @description 予定の開始（取りかかる時刻）の何分前に通知するかを保存し、Google カレンダーの DOPAGAKI のカレンダーの
+         *     既定の通知へ反映するジョブを積む。DOPAGAKI が作る予定と、本人が Google カレンダーで手入力した予定の両方に効く。
+         *     空の一覧は通知しない。重複は除き、早い順に並べて保存する。連携していなければ 409。
+         */
+        put: operations["setCalendarReminders"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1341,10 +1397,32 @@ export interface components {
             createdAt?: string;
         };
         ShortcutOpen: {
-            title: string;
-            message: string;
+            /** @description この「開いた」の番号。/shortcut/check に渡す */
+            openId: string;
+            /**
+             * @description ショートカットの「もし」は文字列で比べるので文字列にする。none なら待たずに終わる
+             * @enum {string}
+             */
+            action: "wait" | "none";
+            /** @description 聞き直すまでの秒数（60〜900）。none なら 0 */
+            waitSeconds: number;
+        };
+        ShortcutCheck: {
+            /**
+             * @description notify なら title・message を通知する。wait なら waitSeconds だけ待って聞き直す
+             * @enum {string}
+             */
+            action: "notify" | "wait" | "none";
+            waitSeconds: number;
+            title?: string;
+            message?: string;
             /** Format: uri */
-            url: string;
+            url?: string;
+            /**
+             * @description yes なら通知のあとに url（DOPAGAKI）を開く。持ち時間を使い切ったとき
+             * @enum {string}
+             */
+            openApp: "yes" | "no";
         };
         /** @enum {string} */
         CompanionMoment: "notice" | "snooze" | "complete" | "balance_zero" | "app_open" | "night" | "morning";
@@ -1447,6 +1525,8 @@ export interface components {
             conflicts?: number;
             /** @description 再試行しても反映できなかったジョブの数 */
             failedJobs: number;
+            /** @description 本人が選んだ通知（予定の開始の何分前か、早い順）。選んでいなければ省く（Google の設定のまま） */
+            reminders?: number[];
         };
         /** @enum {string} */
         Resource: "profile" | "settings" | "tasks" | "workSession" | "wallet" | "viewing" | "sleep" | "shortcut" | "assistant" | "calendar";
@@ -2787,7 +2867,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 通知に表示する内容 */
+            /** @description 聞き直すまでの待ち時間 */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2795,6 +2875,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ShortcutOpen"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    checkFromShortcut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    openId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description ショートカットがすること */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortcutCheck"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    closeFromShortcut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 記録した */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };
@@ -3042,6 +3168,35 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description 取り込み後の連携状態 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setCalendarReminders: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    minutes: number[];
+                };
+            };
+        };
+        responses: {
+            /** @description 保存後の連携状態 */
             200: {
                 headers: {
                     [name: string]: unknown;

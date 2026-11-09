@@ -79,6 +79,9 @@ type Client interface {
 	// PatchEvent は etag が一致するときだけ書き換える（If-Match）。
 	PatchEvent(ctx context.Context, calendarID, eventID, etag string, p EventPatch) (Event, error)
 	DeleteEvent(ctx context.Context, calendarID, eventID string) error
+	// SetDefaultReminders はカレンダーの既定の通知（予定の開始の何分前か）を置き換える。空なら通知しない。
+	// DOPAGAKI が作る予定と、本人が Google カレンダーで手入力した予定の両方が、この既定の通知を使う。
+	SetDefaultReminders(ctx context.Context, calendarID string, minutes []int) error
 	// ListEvents は消された予定を含めて一覧する。syncToken が空なら最初から。
 	ListEvents(ctx context.Context, calendarID, syncToken, pageToken string) (EventPage, error)
 	Watch(ctx context.Context, calendarID string, req WatchRequest) (Watch, error)

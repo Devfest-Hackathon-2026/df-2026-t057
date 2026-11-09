@@ -37,9 +37,11 @@ type Sessions interface {
 	Get(ctx context.Context, tx *store.Tx, uid string) (*worksession.Session, error)
 }
 
-// AppOpens は iPhone で YouTube アプリを開いた回数（shortcut が実装する）。ショートカットを設定していなければ configured は false。
+// AppOpens は iPhone で YouTube アプリを開いた回数と使った分数（shortcut が実装する）。ショートカットを設定していなければ configured は false。
 type AppOpens interface {
 	AppOpenCounts(ctx context.Context, tx *store.Tx, uid string, now time.Time) (today, week int, configured bool, err error)
+	// AppUseMinutes は開いてから閉じるまでの分数（今日と直近7日）。
+	AppUseMinutes(ctx context.Context, tx *store.Tx, uid string, now time.Time) (today, week int, err error)
 }
 
 // CalendarStatus はカレンダー連携の状態と、予定と結び付いた課題（cmd/server で calendar を合わせる）。

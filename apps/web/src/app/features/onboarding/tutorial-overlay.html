@@ -36,26 +36,55 @@
           <p>{{ line }}</p>
         }
       </div>
+      @if (current()?.download) {
+        <a mat-stroked-button class="tour-link" [href]="releaseUrl" target="_blank" rel="noopener">
+          {{ text().onboarding.overlay.download }}
+          <span class="visually-hidden">{{ text().onboarding.overlay.opensInNewTab }}</span>
+        </a>
+      }
       <div class="tour-actions">
         <span class="tour-count">{{ index() + 1 }} / {{ steps().length }}</span>
         @if (isFirst()) {
-          <button mat-button type="button" (click)="finish()">
-            {{ text().onboarding.overlay.skip }}
-          </button>
+          @if (!mustConnect()) {
+            <button mat-button type="button" (click)="finish()">
+              {{ text().onboarding.overlay.skip }}
+            </button>
+          }
           <button mat-flat-button type="button" cdkFocusInitial (click)="go(1)">
             {{ text().onboarding.overlay.begin }}
           </button>
-        } @else if (isLast()) {
-          <button mat-button type="button" (click)="finish()">
-            {{ text().onboarding.overlay.close }}
+        } @else if (blocked()) {
+          <button mat-button type="button" (click)="go(-1)">
+            {{ text().onboarding.overlay.back }}
           </button>
+          <button
+            mat-flat-button
+            type="button"
+            cdkFocusInitial
+            (click)="connect()"
+            [disabled]="calendar.connect.pending()"
+          >
+            {{
+              calendar.connect.pending()
+                ? text().onboarding.overlay.connecting
+                : text().onboarding.overlay.connect
+            }}
+          </button>
+        } @else if (isLast()) {
+          @if (!mustConnect()) {
+            <button mat-button type="button" (click)="finish()">
+              {{ text().onboarding.overlay.close }}
+            </button>
+          }
           <button mat-flat-button type="button" cdkFocusInitial (click)="addTask()">
             {{ text().onboarding.overlay.addTask }}
           </button>
         } @else {
-          <button mat-button type="button" (click)="finish()">
-            {{ text().onboarding.overlay.end }}
-          </button>
+          @if (!mustConnect()) {
+            <button mat-button type="button" (click)="finish()">
+              {{ text().onboarding.overlay.end }}
+            </button>
+          }
           <button mat-button type="button" (click)="go(-1)">
             {{ text().onboarding.overlay.back }}
           </button>
@@ -64,6 +93,9 @@
           </button>
         }
       </div>
+      @if (calendar.connect.error(); as error) {
+        <p class="tour-error" role="alert">{{ error.message }}</p>
+      }
     </section>
   </div>
 }
