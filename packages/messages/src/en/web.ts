@@ -435,14 +435,18 @@ export const web: WebMessages = {
       selectedDay: (date: string, completed: number, earned: string) =>
         `${date} · ${completed} completed · viewing time +${earned}`,
       empty: "No completed tasks yet. Finish one and you'll see your first step here.",
-      practiceTitle: 'Practice taking breaks yourself',
-      practiceToday: (viewed: string, work: string) =>
-        `Watched today ${viewed} · Work logged ${work}`,
+      practiceTitle: 'Viewing and work review',
+      todayWork: 'Work logged today',
+      todayViewing: 'Shorts watched today',
+      practiceEmpty: 'Your work and viewing time will appear here once recorded.',
+      noStarts: 'No tasks started in the past 7 days.',
+      reviewTasks: 'Review tasks',
+      practiceDetails: 'Detailed records',
       practiceSessions: (viewing: number, ended: number) =>
         `Viewing sessions in the past 7 days: ${viewing} · Ended: ${ended}`,
       practiceExtensions: (extensions: number) => `Extensions chosen at a break: ${extensions}`,
       practiceOnTime: (onTime: number, started: number) =>
-        `Started within 5 minutes of the plan: ${onTime} / Tasks started: ${started}`,
+        `Past 7 days: ${onTime} / ${started} started tasks began within 5 minutes of the plan`,
       practiceMissed: (missed: number) => `Tasks not started after their planned start: ${missed}`,
       practicePrivacy: "Video content isn't saved. Days without records aren't counted.",
       practiceHistoryTitle: 'Daily records',
@@ -459,9 +463,16 @@ export const web: WebMessages = {
       loadMore: 'Show more',
       weeklyHeading: 'Weekly review',
       weeklyLead:
-        'Your activity since records began, counted in your time zone with weeks starting on Monday.',
-      weeklyRow: (start: string, starts: number, onTime: number, snoozes: number, work: string) =>
-        `Week of ${start}: ${starts} started (${onTime} on time) · ${snoozes} snoozed · ${work} of work`,
+        'Review work logged and starts within 5 minutes of the plan. Recorded weeks appear newest first, starting Monday. This week is still in progress.',
+      weekOf: (start: string) => `Week of ${start}`,
+      weeklyWork: 'Work logged',
+      weeklyOnTime: 'Started within 5 minutes of the plan',
+      startRatio: (onTime: number, starts: number) =>
+        starts > 0 ? `${onTime} / ${starts} starts` : 'No starts recorded',
+      weeklyDetails: 'Schedule adjustments',
+      weeklySnoozes: (count: number) => `${count} snoozes recorded as schedule adjustments.`,
+      weeklyEmpty:
+        'Weekly reviews will appear after you record task starts or work. Weeks without records are not evaluated.',
     },
   },
 

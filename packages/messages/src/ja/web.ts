@@ -429,19 +429,24 @@ export const web = {
       selectedDay: (date: string, completed: number, earned: string) =>
         `${date} · ${completed}件完了 · 視聴時間 ＋${earned}`,
       empty: 'まだ完了した課題はありません。ひとつ終えたら、ここに一歩が残ります。',
-      practiceTitle: '自分で区切る練習',
-      practiceToday: (viewed: string, work: string) => `今日の視聴 ${viewed}・記録した作業 ${work}`,
+      practiceTitle: '視聴と作業の振り返り',
+      todayWork: '今日の作業',
+      todayViewing: '今日のShorts視聴',
+      practiceEmpty: '作業や視聴の記録ができると、ここに表示されます。',
+      noStarts: '過去7日間に開始した課題はありません。',
+      reviewTasks: '課題一覧を確認',
+      practiceDetails: '詳しい記録',
       practiceSessions: (viewing: number, ended: number) =>
         `過去7日の視聴 ${viewing}回・終了 ${ended}回`,
       practiceExtensions: (extensions: number) => `区切りで選んだ延長 ${extensions}回`,
       practiceOnTime: (onTime: number, started: number) =>
-        `予定から5分以内に開始 ${onTime}件／開始した課題 ${started}件`,
+        `過去7日間、予定から5分以内に開始 ${onTime}／${started}件（開始した課題）`,
       practiceMissed: (missed: number) => `予定開始を過ぎた未開始の課題 ${missed}件`,
       practicePrivacy: '動画の内容は保存しません。記録のない日は数えません。',
       practiceHistoryTitle: '日ごとの記録',
       practiceHistoryDay: (date: string, viewed: string, work: string) =>
         `${date}：視聴 ${viewed}、確認した作業 ${work}`,
-      practiceHistoryEmpty: '明日以降、記録のある日がここに並びます。',
+      practiceHistoryEmpty: 'まだ作業や視聴の記録はありません。',
       loading: '記録を読み込み中',
       historyHeading: '最近の積み上げ',
       historyCaption: '視聴時間の履歴',
@@ -451,9 +456,17 @@ export const web = {
       loadingMore: '読み込んでいます…',
       loadMore: 'もっと見る',
       weeklyHeading: '週ごとの振り返り',
-      weeklyLead: '記録を開始してからの操作を、本人のタイムゾーン・月曜始まりで集計します。',
-      weeklyRow: (start: string, starts: number, onTime: number, snoozes: number, work: string) =>
-        `${start}：開始 ${starts}回（予定どおり ${onTime}回）· スヌーズ ${snoozes}回 · 作業 ${work}`,
+      weeklyLead:
+        '作業時間と、予定から5分以内に始めた回数を振り返ります。月曜始まりで、記録のある週を新しい順に表示します。今週は途中経過です。',
+      weekOf: (start: string) => `${start}からの週`,
+      weeklyWork: '記録した作業',
+      weeklyOnTime: '予定から5分以内に開始',
+      startRatio: (onTime: number, starts: number) =>
+        starts > 0 ? `${onTime}／${starts}回（開始した回数）` : '開始の記録なし',
+      weeklyDetails: '予定変更の記録',
+      weeklySnoozes: (count: number) => `スヌーズ ${count}回。予定を調整した回数です。`,
+      weeklyEmpty:
+        '課題の開始や作業が記録されると、週ごとに振り返れます。記録のない週は評価しません。',
     },
   },
 

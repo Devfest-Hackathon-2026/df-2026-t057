@@ -102,51 +102,73 @@
     }
   </section>
 
-  <details class="card disclosure">
-    <summary>{{ text().records.page.practiceTitle }}</summary>
+  <section class="card reflection" aria-labelledby="reflection-title">
+    <h2 id="reflection-title">{{ text().records.page.practiceTitle }}</h2>
+    @if (wallet.load.error(); as error) {
+      <div class="error" role="alert">
+        <span>{{ error.message }}</span>
+        <button mat-button type="button" (click)="wallet.refresh()">
+          {{ text().records.page.reload }}
+        </button>
+      </div>
+    }
     @if (wallet.value(); as current) {
+      @if (current.policy.workSeconds > 0 || current.policy.viewedSeconds > 0) {
+        <dl class="metrics">
+          <div>
+            <dt>{{ text().records.page.todayWork }}</dt>
+            <dd>{{ current.policy.workSeconds | duration }}</dd>
+          </div>
+          <div>
+            <dt>{{ text().records.page.todayViewing }}</dt>
+            <dd>{{ current.policy.viewedSeconds | duration }}</dd>
+          </div>
+        </dl>
+      } @else {
+        <p class="empty">{{ text().records.page.practiceEmpty }}</p>
+      }
+    }
+    @if (data.practice.startedTasks > 0) {
       <p>
         {{
-          text().records.page.practiceToday(
-            current.policy.viewedSeconds | duration,
-            current.policy.workSeconds | duration
+          text().records.page.practiceOnTime(data.practice.onTimeStarts, data.practice.startedTasks)
+        }}
+      </p>
+    } @else {
+      <p class="hint">{{ text().records.page.noStarts }}</p>
+    }
+    @if (data.practice.missedStarts > 0) {
+      <p>{{ text().records.page.practiceMissed(data.practice.missedStarts) }}</p>
+      <a mat-stroked-button routerLink="/tasks">{{ text().records.page.reviewTasks }}</a>
+    }
+    <details class="disclosure nested">
+      <summary>{{ text().records.page.practiceDetails }}</summary>
+      <p>
+        {{
+          text().records.page.practiceSessions(
+            data.practice.viewingSessions,
+            data.practice.endedSessions
           )
         }}
       </p>
-    }
-    <p>
-      {{
-        text().records.page.practiceSessions(
-          data.practice.viewingSessions,
-          data.practice.endedSessions
-        )
-      }}
-    </p>
-    <p>{{ text().records.page.practiceExtensions(data.practice.extensions) }}</p>
-    <p>
-      {{
-        text().records.page.practiceOnTime(data.practice.onTimeStarts, data.practice.startedTasks)
-      }}
-    </p>
-    <p>{{ text().records.page.practiceMissed(data.practice.missedStarts) }}</p>
-    <p class="hint">{{ text().records.page.practicePrivacy }}</p>
-    <details class="disclosure nested">
-      <summary>{{ text().records.page.practiceHistoryTitle }}</summary>
-      @for (day of data.practice.history; track day.date) {
+      <p>{{ text().records.page.practiceExtensions(data.practice.extensions) }}</p>
+      <p class="hint">{{ text().records.page.practicePrivacy }}</p>
+      <h3>{{ text().records.page.practiceHistoryTitle }}</h3>
+      @for (day of practiceHistory(); track day.date) {
         <p>
           {{
             text().records.page.practiceHistoryDay(
-              day.date,
+              longDay(day.date),
               day.viewedSeconds | duration,
               day.workSeconds | duration
             )
           }}
         </p>
       } @empty {
-        <p>{{ text().records.page.practiceHistoryEmpty }}</p>
+        <p class="empty">{{ text().records.page.practiceHistoryEmpty }}</p>
       }
     </details>
-  </details>
+  </section>
 } @else if (records.load.pending()) {
   <mat-progress-bar mode="indeterminate" [attr.aria-label]="text().records.page.loading" />
 }
@@ -201,20 +223,30 @@
   }
 </section>
 
-<section aria-labelledby="weekly-heading">
-  <h2 id="weekly-heading">{{ text().records.page.weeklyHeading }}</h2>
-  <p>{{ text().records.page.weeklyLead }}</p>
-  @for (w of records.value()?.weeks ?? []; track w.start) {
-    <p>
-      {{
-        text().records.page.weeklyRow(
-          longDay(w.start),
-          w.starts,
-          w.onTime,
-          w.snoozes,
-          w.workSeconds | duration
-        )
-      }}
-    </p>
-  }
-</section>
+@if (records.value()) {
+  <section class="card weekly" aria-labelledby="weekly-heading">
+    <h2 id="weekly-heading">{{ text().records.page.weeklyHeading }}</h2>
+    <p class="hint">{{ text().records.page.weeklyLead }}</p>
+    @for (week of recordedWeeks(); track week.start) {
+      <article class="week">
+        <h3>{{ text().records.page.weekOf(longDay(week.start)) }}</h3>
+        <dl class="metrics">
+          <div>
+            <dt>{{ text().records.page.weeklyWork }}</dt>
+            <dd>{{ week.workSeconds | duration }}</dd>
+          </div>
+          <div>
+            <dt>{{ text().records.page.weeklyOnTime }}</dt>
+            <dd>{{ text().records.page.startRatio(week.onTime, week.starts) }}</dd>
+          </div>
+        </dl>
+        <details class="disclosure nested">
+          <summary>{{ text().records.page.weeklyDetails }}</summary>
+          <p>{{ text().records.page.weeklySnoozes(week.snoozes) }}</p>
+        </details>
+      </article>
+    } @empty {
+      <p class="empty">{{ text().records.page.weeklyEmpty }}</p>
+    }
+  </section>
+}

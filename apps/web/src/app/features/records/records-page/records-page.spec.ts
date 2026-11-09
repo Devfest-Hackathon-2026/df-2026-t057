@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import type { LedgerEntry, Records } from '@dopagaki/contract';
 import { FakeBackend, flush, provideFakeBackend } from '../../../../testing/fake-backend';
@@ -58,7 +59,9 @@ describe('RecordsPage', () => {
       .on('GET', '/records', { body: records })
       .on('GET', '/wallet/ledger', { body: { entries } })
       .on('GET', '/wallet', { body: wallet() });
-    TestBed.configureTestingModule({ providers: provideFakeBackend(backend) });
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), ...provideFakeBackend(backend)],
+    });
     const fixture = TestBed.createComponent(RecordsPage);
     await flush();
     await fixture.whenStable();
@@ -81,5 +84,88 @@ describe('RecordsPage', () => {
     expect(rows[1]).toContain('睡眠の報酬');
     expect(rows[1]).toContain('＋5分');
     expect(rows[2]).toContain('−2分');
+  });
+  it('今日の時間と開始の母数を表示し、詳細は折りたたむ', async () => {
+    const current = wallet();
+    current.policy.workSeconds = 1500;
+    current.policy.viewedSeconds = 600;
+    const backend = new FakeBackend()
+      .on('GET', '/records', {
+        body: { ...records, practice: { ...records.practice, missedStarts: 1 } },
+      })
+      .on('GET', '/wallet/ledger', { body: { entries: [] } })
+      .on('GET', '/wallet', { body: current });
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), ...provideFakeBackend(backend)],
+    });
+    const fixture = TestBed.createComponent(RecordsPage);
+    await flush();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const review = element.querySelector('.reflection');
+    expect(review?.textContent).toContain('視聴と作業の振り返り');
+    expect(review?.querySelector('.metrics')?.textContent).toContain('25分');
+    expect(review?.querySelector('.metrics')?.textContent).toContain('10分');
+    expect(review?.textContent).toContain('1／2件');
+    expect(review?.querySelector('a')?.getAttribute('href')).toBe('/tasks');
+    expect(review?.querySelector('details')?.open).toBe(false);
+  });
+
+  it('未記録を成功やゼロの週として並べず、記録した週は新しい順に表示する', async () => {
+    const data: Records = {
+      ...records,
+      practice: {
+        ...records.practice,
+        startedTasks: 0,
+        onTimeStarts: 0,
+        missedStarts: 0,
+        history: [{ date: '2026-11-08', viewedSeconds: 0, workSeconds: 0 }],
+      },
+      weeks: [
+        { start: '2026-10-19', starts: 0, onTime: 0, snoozes: 0, workSeconds: 0 },
+        { start: '2026-10-26', starts: 2, onTime: 1, snoozes: 0, workSeconds: 1500 },
+        { start: '2026-11-02', starts: 0, onTime: 0, snoozes: 1, workSeconds: 0 },
+      ],
+    };
+    const backend = new FakeBackend()
+      .on('GET', '/records', { body: data })
+      .on('GET', '/wallet/ledger', { body: { entries: [] } })
+      .on('GET', '/wallet', { body: wallet() });
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), ...provideFakeBackend(backend)],
+    });
+    const fixture = TestBed.createComponent(RecordsPage);
+    await flush();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.reflection')?.textContent).toContain(
+      '作業や視聴の記録ができると',
+    );
+    expect(element.querySelector('.reflection')?.textContent).toContain(
+      '過去7日間に開始した課題はありません',
+    );
+    expect(element.querySelector('.reflection a')).toBeNull();
+    const weeks = element.querySelectorAll('.week');
+    expect(weeks).toHaveLength(2);
+    expect(weeks[0]?.textContent).toContain('11月2日からの週');
+    expect(weeks[0]?.textContent).toContain('開始の記録なし');
+    expect(weeks[1]?.textContent).toContain('1／2回');
+    expect(weeks[1]?.textContent).toContain('25分');
+  });
+
+  it('週の記録がない場合は案内を表示する', async () => {
+    const backend = new FakeBackend()
+      .on('GET', '/records', { body: { ...records, weeks: [] } })
+      .on('GET', '/wallet/ledger', { body: { entries: [] } })
+      .on('GET', '/wallet', { body: wallet() });
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), ...provideFakeBackend(backend)],
+    });
+    const fixture = TestBed.createComponent(RecordsPage);
+    await flush();
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.weekly')?.textContent).toContain(
+      '記録のない週は評価しません',
+    );
   });
 });

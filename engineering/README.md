@@ -8,6 +8,8 @@
 
 ## 読む順番
 
+- [視聴・作業と週ごとの振り返り](records-reflection.md)
+
 | 文書 | 内容 |
 |---|---|
 | [Terraformへの移行](terraform-2026-11-08.md) | 本番のGoogle Cloudの設定の棚卸し、管理する範囲、既存リソースの取り込みとapplyの結果、残りの作業 |
