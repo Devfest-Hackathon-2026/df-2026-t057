@@ -986,7 +986,7 @@ export interface paths {
         /**
          * @description 変更の通知（Server-Sent Events）。データ本体は送らない。各イベントの `data` は `ChangeEvent` の JSON。
          *     接続した直後に、すべてのリソースの現在の版を送る。15秒ごとにコメント行を送って接続を保つ。
-         *     EventSource はヘッダーを付けられないので、ブラウザーからは `token` クエリで ID トークンを渡してよい。
+         *     認証は Authorization ヘッダーで行う。ID トークンを URL のクエリに含めない。
          */
         get: operations["subscribeEvents"];
         put?: never;
@@ -3246,10 +3246,7 @@ export interface operations {
     };
     subscribeEvents: {
         parameters: {
-            query?: {
-                /** @description `Authorization` の代わりに使う ID トークン（EventSource 用） */
-                token?: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
