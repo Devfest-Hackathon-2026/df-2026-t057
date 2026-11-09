@@ -52,7 +52,10 @@ test.describe('main screens', () => {
   test('records', async ({ page }) => {
     await page.goto('/records');
     await expect(page.getByRole('group', { name: '日別の完了記録' })).toBeVisible();
-    await page.getByText('自分で区切る練習', { exact: true }).click();
+    await page
+      .getByRole('region', { name: '視聴と作業の振り返り' })
+      .getByText('詳しい記録', { exact: true })
+      .click();
     await expectAccessibleInBothSchemes(page);
     await expectReflow(page);
   });
