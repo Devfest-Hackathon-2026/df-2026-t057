@@ -339,6 +339,8 @@ export const web = {
       next: '次へ',
       connect: 'Googleカレンダーを連携',
       connecting: '連携の画面を開いています…',
+      download: '配布ページを開く',
+      opensInNewTab: '（新しいタブで開く）',
     },
     steps: {
       welcome: {
@@ -378,6 +380,29 @@ export const web = {
       extension: {
         title: 'Chrome拡張がこの時間を使います',
         body: ['YouTubeショートを見ている間だけ、ここから減っていきます。'],
+      },
+      extensionInstall: {
+        title: 'Chrome拡張を入手',
+        missing: [
+          '配布ページからZIPを取得し、展開します。',
+          '展開したフォルダーは消さずに残します。',
+        ],
+        detected: (version: string) => [
+          `拡張 ${version} が読み込まれています。`,
+          '新しい版も配布ページから入手します。',
+        ],
+      },
+      extensionLoad: {
+        title: 'Chromeに読み込む',
+        body: [
+          'chrome://extensions でデベロッパーモードをオンにし、展開した extension フォルダーを読み込みます。',
+        ],
+      },
+      extensionConnect: {
+        title: '拡張をアカウントに接続',
+        body: [
+          '拡張のポップアップの「Googleアカウントで拡張に接続」で、この画面と同じアカウントを選びます。',
+        ],
       },
       calendar: {
         title: '予定はカレンダーで確認',

@@ -342,6 +342,8 @@ export const web: WebMessages = {
       next: 'Next',
       connect: 'Connect Google Calendar',
       connecting: 'Opening Google…',
+      download: 'Open the release page',
+      opensInNewTab: ' (opens in a new tab)',
     },
     steps: {
       welcome: {
@@ -378,6 +380,30 @@ export const web: WebMessages = {
       extension: {
         title: 'The Chrome extension spends it',
         body: ['It only counts down while you watch YouTube Shorts.'],
+      },
+      extensionInstall: {
+        title: 'Get the Chrome extension',
+        missing: [
+          'Download the ZIP from the release page and unzip it.',
+          'Keep the unzipped folder.',
+        ],
+        detected: (version: string) => [
+          `Extension ${version} is loaded.`,
+          'Get new versions from the release page too.',
+        ],
+      },
+      extensionLoad: {
+        title: 'Load it into Chrome',
+        body: [
+          'Open chrome://extensions, turn on Developer mode, and load the unzipped "extension" folder.',
+        ],
+      },
+      extensionConnect: {
+        title: 'Connect the extension',
+        body: [
+          'In the extension popup, choose "Connect the extension with Google".',
+          'Pick the same account as here.',
+        ],
       },
       calendar: {
         title: 'Check your plan on the calendar',

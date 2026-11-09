@@ -15,18 +15,18 @@ test('?tutorial walks through the screen and ends on task registration', async (
   const card = page.locator('.tour-card');
   // この環境では Google カレンダーを連携できないので、連携の段階はそのまま進める。
   await expect(page.getByRole('dialog', { name: 'Googleカレンダーを連携' })).toBeVisible();
-  await expect(card).toContainText('2 / 11');
+  await expect(card).toContainText('2 / 14');
   await card.getByRole('button', { name: '次へ', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'まずは課題を登録' })).toBeVisible();
   // 強調している要素（課題を登録するボタン）の上に、明るい枠を出す。
   await expect(page.locator('.tour-spot')).toBeVisible();
-  await expect(card).toContainText('3 / 11');
+  await expect(card).toContainText('3 / 14');
   await card.getByRole('button', { name: '戻る', exact: true }).click();
   await card.getByRole('button', { name: '戻る', exact: true }).click();
   await expect(card.getByRole('heading')).toHaveText('DOPAGAKIへようこそ');
   await card.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
   // 1段ずつ、見出しが変わってから次を押す（遅い環境でクリックを取りこぼさない）。
-  for (let step = 0; step < 9; step++) {
+  for (let step = 0; step < 12; step++) {
     const title = (await card.getByRole('heading').textContent()) ?? '';
     await card.getByRole('button', { name: '次へ', exact: true }).click();
     await expect(card.getByRole('heading')).not.toHaveText(title);
@@ -109,9 +109,9 @@ test('every tutorial step explains itself in three lines or fewer', async ({ pag
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/calendar?tutorial');
     const card = page.locator('.tour-card');
-    await expect(card).toContainText('1 / 11');
-    for (let step = 1; step <= 11; step++) {
-      await expect(card).toContainText(`${step} / 11`);
+    await expect(card).toContainText('1 / 14');
+    for (let step = 1; step <= 14; step++) {
+      await expect(card).toContainText(`${step} / 14`);
       // 説明の段落ごとに、描画された行数（高さ ÷ 行の高さ）を足す。
       const lines = await card.locator('#tour-body p').evaluateAll((paragraphs) =>
         paragraphs.reduce((sum, paragraph) => {
@@ -121,7 +121,7 @@ test('every tutorial step explains itself in three lines or fewer', async ({ pag
       );
       const title = (await card.getByRole('heading').textContent()) ?? '';
       expect(lines, `${width}px「${title}」`).toBeLessThanOrEqual(3);
-      if (step < 11) {
+      if (step < 14) {
         await card
           .getByRole('button', { name: step === 1 ? 'チュートリアルを開始' : '次へ', exact: true })
           .click();

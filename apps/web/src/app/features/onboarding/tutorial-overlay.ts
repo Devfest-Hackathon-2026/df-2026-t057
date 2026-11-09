@@ -14,12 +14,13 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ConfigStore } from '../../core/config/config.store';
+import { ExtensionBridge } from '../../core/extension/extension-bridge';
 import { LocaleStore } from '../../core/i18n/locale.store';
 import { CalendarStore } from '../calendar/calendar.store';
 import { SettingsStore } from '../settings/settings.store';
 import { TaskActions } from '../tasks/task-actions';
 import { WalletStore } from '../wallet/wallet.store';
-import { type GoogleStepState, tutorialSteps } from './tutorial-steps';
+import { type GoogleStepState, extensionReleaseUrl, tutorialSteps } from './tutorial-steps';
 import { Tutorial } from './tutorial.service';
 
 interface Box {
@@ -80,6 +81,8 @@ export class TutorialOverlay {
   private readonly wallet = inject(WalletStore);
   private readonly actions = inject(TaskActions);
   private readonly config = inject(ConfigStore);
+  private readonly bridge = inject(ExtensionBridge);
+  protected readonly releaseUrl = extensionReleaseUrl;
   protected readonly calendar = inject(CalendarStore);
   private readonly card = viewChild<ElementRef<HTMLElement>>('card');
   protected readonly text = inject(LocaleStore).web;
@@ -102,6 +105,7 @@ export class TutorialOverlay {
       this.text().onboarding.steps,
       this.shared(),
       this.google(),
+      this.bridge.extensionVersion(),
     ),
   );
   /** 連携するまで、この段階から先へ進めず、案内も終えられない。 */
