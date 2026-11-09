@@ -36,6 +36,12 @@
           <p>{{ line }}</p>
         }
       </div>
+      @if (current()?.download) {
+        <a mat-stroked-button class="tour-link" [href]="releaseUrl" target="_blank" rel="noopener">
+          {{ text().onboarding.overlay.download }}
+          <span class="visually-hidden">{{ text().onboarding.overlay.opensInNewTab }}</span>
+        </a>
+      }
       <div class="tour-actions">
         <span class="tour-count">{{ index() + 1 }} / {{ steps().length }}</span>
         @if (isFirst()) {

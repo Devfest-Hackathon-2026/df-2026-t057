@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import type { CalendarStatus } from '@dopagaki/contract';
 import { FakeBackend, flush, provideFakeBackend } from '../../../testing/fake-backend';
 import { ConfigStore } from '../../core/config/config.store';
+import { ExtensionBridge } from '../../core/extension/extension-bridge';
 import { CalendarStore } from '../calendar/calendar.store';
 import { TaskActions } from '../tasks/task-actions';
 import { placeCard, TutorialOverlay } from './tutorial-overlay';
@@ -53,7 +54,7 @@ describe('TutorialOverlay', () => {
     expect(element.querySelector('[role="dialog"] h2')?.textContent).toContain(
       'DOPAGAKIへようこそ',
     );
-    expect(element.textContent).toContain('1 / 11');
+    expect(element.textContent).toContain('1 / 14');
     button(element, 'チュートリアルを開始').click();
     await detect();
     // 連携できない環境では、Google カレンダーの段階をそのまま進める。
@@ -67,7 +68,7 @@ describe('TutorialOverlay', () => {
     button(element, '戻る').click();
     await detect();
     expect(element.querySelector('h2')?.textContent).toContain('DOPAGAKIへようこそ');
-    for (let step = 0; step < 10; step += 1) {
+    for (let step = 0; step < 13; step += 1) {
       button(element, step === 0 ? 'チュートリアルを開始' : '次へ').click();
       await detect();
     }
@@ -92,6 +93,26 @@ describe('TutorialOverlay', () => {
     layer?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await detect();
     expect(tour.active()).toBe(false);
+  });
+
+  it('拡張の入手の段階で配布ページを示し、読み込まれていれば版を出す', async () => {
+    const { element, tour, detect } = await render();
+    tour.step.set(7);
+    await detect();
+    expect(element.querySelector('h2')?.textContent).toContain('Chrome拡張を入手');
+    expect(element.textContent).toContain('配布ページからZIPを取得し');
+    const link = element.querySelector<HTMLAnchorElement>('a.tour-link');
+    expect(link?.href).toBe('https://github.com/a-sumikawa/devfest-2026/releases/latest');
+    expect(link?.target).toBe('_blank');
+
+    TestBed.inject(ExtensionBridge).extensionVersion.set('0.3.0');
+    await detect();
+    expect(element.textContent).toContain('拡張 0.3.0 が読み込まれています。');
+
+    tour.step.set(8);
+    await detect();
+    expect(element.querySelector('h2')?.textContent).toContain('Chromeに読み込む');
+    expect(element.querySelector('a.tour-link')).toBeNull();
   });
 });
 
