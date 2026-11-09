@@ -2864,6 +2864,8 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @description 今回の相談で参照する本人の履歴ID。空配列は新しい相談、省略時は従来の履歴を使う。 */
+                    historyTurnIds?: components["schemas"]["Id"][];
                     text: string;
                     taskId?: components["schemas"]["Id"];
                 };

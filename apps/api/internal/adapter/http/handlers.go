@@ -553,7 +553,7 @@ func (s *Server) SendAssistantMessage(ctx context.Context, req oapi.SendAssistan
 		}
 		taskID = *req.Body.TaskId
 	}
-	turn, err := s.Assistant.Send(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Text, taskID)
+	turn, err := s.Assistant.Send(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Text, taskID, req.Body.HistoryTurnIds)
 	if err != nil {
 		return nil, err
 	}

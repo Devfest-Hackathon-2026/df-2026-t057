@@ -152,7 +152,7 @@ func (w *world) create(t *testing.T, uid, taskID string, in task.Input) task.Tas
 
 func (w *world) send(t *testing.T, uid, turnID, text, taskID string) Turn {
 	t.Helper()
-	turn, err := w.svc.Send(t.Context(), uid, turnID, text, taskID)
+	turn, err := w.svc.Send(t.Context(), uid, turnID, text, taskID, nil)
 	if err != nil {
 		t.Fatalf("send %s: %v", turnID, err)
 	}
@@ -189,7 +189,7 @@ func TestCardsRequireConfirmationAndReplayDoesNotCallModel(t *testing.T) {
 	if repeated.Cards[0].ID != create.ID || w.model.callCount() != 1 {
 		t.Fatal("a completed request was generated twice")
 	}
-	if _, err := w.svc.Send(t.Context(), "u", "first", "別の内容", ""); apperr.As(err).Code != "assistant.turn_conflict" {
+	if _, err := w.svc.Send(t.Context(), "u", "first", "別の内容", "", nil); apperr.As(err).Code != "assistant.turn_conflict" {
 		t.Fatalf("request id reuse: %v", err)
 	}
 	// カードを押して登録すると、カードの ID と版で1件だけ登録される。
@@ -212,16 +212,16 @@ func TestCardsRequireConfirmationAndReplayDoesNotCallModel(t *testing.T) {
 func TestSendValidatesTextAndAvailability(t *testing.T) {
 	w := newWorld(t, reply("ok"))
 	for text, code := range map[string]string{"  ": "required", strings.Repeat("あ", MaxTextRunes+1): "too_long"} {
-		_, err := w.svc.Send(t.Context(), "u", "x", text, "")
+		_, err := w.svc.Send(t.Context(), "u", "x", text, "", nil)
 		if e := apperr.As(err); e.Code != "request.invalid" || e.Fields[0].Field != "text" || e.Fields[0].Code != code {
 			t.Fatalf("%q: %v", code, err)
 		}
 	}
-	if _, err := w.svc.Send(t.Context(), "u", "x", strings.Repeat("あ", MaxTextRunes), ""); err != nil {
+	if _, err := w.svc.Send(t.Context(), "u", "x", strings.Repeat("あ", MaxTextRunes), "", nil); err != nil {
 		t.Fatalf("max length: %v", err)
 	}
 	w.svc.Model = nil
-	if _, err := w.svc.Send(t.Context(), "u", "y", "相談", ""); apperr.As(err).Code != "ai.unavailable" {
+	if _, err := w.svc.Send(t.Context(), "u", "y", "相談", "", nil); apperr.As(err).Code != "ai.unavailable" {
 		t.Fatalf("demo: %v", err)
 	}
 	if turns, _ := w.svc.List(t.Context(), "u"); len(turns) != 1 {
@@ -308,7 +308,7 @@ func TestLeaseAllowsOneWorkerAndHistoryKeepsTwenty(t *testing.T) {
 	if winners.Load() != 1 {
 		t.Fatalf("%d workers won the lease", winners.Load())
 	}
-	if _, err := w.svc.Send(t.Context(), "u", "another", "相談", ""); apperr.As(err).Code != "assistant.busy" {
+	if _, err := w.svc.Send(t.Context(), "u", "another", "相談", "", nil); apperr.As(err).Code != "assistant.busy" {
 		t.Fatalf("lease did not block another request: %v", err)
 	}
 	pending := Turn{ID: "request", Text: "相談", Status: StatusReady, Reply: "ok"}
@@ -404,7 +404,7 @@ func TestSelectedTaskIsTheOwnedTaskByID(t *testing.T) {
 	if w.model.callCount() != 1 {
 		t.Fatal("replay regenerated the response")
 	}
-	if _, err := w.svc.Send(t.Context(), "u", "selection", "この予定を見直したい", "selected-a"); apperr.As(err).Code != "assistant.turn_conflict" {
+	if _, err := w.svc.Send(t.Context(), "u", "selection", "この予定を見直したい", "selected-a", nil); apperr.As(err).Code != "assistant.turn_conflict" {
 		t.Fatalf("same id with another task: %v", err)
 	}
 	foreign := w.send(t, "other", "foreign-selection", "この予定を見直したい", "selected-b")
@@ -511,7 +511,7 @@ func TestInvalidRepliesAndCardsFailTheTurn(t *testing.T) {
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w.model.script = tt.script
-			turn, err := w.svc.Send(t.Context(), "u", fmt.Sprintf("invalid-%d", i), "相談", "")
+			turn, err := w.svc.Send(t.Context(), "u", fmt.Sprintf("invalid-%d", i), "相談", "", nil)
 			if err != nil || turn.Status != StatusError || turn.Failure != tt.failure || len(turn.Cards) != 0 {
 				t.Fatalf("%+v %v", turn, err)
 			}
@@ -526,7 +526,7 @@ func TestInvalidRepliesAndCardsFailTheTurn(t *testing.T) {
 func TestRateLimitSavesErrorTurnAndReturnsError(t *testing.T) {
 	limited := apperr.RateLimited("ai.rate_limited", 30*time.Second)
 	w := newWorld(t, func(ConsultInput, int, []ToolResult) (Step, error) { return Step{}, limited })
-	turn, err := w.svc.Send(t.Context(), "u", "limited", "相談", "")
+	turn, err := w.svc.Send(t.Context(), "u", "limited", "相談", "", nil)
 	if !errors.Is(err, limited) || turn.Status != StatusError || turn.Failure != "ai.rate_limited" {
 		t.Fatalf("limit: %+v %v", turn, err)
 	}
@@ -605,5 +605,29 @@ func TestTurnRoundTripsThroughStore(t *testing.T) {
 	back, err := doc.turn()
 	if err != nil || back.Cards[0].Draft.Changes[0].After.Reason != task.ReasonEditReplanned || back.Cards[0].Revision != 4 || back.Cards[1].Sleep.Wake != "07:00" || doc.RunID != "run" {
 		t.Fatalf("round trip: %+v %v", back, err)
+	}
+}
+
+func TestRegistrationHistoryScope(t *testing.T) {
+	w := newWorld(t, reply("確認します。"))
+	w.send(t, "u", "old", "前の課題の相談", "")
+	ids := []string{}
+	if _, err := w.svc.Send(t.Context(), "u", "new", "新しい課題", "", &ids); err != nil {
+		t.Fatal(err)
+	}
+	if len(w.model.lastInput().History) != 0 {
+		t.Fatal("new registration reused old history")
+	}
+	ids = []string{"new"}
+	if _, err := w.svc.Send(t.Context(), "u", "followup", "30分です", "", &ids); err != nil {
+		t.Fatal(err)
+	}
+	history := w.model.lastInput().History
+	if len(history) != 1 || history[0].User != "新しい課題" {
+		t.Fatalf("wrong follow-up history: %+v", history)
+	}
+	turns, err := w.svc.List(t.Context(), "u")
+	if err != nil || len(turns) != 3 {
+		t.Fatalf("saved history lost: %d %v", len(turns), err)
 	}
 }

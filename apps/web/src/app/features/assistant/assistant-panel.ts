@@ -38,6 +38,7 @@ const maxLength = 2000;
  */
 @Component({
   selector: 'app-assistant',
+  host: { '[class.embedded]': 'embedded()' },
   imports: [
     AssistantCardView,
     MatButtonModule,
@@ -60,6 +61,7 @@ export class AssistantPanel {
   /** 対象の課題を外せないようにする（TaskDialog）。 */
   readonly fixedTask = input(false);
   /** 下書きを持つ場所。 */
+  readonly embedded = input(false);
   readonly composer = input<ComposerKey>('workspace');
   readonly clearSelection = output();
   readonly openSettings = output();
@@ -75,6 +77,7 @@ export class AssistantPanel {
 
   protected readonly maxLength = maxLength;
   protected readonly aiEnabled = computed(() => this.config.config()?.features.ai === true);
+  protected readonly turns = computed(() => this.store.turnsFor(this.composer()));
   protected readonly draft = computed(() => this.store.draft(this.composer()));
   protected readonly sending = this.store.send.pending;
   protected readonly canSend = computed(() => {
@@ -92,7 +95,7 @@ export class AssistantPanel {
     // 会話が増えたら、下の方を見ていたときだけ一番下までスクロールする。
     let initial = true;
     effect(() => {
-      const count = this.store.turns().length;
+      const count = this.turns().length;
       untracked(() => {
         const element = this.thread()?.nativeElement;
         const follow =

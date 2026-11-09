@@ -1064,6 +1064,11 @@ paths:
               type: object
               required: [text]
               properties:
+                historyTurnIds:
+                  type: array
+                  maxItems: 20
+                  description: 今回の相談で参照する本人の履歴ID。空配列は新しい相談、省略時は従来の履歴を使う。
+                  items: { $ref: '#/components/schemas/Id' }
                 text: { type: string, minLength: 1, maxLength: 2000 }
                 taskId: { $ref: '#/components/schemas/Id' }
       responses:

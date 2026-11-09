@@ -178,3 +178,65 @@ test('manual content edits require a fresh preview after changing the form', asy
   expect(task.notes).toBe('確認後にさらに変更');
   expect((await api.wallet()).balanceSeconds).toBe(900);
 });
+
+test('new AI registrations keep the composer visible and start separate conversations', async ({
+  page,
+  api,
+}) => {
+  await page.setViewportSize({ width: 560, height: 760 });
+  await enableAi(page);
+  let number = 0;
+  const scopes: unknown[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/assistant/turns') && request.method() === 'POST') {
+      scopes.push((request.postDataJSON() as { historyTurnIds?: string[] }).historyTurnIds);
+    }
+  });
+  await mockAssistant(page, async () => {
+    number++;
+    const input = taskInput({
+      id: `fresh-${number}`,
+      title: `課題${number}`,
+      deadline: hoursFromNow(number * 4),
+    });
+    const preview = await api.previewNewTask(withoutId(input));
+    return {
+      reply: '登録案です。',
+      cards: [
+        {
+          kind: 'create',
+          id: `fresh-card-${number}`,
+          input,
+          preview: preview.plan,
+          revision: preview.revision,
+        },
+      ],
+    };
+  });
+  await page.goto('/tasks');
+  for (const i of [1, 2]) {
+    await page.getByRole('button', { name: '課題を登録', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: '課題を登録' });
+    await dialog.getByRole('radio', { name: 'AIに相談', exact: true }).click();
+    await expect(dialog.getByLabel('課題名', { exact: true })).toHaveCount(0);
+    await expect(dialog.locator('.turn')).toHaveCount(0);
+    const composer = dialog.getByLabel('相談する', { exact: true });
+    const send = dialog.getByRole('button', { name: '送信', exact: true });
+    await expect(composer).toBeInViewport({ ratio: 1 });
+    await expect(send).toBeInViewport({ ratio: 1 });
+    const before = await composer.boundingBox();
+    const thread = dialog.getByRole('log');
+    await thread.hover();
+    await page.mouse.wheel(0, 500);
+    await expect.poll(() => thread.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    expect((await composer.boundingBox())?.y).toBe(before?.y);
+    await composer.fill(`課題${i}を登録したい`);
+    await send.click();
+    await dialog.getByRole('button', { name: 'カレンダーに登録', exact: false }).click();
+    await expect(dialog.getByText('現在の予定', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: '閉じる', exact: true }).click();
+  }
+  expect((await api.tasks()).items.map((task) => task.id)).toEqual(['fresh-1', 'fresh-2']);
+  expect(scopes).toEqual([[], []]);
+  await expect(page.locator('.task-row mat-icon').filter({ hasText: 'more_horiz' })).toHaveCount(2);
+});
