@@ -102,7 +102,9 @@ describe('TutorialOverlay', () => {
     expect(element.querySelector('h2')?.textContent).toContain('Chrome拡張を入手');
     expect(element.textContent).toContain('配布ページからZIPを取得し');
     const link = element.querySelector<HTMLAnchorElement>('a.tour-link');
-    expect(link?.href).toBe('https://github.com/a-sumikawa/devfest-2026/releases/latest');
+    expect(link?.href).toBe(
+      'https://github.com/Devfest-Hackathon-2026/df-2026-t057/releases/latest',
+    );
     expect(link?.target).toBe('_blank');
 
     TestBed.inject(ExtensionBridge).extensionVersion.set('0.3.0');

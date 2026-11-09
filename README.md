@@ -2,7 +2,7 @@
 
 YouTube Shortsから、いま始める課題へ戻るためのChrome拡張と管理画面です。締切から逆算した作業予定を通知し、取り組んだ時間を記録すると視聴できる時間が増えます。
 
-公開環境：[DOPAGAKI](https://dopagaki-1032251723022.asia-northeast1.run.app/)。Googleログインして使います。Chrome拡張は[Releases](https://github.com/a-sumikawa/devfest-2026/releases/latest)から公開環境向けのZIPを取得できます。[導入手順](extension/INSTALL.txt)に従って読み込んでください。
+公開環境：[DOPAGAKI](https://dopagaki-1032251723022.asia-northeast1.run.app/)。Googleログインして使います。Chrome拡張は[Releases](https://github.com/Devfest-Hackathon-2026/df-2026-t057/releases/latest)から公開環境向けのZIPを取得できます。[導入手順](extension/INSTALL.txt)に従って読み込んでください。
 
 課題・予定・視聴時間はGoogleアカウントごとに保存します。カレンダー連携もログイン中と同じGoogleアカウントを使い、本人の専用DOPAGAKIカレンダーへ登録します。管理画面の「相談」で会話すると、編集できる予定カードや作業傾向の記憶候補が表示されます。登録・変更・記憶は本人が確認してから確定します。Google Chat連携は廃止しました。[一般ユーザー対応の現状](engineering/public-accounts.md)を参照してください。
 
