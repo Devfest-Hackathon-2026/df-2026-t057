@@ -627,20 +627,19 @@ export const web: WebMessages = {
       title: 'iPhone Shortcut',
       issued: 'Key issued',
       description:
-        "When you open the YouTube app on your iPhone, you'll get a short note from your companion about your next task. It won't block anything.",
+        "If you keep the YouTube app open on your iPhone, your companion will notify you when your viewing time runs out or when it's time to start a task. It won't block YouTube.",
       showOnce: 'This key is shown only once. Paste it into your shortcut.',
       key: 'Connection key',
       copy: 'Copy',
       copied: 'Key copied',
       copyFailed: "Couldn't copy. Select the key and copy it manually.",
       howTo: 'How to set up the shortcut',
-      stepAutomation:
-        'In the Shortcuts app, go to Automation → App → YouTube, and choose "Is Opened"',
-      stepRunImmediately: 'Choose "Run Immediately" and create a new shortcut',
-      stepRequest: (url: string) =>
-        `"Get Contents of URL": URL ${url}, method POST, header Authorization = "Shortcut <key>" (your connection key)`,
-      stepNotify:
-        'Use "Get Dictionary Value" to get message, then "Show Notification" to display it',
+      stepAdd:
+        'Add the distributed "DOPAGAKI" and "DOPAGAKI-close" shortcuts and paste this key into each',
+      stepOpened:
+        'Go to Automation → New Automation → App → YouTube, "Is Opened", "Run Immediately" → DOPAGAKI',
+      stepClosed: 'Do the same with "Is Closed" and choose DOPAGAKI-close',
+      stepBlank: "If it isn't listed, choose New Blank Automation → Run Shortcut and pick it there",
       issuedAt: (date: string) =>
         `Issued ${date}. If you lose the key, issue a new one (the old key will stop working).`,
       issue: 'Issue key',

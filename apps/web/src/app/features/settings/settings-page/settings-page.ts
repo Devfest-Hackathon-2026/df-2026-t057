@@ -150,7 +150,6 @@ export class SettingsPage {
   protected readonly limits: readonly DailyLimit[] = [600, 1200, 1800];
   protected readonly locales = locales;
   protected readonly localeNames = localeNames;
-  protected readonly shortcutUrl = `${location.origin}/api/shortcut/open`;
   protected readonly browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   protected readonly mainForm = new FormGroup({

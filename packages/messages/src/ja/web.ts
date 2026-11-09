@@ -613,19 +613,18 @@ export const web = {
       title: 'iPhoneのショートカット',
       issued: '接続キー発行済み',
       description:
-        'iPhoneのYouTubeアプリを開いたときに、次の課題に触れた相棒の一言を通知で出します。止めたりはしません。',
+        'iPhoneでYouTubeアプリを開いたままにしていると、持ち時間を使い切ったときや課題を始める時刻に、相棒が通知します。YouTubeは止めません。',
       showOnce: 'この接続キーは今だけ表示します。ショートカットに貼り付けてください。',
       key: '接続キー',
       copy: 'コピー',
       copied: '接続キーをコピーしました',
       copyFailed: 'コピーできませんでした。キーを選択してコピーしてください。',
       howTo: 'ショートカットの作り方',
-      stepAutomation:
-        'ショートカットアプリ →「オートメーション」→「App」→ YouTube、「開いている」を選ぶ',
-      stepRunImmediately: '「すぐに実行」を選び、新規ショートカットを作る',
-      stepRequest: (url: string) =>
-        `「URLの内容を取得」：URL に ${url}、方法 POST、ヘッダに Authorization ＝「Shortcut 接続キー」（Shortcut <key>）`,
-      stepNotify: '「辞書の値を取得」で message を取り出し、「通知を表示」で表示する',
+      stepAdd: '配布された「DOPAGAKI」と「DOPAGAKI-close」を追加し、それぞれにこのキーを貼る',
+      stepOpened:
+        '「オートメーション」→「新規オートメーション」→「アプリ」→ YouTube・「開いている」・「すぐに実行」→ DOPAGAKI',
+      stepClosed: '同じように「閉じている」で DOPAGAKI-close を選ぶ',
+      stepBlank: '候補に出ないときは「新規の空のオートメーション」→「ショートカットを実行」で選ぶ',
       issuedAt: (date: string) =>
         `${date} に発行しました。キーをなくしたときは再発行してください（古いキーは使えなくなります）。`,
       issue: '接続キーを発行',
