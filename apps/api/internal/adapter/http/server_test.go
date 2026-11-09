@@ -185,10 +185,58 @@ func TestAuthAndOrigin(t *testing.T) {
 	}
 }
 
+// URL に載ったトークンを認証に使わない。期限内の架空トークンでも拒否する。
+func TestEventsRejectsQueryToken(t *testing.T) {
+	srv, _ := newServer(t, config.ModeLive)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/api/events?token=good", nil)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	if res.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("query token accepted: %d", res.StatusCode)
+	}
+}
+
+func TestEventsHeaderAndCookieAuthentication(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		mode          config.Mode
+		header, value string
+	}{
+		{"live bearer", config.ModeLive, "Authorization", "Bearer good"},
+		{"demo cookie", config.ModeDemo, "Cookie", "dopagaki_demo=0123456789abcdef0123456789abcdef"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv, _ := newServer(t, tc.mode)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/api/events", nil)
+			req.Header.Set(tc.header, tc.value)
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = res.Body.Close() }()
+			if res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "text/event-stream" {
+				t.Fatalf("events: %d %v", res.StatusCode, res.Header)
+			}
+			line, err := bufio.NewReader(res.Body).ReadString('\n')
+			if err != nil || !strings.HasPrefix(line, "data: ") {
+				t.Fatalf("initial event: %q %v", line, err)
+			}
+		})
+	}
+}
+
 func TestEventsStreamSendsInitialRevisions(t *testing.T) {
 	srv, w := newServer(t, config.ModeDemo)
 	call(t, srv, "POST", "/api/tasks", taskBody, "Idempotency-Key", "events-001")
-	req, _ := http.NewRequestWithContext(context.Background(), "GET", srv.URL+"/api/events?token="+strings.TrimPrefix(demoAuth, "Demo "), nil)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", srv.URL+"/api/events", nil)
+	req.Header.Set("Authorization", demoAuth)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	res, err := http.DefaultClient.Do(req.WithContext(ctx))

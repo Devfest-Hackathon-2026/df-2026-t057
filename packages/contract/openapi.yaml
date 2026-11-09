@@ -1258,12 +1258,7 @@ paths:
       description: |
         変更の通知（Server-Sent Events）。データ本体は送らない。各イベントの `data` は `ChangeEvent` の JSON。
         接続した直後に、すべてのリソースの現在の版を送る。15秒ごとにコメント行を送って接続を保つ。
-        EventSource はヘッダーを付けられないので、ブラウザーからは `token` クエリで ID トークンを渡してよい。
-      parameters:
-        - name: token
-          in: query
-          description: '`Authorization` の代わりに使う ID トークン（EventSource 用）'
-          schema: { type: string }
+        認証は Authorization ヘッダーで行う。ID トークンを URL のクエリに含めない。
       responses:
         '200':
           description: イベントの流れ

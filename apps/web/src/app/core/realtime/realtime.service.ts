@@ -11,13 +11,14 @@ import { Subject } from 'rxjs';
 import type { ChangeEvent, Resource } from '@dopagaki/contract';
 import { AccountScope } from '../auth/account-scope';
 import { AuthService } from '../auth/auth.service';
+import { FetchEventSource, type EventStream } from './fetch-event-source';
 
-/** EventSource の生成。テストでは偽物に差し替える。 */
-export type EventSourceFactory = (url: string) => EventSource;
+/** Authorization ヘッダーで SSE に接続する。テストでは偽物に差し替える。 */
+export type EventSourceFactory = (url: string, authorization?: string) => EventStream;
 
 export const EVENT_SOURCE_FACTORY = new InjectionToken<EventSourceFactory>('EventSourceFactory', {
   providedIn: 'root',
-  factory: () => (url) => new EventSource(url, { withCredentials: true }),
+  factory: () => (url, authorization) => new FetchEventSource(url, authorization),
 });
 
 const resources: readonly Resource[] = [
@@ -75,12 +76,12 @@ export class RealtimeService {
   private readonly changes = new Subject<ChangeEvent>();
   private readonly reconnects = new Subject<void>();
   private readonly latest = new Map<Resource, number>();
-  private source: EventSource | undefined;
+  private source: EventStream | undefined;
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private attempt = 0;
   /** 今のアカウントで一度でも接続できたか。2回目以降の接続は「つなぎ直し」。 */
   private connectedOnce = false;
-  private url: string | undefined;
+  private authorization: string | undefined;
 
   readonly changes$ = this.changes.asObservable();
   readonly reconnected$ = this.reconnects.asObservable();
@@ -90,11 +91,13 @@ export class RealtimeService {
     this.scope.onReset(() => {
       this.latest.clear();
       this.connectedOnce = false;
+      this.retarget(undefined);
     });
     effect(() => {
-      const url = this.targetUrl();
+      this.scope.epoch();
+      const authorization = this.targetAuthorization();
       untracked(() => {
-        this.retarget(url);
+        this.retarget(authorization);
       });
     });
     inject(DestroyRef).onDestroy(() => {
@@ -107,26 +110,26 @@ export class RealtimeService {
     return this.latest.get(resource);
   }
 
-  private targetUrl(): string | undefined {
+  private targetAuthorization(): string | undefined {
     if (!this.auth.signedIn()) return undefined;
-    if (this.auth.mode() === 'demo') return '/api/events';
+    if (this.auth.mode() === 'demo') return '';
     const token = this.auth.idToken();
     // ID トークンが更新されたら、新しいトークンでつなぎ直す。
-    return token ? `/api/events?token=${encodeURIComponent(token)}` : undefined;
+    return token ? `Bearer ${token}` : undefined;
   }
 
-  private retarget(url: string | undefined): void {
-    if (url === this.url) return;
-    this.url = url;
+  private retarget(authorization: string | undefined): void {
+    if (authorization === this.authorization) return;
+    this.authorization = authorization;
     this.close();
     this.attempt = 0;
-    if (url) this.open(url);
+    if (authorization !== undefined) this.open(authorization);
     else this.state.set('idle');
   }
 
-  private open(url: string): void {
+  private open(authorization: string): void {
     this.state.set('connecting');
-    const source = this.createSource(url);
+    const source = this.createSource('/api/events', authorization || undefined);
     this.source = source;
     source.onopen = () => {
       if (this.source !== source) return;
@@ -135,7 +138,7 @@ export class RealtimeService {
       if (this.connectedOnce) this.reconnects.next();
       this.connectedOnce = true;
     };
-    source.onmessage = (message: MessageEvent<unknown>) => {
+    source.onmessage = (message: { data: unknown }) => {
       if (this.source !== source) return;
       const event = parseChangeEvent(message.data);
       if (!event) return;
@@ -146,14 +149,14 @@ export class RealtimeService {
     };
     source.onerror = () => {
       if (this.source !== source) return;
-      // EventSource 自身の再接続に任せず、間隔を空けてつなぎ直す（401 のときは自動で再接続しないため）。
+      // 切断・HTTP エラーでは間隔を空けてつなぎ直す。トークン更新時は待たずに接続し直す。
       this.close();
       this.state.set('retrying');
       const delay = retryDelayMs(this.attempt);
       this.attempt += 1;
       this.retryTimer = setTimeout(() => {
         this.retryTimer = undefined;
-        if (this.url) this.open(this.url);
+        if (this.authorization !== undefined) this.open(this.authorization);
       }, delay);
     };
   }

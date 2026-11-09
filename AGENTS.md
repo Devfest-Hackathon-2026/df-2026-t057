@@ -163,6 +163,7 @@ Google CalendarとFirestoreをまたぐトランザクションはない。そ�
 ### リアルタイム同期：変更の通知だけをSSEで送る
 
 - `GET /api/events`（`text/event-stream`）で、`{ "resource": "wallet", "revision": 42 }` の形の通知を送る。データ本体は送らない。
+- 認証トークンは `Authorization` ヘッダーで渡す。URLのクエリには含めない。管理画面と拡張は `fetch` でストリームを読む。
 - APIは、Firestoreの `users/{uid}/meta` をsnapshot listenerで監視して通知を出す。Cloud Runのインスタンスが複数あっても同じように動く。
 - クライアントは通知を受けたら、そのリソースだけをRESTで取り直す。接続が切れていた間の変更は、つなぎ直したときに版番号を比べて取り直す。
 - 拡張のservice workerは停止させられるので、ずっと接続しておく前提にしない。YouTubeのタブや管理画面が開いている間だけ接続し、それ以外の間は `chrome.alarms` で定期的に取り直す。

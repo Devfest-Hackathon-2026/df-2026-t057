@@ -68,12 +68,15 @@ export class FakeBackend {
 /** 偽の EventSource。テストから `emit` で通知を送る。 */
 export class FakeEventSource {
   static instances: FakeEventSource[] = [];
-  onopen: ((event: Event) => void) | null = null;
-  onmessage: ((event: MessageEvent<unknown>) => void) | null = null;
-  onerror: ((event: Event) => void) | null = null;
+  onopen: (() => void) | null = null;
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+  onerror: (() => void) | null = null;
   closed = false;
 
-  constructor(readonly url: string) {
+  constructor(
+    readonly url: string,
+    readonly authorization?: string,
+  ) {
     FakeEventSource.instances.push(this);
   }
 
@@ -84,7 +87,7 @@ export class FakeEventSource {
   }
 
   open(): void {
-    this.onopen?.(new Event('open'));
+    this.onopen?.();
   }
 
   emit(data: unknown): void {
@@ -92,7 +95,7 @@ export class FakeEventSource {
   }
 
   fail(): void {
-    this.onerror?.(new Event('error'));
+    this.onerror?.();
   }
 
   close(): void {
@@ -126,7 +129,7 @@ export function provideFakeBackend(backend: FakeBackend): Provider[] {
     },
     {
       provide: EVENT_SOURCE_FACTORY,
-      useValue: (url: string) => new FakeEventSource(url) as unknown as EventSource,
+      useValue: (url: string, authorization?: string) => new FakeEventSource(url, authorization),
     },
   ];
 }
