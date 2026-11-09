@@ -131,7 +131,7 @@ func (s *Service) List(ctx context.Context, uid string) (turns []Turn, err error
 // Send は相談を送り、AI の返答を保存して返す。turnID はリクエストの Idempotency-Key。
 // 返答済みの相談を同じ ID で送ると、AI を呼ばずに同じ結果を返す。AI が失敗しても status=error の相談を返す（error は nil）。
 // 利用上限（ai.rate_limited）と AI が使えない（ai.unavailable）ときは、失敗した相談を保存してからそのエラーを返す。
-func (s *Service) Send(ctx context.Context, uid, turnID, text, taskID string) (Turn, error) {
+func (s *Service) Send(ctx context.Context, uid, turnID, text, taskID string, historyIDs *[]string) (Turn, error) {
 	text, err := ValidateText(text)
 	if err != nil {
 		return Turn{}, err
@@ -145,7 +145,7 @@ func (s *Service) Send(ctx context.Context, uid, turnID, text, taskID string) (T
 	}
 	consultCtx, cancel := context.WithTimeout(ctx, consultTimeout)
 	defer cancel()
-	snap, reply, cards, consultErr := s.consult(consultCtx, uid, turn)
+	snap, reply, cards, consultErr := s.consult(consultCtx, uid, turn, historyIDs)
 	if consultErr == nil {
 		turn = Succeed(turn, reply, cards)
 	} else {
@@ -260,10 +260,15 @@ func sameTime(a, b *time.Time) bool {
 }
 
 // consult は相談の材料を読み、AI と道具をやり取りして、返答とカードを作る。カードは何も保存しない。
-func (s *Service) consult(ctx context.Context, uid string, turn Turn) (Snapshot, string, []Card, error) {
+func (s *Service) consult(ctx context.Context, uid string, turn Turn, historyIDs *[]string) (Snapshot, string, []Card, error) {
 	snap, history, err := s.snapshot(ctx, uid)
 	if err != nil {
 		return Snapshot{}, "", nil, err
+	}
+	if historyIDs != nil {
+		history = slices.DeleteFunc(history, func(previous Turn) bool {
+			return !slices.Contains(*historyIDs, previous.ID)
+		})
 	}
 	in := ConsultInput{
 		Locale: snap.Profile.Locale, TimeZone: snap.Loc.String(), History: History(history, snap.Profile.ContextSince, turn.ID),

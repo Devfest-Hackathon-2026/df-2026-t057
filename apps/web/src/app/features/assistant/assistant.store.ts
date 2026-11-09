@@ -28,6 +28,7 @@ export class AssistantStore extends ResourceStore<readonly AssistantTurn[]> {
 
   /** 手元にだけある相談（送信中、または通信に失敗したもの）。 */
   private readonly local = signal<readonly DisplayTurn[]>([]);
+  private readonly dialogIds = signal<ReadonlySet<string> | null>(null);
   private readonly drafts = signal<Partial<Record<ComposerKey, string>>>({});
   /** 「この内容を覚える」で保存したカードの ID。 */
   readonly rememberedCards = signal<ReadonlySet<string>>(new Set());
@@ -54,8 +55,19 @@ export class AssistantStore extends ResourceStore<readonly AssistantTurn[]> {
 
   protected override onReset(): void {
     this.local.set([]);
+    this.dialogIds.set(null);
     this.drafts.set({});
     this.rememberedCards.set(new Set());
+  }
+
+  startDialog(fresh: boolean): void {
+    this.dialogIds.set(fresh ? new Set() : null);
+    this.setDraft('dialog', '');
+  }
+
+  turnsFor(composer: ComposerKey): readonly DisplayTurn[] {
+    const ids = composer === 'dialog' ? this.dialogIds() : null;
+    return ids ? this.turns().filter(({ turn }) => ids.has(turn.id)) : this.turns();
   }
 
   draft(key: ComposerKey): string {
@@ -79,7 +91,7 @@ export class AssistantStore extends ResourceStore<readonly AssistantTurn[]> {
     taskId: string | undefined,
     composer: ComposerKey,
   ): Promise<Outcome<AssistantTurn>> {
-    const last = this.turns().at(-1)?.turn;
+    const last = this.turnsFor(composer).at(-1)?.turn;
     const id =
       last?.status === 'error' && last.text === text && last.taskId === taskId
         ? last.id
@@ -98,6 +110,11 @@ export class AssistantStore extends ResourceStore<readonly AssistantTurn[]> {
     taskId: string | undefined,
     composer: ComposerKey,
   ): Promise<Outcome<AssistantTurn>> {
+    const ids = composer === 'dialog' ? this.dialogIds() : null;
+    const history = ids
+      ? { historyTurnIds: [...ids].filter((turnId) => turnId !== id).slice(-20) }
+      : {};
+    if (ids) this.dialogIds.set(new Set([...ids, id]));
     const pending: AssistantTurn = {
       id,
       text,
@@ -114,7 +131,7 @@ export class AssistantStore extends ResourceStore<readonly AssistantTurn[]> {
           requireData(
             this.api.POST('/assistant/turns', {
               params: { header: idempotent(id) },
-              body: taskId === undefined ? { text } : { text, taskId },
+              body: { text, ...history, ...(taskId === undefined ? {} : { taskId }) },
             }),
           ),
         (turn) => {

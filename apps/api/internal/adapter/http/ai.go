@@ -44,11 +44,11 @@ func (a AssistantTurns) List(ctx context.Context, uid string) ([]oapi.AssistantT
 }
 
 // Send は相談を送る。id は Idempotency-Key（仕様の Id の形を満たす）。
-func (a AssistantTurns) Send(ctx context.Context, uid, id, text, taskID string) (oapi.AssistantTurn, error) {
+func (a AssistantTurns) Send(ctx context.Context, uid, id, text, taskID string, historyIDs *[]string) (oapi.AssistantTurn, error) {
 	if err := checkID("Idempotency-Key", id); err != nil {
 		return oapi.AssistantTurn{}, err
 	}
-	t, err := a.Service.Send(ctx, uid, id, text, taskID)
+	t, err := a.Service.Send(ctx, uid, id, text, taskID, historyIDs)
 	if err != nil {
 		return oapi.AssistantTurn{}, err
 	}

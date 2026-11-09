@@ -138,6 +138,7 @@ export class TaskDialog {
   protected readonly extractError = signal<string | undefined>(undefined);
 
   constructor() {
+    this.assistant.startDialog(!this.editing);
     const task = this.task();
     if (task) {
       this.form.setValue({

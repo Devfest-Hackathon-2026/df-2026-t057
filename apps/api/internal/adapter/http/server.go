@@ -32,7 +32,7 @@ type Companion interface {
 // Assistant は AI 相談。
 type Assistant interface {
 	List(ctx context.Context, uid string) ([]oapi.AssistantTurn, error)
-	Send(ctx context.Context, uid, id, text, taskID string) (oapi.AssistantTurn, error)
+	Send(ctx context.Context, uid, id, text, taskID string, historyIDs *[]string) (oapi.AssistantTurn, error)
 }
 
 // Calendar は Google カレンダーとの連携。
@@ -188,6 +188,6 @@ func (assistantOff) List(context.Context, string) ([]oapi.AssistantTurn, error) 
 	return []oapi.AssistantTurn{}, nil
 }
 
-func (assistantOff) Send(context.Context, string, string, string, string) (oapi.AssistantTurn, error) {
+func (assistantOff) Send(context.Context, string, string, string, string, *[]string) (oapi.AssistantTurn, error) {
 	return oapi.AssistantTurn{}, apperr.Unavailable("ai.unavailable")
 }

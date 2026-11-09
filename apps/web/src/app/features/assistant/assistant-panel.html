@@ -15,7 +15,7 @@
           />
           <p>{{ text().assistant.panel.loading }}</p>
         </div>
-      } @else if (store.turns().length === 0) {
+      } @else if (turns().length === 0) {
         <div class="chat-welcome">
           <mat-icon class="welcome-icon">forum</mat-icon>
           <h2>{{ text().assistant.panel.welcome }}</h2>
@@ -31,7 +31,7 @@
       @if (store.serverCount() === 20) {
         <p class="note">{{ text().assistant.panel.recentOnly }}</p>
       }
-      @for (item of store.turns(); track item.turn.id) {
+      @for (item of turns(); track item.turn.id) {
         <article class="turn">
           <div class="user-message">
             @if (item.turn.taskId) {
@@ -90,6 +90,72 @@
           </button>
         </div>
       }
+      <details class="memory-disclosure">
+        <summary>{{ text().assistant.panel.settings }}</summary>
+        <p class="note">{{ text().assistant.panel.confirmBeforeSave }}</p>
+        <section class="memory-panel" aria-labelledby="memory-title">
+          <div class="memory-heading">
+            <mat-icon>psychology</mat-icon>
+            <h2 id="memory-title">{{ text().assistant.panel.memoryHeading }}</h2>
+          </div>
+          @if (editingMemory()) {
+            <p class="note">{{ text().assistant.panel.memoryEditNote }}</p>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>{{ text().assistant.panel.memoryLabel }}</mat-label>
+              <textarea matInput [formControl]="memory" rows="6" maxlength="2000"></textarea>
+            </mat-form-field>
+            @if (memoryError(); as message) {
+              <p class="error" role="alert">{{ message }}</p>
+            }
+            <div class="memory-actions">
+              <button
+                mat-button
+                type="button"
+                (click)="editingMemory.set(false)"
+                [disabled]="profile.save.pending()"
+              >
+                {{ text().assistant.common.cancel }}
+              </button>
+              <button
+                mat-stroked-button
+                type="button"
+                (click)="saveMemory()"
+                [disabled]="profile.save.pending()"
+              >
+                {{
+                  profile.save.pending()
+                    ? text().assistant.panel.saving
+                    : text().assistant.panel.save
+                }}
+              </button>
+            </div>
+          } @else {
+            <p class="known-context">
+              {{ profile.value()?.context || text().assistant.panel.memoryEmpty }}
+            </p>
+            <button mat-button type="button" (click)="editMemory()">
+              {{ text().assistant.panel.editMemory }}
+            </button>
+          }
+          <div class="calendar-status">
+            <mat-icon>calendar_month</mat-icon>
+            <div>
+              <strong>{{ text().assistant.common.googleCalendar }}</strong>
+              <p>
+                {{
+                  calendar.connected()
+                    ? text().assistant.panel.calendarConnected
+                    : text().assistant.panel.calendarDisconnected
+                }}
+              </p>
+            </div>
+          </div>
+          <button mat-stroked-button type="button" (click)="openSettings.emit()">
+            {{ text().assistant.panel.calendarSettings }}
+          </button>
+        </section>
+      </details>
+      <ng-content />
     </div>
 
     @if (selectedTask(); as task) {
@@ -142,68 +208,4 @@
       }
     </form>
   </section>
-
-  <details class="memory-disclosure">
-    <summary>{{ text().assistant.panel.settings }}</summary>
-    <p class="note">{{ text().assistant.panel.confirmBeforeSave }}</p>
-    <section class="memory-panel" aria-labelledby="memory-title">
-      <div class="memory-heading">
-        <mat-icon>psychology</mat-icon>
-        <h2 id="memory-title">{{ text().assistant.panel.memoryHeading }}</h2>
-      </div>
-      @if (editingMemory()) {
-        <p class="note">{{ text().assistant.panel.memoryEditNote }}</p>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>{{ text().assistant.panel.memoryLabel }}</mat-label>
-          <textarea matInput [formControl]="memory" rows="6" maxlength="2000"></textarea>
-        </mat-form-field>
-        @if (memoryError(); as message) {
-          <p class="error" role="alert">{{ message }}</p>
-        }
-        <div class="memory-actions">
-          <button
-            mat-button
-            type="button"
-            (click)="editingMemory.set(false)"
-            [disabled]="profile.save.pending()"
-          >
-            {{ text().assistant.common.cancel }}
-          </button>
-          <button
-            mat-stroked-button
-            type="button"
-            (click)="saveMemory()"
-            [disabled]="profile.save.pending()"
-          >
-            {{
-              profile.save.pending() ? text().assistant.panel.saving : text().assistant.panel.save
-            }}
-          </button>
-        </div>
-      } @else {
-        <p class="known-context">
-          {{ profile.value()?.context || text().assistant.panel.memoryEmpty }}
-        </p>
-        <button mat-button type="button" (click)="editMemory()">
-          {{ text().assistant.panel.editMemory }}
-        </button>
-      }
-      <div class="calendar-status">
-        <mat-icon>calendar_month</mat-icon>
-        <div>
-          <strong>{{ text().assistant.common.googleCalendar }}</strong>
-          <p>
-            {{
-              calendar.connected()
-                ? text().assistant.panel.calendarConnected
-                : text().assistant.panel.calendarDisconnected
-            }}
-          </p>
-        </div>
-      </div>
-      <button mat-stroked-button type="button" (click)="openSettings.emit()">
-        {{ text().assistant.panel.calendarSettings }}
-      </button>
-    </section>
-  </details>
 </div>
