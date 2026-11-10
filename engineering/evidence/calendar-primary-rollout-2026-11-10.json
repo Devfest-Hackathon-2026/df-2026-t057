@@ -1,0 +1,58 @@
+{
+  "revision": "dopagaki-00073-bef",
+  "traffic_percent": 100,
+  "main_commit": "4c1e1458bc8601217f49697ff981fa158f000753",
+  "feature_merge_commit": "e36df6d471f9c09869f90a29f90c487c00408f46",
+  "digest": "sha256:6548089e4945ed155b0a582e018d027176191b0d1fa38677828fdbdf9aa6e8ed",
+  "ai_quotas": {
+    "AI_USER_PER_MINUTE": "10",
+    "AI_USER_PER_DAY": "500",
+    "AI_GLOBAL_PER_MINUTE": "60",
+    "AI_GLOBAL_PER_DAY": "2000"
+  },
+  "firestore_pitr": "POINT_IN_TIME_RECOVERY_ENABLED",
+  "checked_at": "2026-11-10T15:03:36.271935+09:00",
+  "checks": [
+    {
+      "url": "https://dopagaki-1032251723022.asia-northeast1.run.app/api/health",
+      "status": 200
+    },
+    {
+      "url": "https://dopagaki-1032251723022.asia-northeast1.run.app/api/profile",
+      "status": 401
+    },
+    {
+      "url": "https://dopagaki-1032251723022.asia-northeast1.run.app/api/calendar/events?from=2026-11-10T00:00:00Z&to=2026-11-11T00:00:00Z",
+      "status": 401
+    },
+    {
+      "url": "https://dopagaki-auqpl4ga4q-an.a.run.app/api/health",
+      "status": 200
+    },
+    {
+      "url": "https://dopagaki-auqpl4ga4q-an.a.run.app/api/profile",
+      "status": 401
+    },
+    {
+      "url": "https://dopagaki-auqpl4ga4q-an.a.run.app/api/calendar/events?from=2026-11-10T00:00:00Z&to=2026-11-11T00:00:00Z",
+      "status": 401
+    }
+  ],
+  "oauth": {
+    "scope": "https://www.googleapis.com/auth/calendar.events.owned.readonly",
+    "declaration": "saved_after_explicit_user_approval",
+    "verification": "unverified",
+    "audience": "external",
+    "publishing_status": "production",
+    "unverified_user_cap": 100
+  },
+  "validation": {
+    "mocked_frontend_cases": 2,
+    "mocked_google_api": true,
+    "real_user_calendar_tested": false,
+    "light_and_dark_axe": "passed",
+    "viewport_width": 390,
+    "ci": "https://github.com/a-sumikawa/devfest-2026/actions/runs/42765319104",
+    "ci_conclusion": "success"
+  }
+}

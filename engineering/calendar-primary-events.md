@@ -25,7 +25,7 @@
 - `calendar.events.owned.readonly` が Google の審査で「機密」に当たるか。OAuth の同意画面の設定（スコープの宣言）にこのスコープを足す作業と合わせて、Google Cloud コンソールで確かめる。
 - 実際の Google アカウントで、主カレンダーの予定が表示されること。
 
-## 2026-11-10の本番反映準備
+## 2026-11-10の本番反映
 
 [PR #72](https://github.com/a-sumikawa/devfest-2026/pull/72)で、developへマージ済みのPR #54をmain `e36df6d471f9c09869f90a29f90c487c00408f46` へ取り込んだ。mainにあったAI上限の本番反映記録も保持している。
 
@@ -50,10 +50,28 @@
 
 mainの[CI](https://github.com/a-sumikawa/devfest-2026/actions/runs/42763948708)はAPI・frontend・本番イメージのスモークE2E・総合checkがすべて成功した。ただし実行中にREADMEのみの更新 `e3245f8a4131966a36d20f35c733d361944357fd` がmainへ入ったため、最新mainだけを配信するガードが働き、配信ジョブはスキップされた。コードの検査失敗ではない。
 
-README更新を保持し、承認済みの本番反映依頼に従って、再配信用PRのmainへのマージコミットに `[deploy]` を付けて最新mainからCI/CDを実行する。配信後のリビジョン・digest・HTTP応答の結果は確認後に追記する。現時点の稼働リビジョンは `dopagaki-00071-das`。
+README更新を保持し、[再配信用PR #73](https://github.com/a-sumikawa/devfest-2026/pull/73)を `[deploy]` 付きでmain `4c1e1458bc8601217f49697ff981fa158f000753` へマージした。[再配信のCI/CD](https://github.com/a-sumikawa/devfest-2026/actions/runs/42765319104)は、生成物・API・frontend・Terraform検証・本番イメージのスモークE2E・総合check・配信がすべて成功した。配信ガードの変更や回避はしていない。
+
+2026-11-10 15:03（日本時間）に、サービスと実際に配信中のリビジョン自身を読み取って照合した。
+
+- 配信リビジョン：`dopagaki-00073-bef`、100%。
+- 配信ソース：main `4c1e1458bc8601217f49697ff981fa158f000753`（主カレンダー表示を取り込んだコミットは `e36df6d471f9c09869f90a29f90c487c00408f46`）。
+- イメージdigest：`sha256:6548089e4945ed155b0a582e018d027176191b0d1fa38677828fdbdf9aa6e8ed`。Artifact Registryのmainコミットタグと配信中のリビジョンで一致した。
+- AI上限：1人10回/分・500回/日、全体60回/分・2000回/日を維持した。
+- Firestoreの時点復旧：`POINT_IN_TIME_RECOVERY_ENABLED` を維持した。
+
+Cloud Runの公開URLと、設定上の `APP_URL` の両方で、以下を確認した。認証情報を付けず、個人の予定にはアクセスしていない。
+
+| 確認先 | 応答 |
+|---|---|
+| `GET /api/health` | 200、`status: ok` |
+| 未認証 `GET /api/profile` | 401 |
+| 未認証 `GET /api/calendar/events?from=...&to=...` | 401 |
+
+[秘密値を含まない照合結果](evidence/calendar-primary-rollout-2026-11-10.json)に、リビジョン・コミット・digest・上限・HTTP応答と確認時刻を保存した。実際のGoogleアカウントでの再同意と、同意後の主カレンダー表示は未確認のまま区別する。
 
 ### mainとdevelopの同期
 
 本番の確認結果もmainへ記録してから、developをmainの先端へfast-forwardする。forceは使わず、更新前のdevelopのSHAを指定して、並行した変更を上書きしない。同期後のSHAと差分確認結果はPR #72へ残す。
 
-Terraformの変更・適用、Googleへの審査申請、個人カレンダーへの書き込み、Geminiの有料呼び出しは今回行っていない。既存のAI上限と、Firestoreの時点復旧の設定は本番反映時にも照合する。
+Terraformの変更・適用、Googleへの審査申請、個人カレンダーへの書き込み、Geminiの有料呼び出しは今回行っていない。既存のAI上限と、Firestoreの時点復旧の設定も本番反映時に照合した。
