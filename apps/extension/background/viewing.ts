@@ -115,11 +115,18 @@ export function flushPendingReports(): Promise<void> {
  * 区切りを始める・引き継ぐのは、前面の Shorts のタブから（利用者が押したときだけ）。
  * 報告と終了は、Shorts から YouTube の別のページへ移った直後にも届くので、YouTube のタブなら受け付ける。
  */
-function senderTab(sender: chrome.runtime.MessageSender, kind: 'choose' | 'report'): number {
+async function senderTab(
+  sender: chrome.runtime.MessageSender,
+  kind: 'choose' | 'report',
+): Promise<number> {
   const tab = sender.tab;
   const url = sender.url ?? '';
-  const allowed = kind === 'choose' ? isShortsUrl(url) && tab?.active === true : isYouTubeUrl(url);
-  if (tab?.id === undefined || !allowed) throw new ExtensionError('fromShorts');
+  if (tab?.id === undefined || !isYouTubeUrl(url)) throw new ExtensionError('fromShorts');
+  if (kind === 'choose') {
+    // sender.url は SPA 遷移前の URL の場合がある。現在のタブをブラウザーから取得する。
+    const current = await chrome.tabs.get(tab.id);
+    if (!current.active || !isShortsUrl(current.url ?? '')) throw new ExtensionError('fromShorts');
+  }
   return tab.id;
 }
 
@@ -151,7 +158,7 @@ export function handleViewing(
     if (!(await getConnection())) throw new ExtensionError('connectFromApp');
     switch (request.type) {
       case 'START_VIEWING': {
-        const tabId = senderTab(sender, 'choose');
+        const tabId = await senderTab(sender, 'choose');
         await flushReports();
         const viewing = await api.startViewing(
           request.sessionId,
@@ -164,7 +171,7 @@ export function handleViewing(
         return { ownsViewing: true };
       }
       case 'CLAIM_VIEWING': {
-        const tabId = senderTab(sender, 'choose');
+        const tabId = await senderTab(sender, 'choose');
         await flushReports();
         const viewing = await api.viewing();
         await patchState(version, { viewing });
@@ -176,7 +183,7 @@ export function handleViewing(
         return { ownsViewing: true };
       }
       case 'END_VIEWING': {
-        const tabId = senderTab(sender, 'report');
+        const tabId = await senderTab(sender, 'report');
         await requireOwner(tabId, request.sessionId);
         await flushReports();
         const viewing = await api.endViewing(request.sessionId, request.reason);
@@ -184,7 +191,7 @@ export function handleViewing(
         return { ownsViewing: true };
       }
       case 'REPORT_VIEWING': {
-        const tabId = senderTab(sender, 'report');
+        const tabId = await senderTab(sender, 'report');
         await requireOwner(tabId, request.sessionId);
         const accountId = (await getConnection())?.accountId;
         if (!accountId || version !== connectionVersion()) {
