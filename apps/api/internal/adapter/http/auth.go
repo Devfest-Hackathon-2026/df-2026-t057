@@ -60,17 +60,12 @@ type authenticator struct {
 // authenticate は利用者を決める。デモで接続情報が無ければ、新しいデモの利用者の Cookie を発行する。
 func (a authenticator) authenticate(w http.ResponseWriter, r *http.Request) (Principal, error) {
 	header := r.Header.Get("Authorization")
-	query := r.URL.Query().Get("token")
 	if a.demo {
-		return a.demoPrincipal(w, r, header, query)
+		return a.demoPrincipal(w, r, header)
 	}
 	token, ok := strings.CutPrefix(header, "Bearer ")
 	if !ok || strings.TrimSpace(token) == "" {
-		// EventSource はヘッダーを付けられないので、変更通知だけ token クエリを受け付ける。
-		if query == "" || r.URL.Path != "/api/events" {
-			return Principal{}, apperr.Unauthenticated("auth.required")
-		}
-		token = query
+		return Principal{}, apperr.Unauthenticated("auth.required")
 	}
 	p, err := a.verifier.Verify(r.Context(), strings.TrimSpace(token))
 	if err != nil {
@@ -82,13 +77,7 @@ func (a authenticator) authenticate(w http.ResponseWriter, r *http.Request) (Pri
 	return p, nil
 }
 
-func (a authenticator) demoPrincipal(w http.ResponseWriter, r *http.Request, header, query string) (Principal, error) {
-	if header == "" && query != "" && r.URL.Path == "/api/events" {
-		header = query
-		if !strings.HasPrefix(header, demoAuthScheme) {
-			header = demoAuthScheme + header
-		}
-	}
+func (a authenticator) demoPrincipal(w http.ResponseWriter, r *http.Request, header string) (Principal, error) {
 	if header != "" {
 		token, ok := strings.CutPrefix(header, demoAuthScheme)
 		if !ok || !demoTokenPattern.MatchString(token) {

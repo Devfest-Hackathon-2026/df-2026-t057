@@ -138,7 +138,7 @@ test('connects automatically, counts foreground Shorts and keeps one viewing ses
 
 test(
   'presents a due task with a companion line and runs the work timer',
-  { tag: '@smoke' },
+  { tag: '@detail' },
   async ({ context, api, app }) => {
     test.setTimeout(120_000);
     await routeYouTube(context, { autoplay: false });

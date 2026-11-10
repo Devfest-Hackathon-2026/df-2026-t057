@@ -8,6 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -74,6 +75,7 @@ function utcDate(date: string): Date {
     MatProgressBarModule,
     MatTooltipModule,
     PageHeading,
+    RouterLink,
   ],
   templateUrl: './records-page.html',
   styleUrl: './records-page.scss',
@@ -120,6 +122,17 @@ export class RecordsPage {
     ...(this.ledger.value()?.entries ?? []),
     ...this.ledger.older(),
   ]);
+
+  protected readonly practiceHistory = computed(() =>
+    (this.records.value()?.practice.history ?? []).filter(
+      (day) => day.workSeconds > 0 || day.viewedSeconds > 0,
+    ),
+  );
+  protected readonly recordedWeeks = computed(() =>
+    (this.records.value()?.weeks ?? [])
+      .filter((week) => week.starts > 0 || week.workSeconds > 0 || week.snoozes > 0)
+      .toReversed(),
+  );
 
   constructor() {
     this.records.ensureLoaded();

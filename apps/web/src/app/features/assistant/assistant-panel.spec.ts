@@ -123,4 +123,42 @@ describe('AssistantPanel', () => {
     expect(sendButton(element).disabled).toBe(true);
     expect(element.textContent).toContain('相談は準備中です。課題は手入力できます。');
   });
+  it('新規登録は前の会話を表示せず、同じ登録内の会話だけを送る', async () => {
+    const store = TestBed.inject(AssistantStore);
+    store.value.set([readyTurn('old', '前の課題')]);
+    store.startDialog(true);
+    expect(store.turnsFor('dialog')).toHaveLength(0);
+    backend.on('POST', '/assistant/turns', (request) => ({
+      body: readyTurn(request.headers.get('Idempotency-Key') ?? 'new', '新しい課題'),
+    }));
+    await store.sendMessage('新しい課題', undefined, 'dialog');
+    const first = store.turnsFor('dialog')[0]?.turn.id;
+    await store.sendMessage('30分です', undefined, 'dialog');
+    const requests = backend.requests.filter((request) => request.method === 'POST');
+    expect(requests[0]?.body).toMatchObject({ historyTurnIds: [] });
+    expect(requests[1]?.body).toMatchObject({ historyTurnIds: [first] });
+    store.startDialog(true);
+    expect(store.turnsFor('dialog')).toHaveLength(0);
+    expect(store.turnsFor('workspace').some(({ turn }) => turn.id === 'old')).toBe(true);
+  });
+  it('新規相談の再試行でも同じIDと履歴指定を使う', async () => {
+    const store = TestBed.inject(AssistantStore);
+    store.startDialog(true);
+    backend.on('POST', '/assistant/turns', {
+      status: 429,
+      body: { type: 'about:blank', status: 429, code: 'ai.rate_limited' },
+    });
+    await store.sendMessage('新しい課題', undefined, 'dialog');
+    const failed = store.turnsFor('dialog')[0]?.turn;
+    if (!failed) throw new Error('失敗した相談がない');
+    backend.on('POST', '/assistant/turns', (request) => ({
+      body: readyTurn(request.headers.get('Idempotency-Key') ?? 'new', '新しい課題'),
+    }));
+    await store.retry(failed, 'dialog');
+    const requests = backend.requests.filter((request) => request.method === 'POST');
+    expect(requests[0]?.body).toEqual(requests[1]?.body);
+    expect(requests[0]?.headers.get('Idempotency-Key')).toBe(
+      requests[1]?.headers.get('Idempotency-Key'),
+    );
+  });
 });

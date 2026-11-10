@@ -126,6 +126,35 @@ test('manual Google sync waits for confirmation and preserves events on failure'
   expect(calls).toBe(1);
 });
 
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`calendar scrolls near now and today's shading preserves grid lines in ${colorScheme}`, async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(new Date('2026-11-09T18:45:00+09:00'));
+    await page.emulateMedia({ colorScheme });
+    await page.goto('/calendar?view=week');
+    const scroller = page.locator('.calendar-scroll');
+    await expect(scroller.locator('[data-time="18:30:00"]').first()).toBeInViewport();
+    const alphas = await scroller.locator('[data-date="2026-11-09"]').evaluateAll((elements) =>
+      elements.map((element) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('canvas unavailable');
+        context.fillStyle = getComputedStyle(element).backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        return context.getImageData(0, 0, 1, 1).data[3];
+      }),
+    );
+    expect(alphas.length).toBeGreaterThan(0);
+    expect(alphas.every((alpha) => alpha !== undefined && alpha < 255)).toBe(true);
+    await page.getByRole('button', { name: '次の期間', exact: true }).click();
+    await page.clock.setFixedTime(new Date('2026-11-09T22:45:00+09:00'));
+    await page.getByRole('button', { name: '今日', exact: true }).click();
+    await expect(scroller.locator('[data-time="22:30:00"]').first()).toBeInViewport();
+  });
+}
+
 test('Google event notifications are chosen in settings and saved for the DOPAGAKI calendar', async ({
   page,
 }) => {

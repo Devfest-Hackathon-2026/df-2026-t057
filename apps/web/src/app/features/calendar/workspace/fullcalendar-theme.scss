@@ -12,7 +12,7 @@
   --fc-classic-event-contrast: var(--mat-sys-on-primary);
   --fc-classic-background-event: var(--mat-sys-tertiary-container);
   --fc-classic-highlight: var(--mat-sys-primary-container);
-  --fc-classic-today: var(--mat-sys-surface-container-high);
+  --fc-classic-today: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
   --fc-classic-now: var(--mat-sys-error);
   --fc-classic-background: var(--mat-sys-surface);
   --fc-classic-faint: var(--mat-sys-surface-container-low);

@@ -12,6 +12,19 @@ function play(meter: ViewingMeter, seconds: number) {
 }
 
 describe('ViewingMeter.tick', () => {
+  it('keeps checkpoint acknowledgements monotonic and never resends legacy accepted time', () => {
+    const meter = new ViewingMeter();
+    play(meter, 36);
+    meter.begin(() => 'legacy', 's1', 0);
+    meter.succeed(30);
+    meter.startCheckpoints();
+    expect(meter.measuredSeconds).toBe(5);
+    meter.checkpointAccepted(3);
+    meter.checkpointAccepted(1);
+    expect(meter.unreportedSeconds).toBe(2);
+    meter.finishCheckpoint(5);
+    expect(meter.unreportedSeconds).toBe(0);
+  });
   it('counts only consecutive playing ticks', () => {
     const meter = new ViewingMeter();
     meter.tick(true, 1); // 再生を確認しただけ

@@ -13,7 +13,8 @@ export interface TutorialStep {
 }
 
 /** 拡張の配布ページ。ZIP と導入手順がある（Chrome Web Store では配布していない）。 */
-export const extensionReleaseUrl = 'https://github.com/a-sumikawa/devfest-2026/releases/latest';
+export const extensionReleaseUrl =
+  'https://github.com/Devfest-Hackathon-2026/df-2026-t057/releases/latest';
 
 /** 案内の Google カレンダーの段階の状態。required は連携が必要で、まだ連携していない。 */
 export type GoogleStepState = 'required' | 'connected' | 'unavailable';

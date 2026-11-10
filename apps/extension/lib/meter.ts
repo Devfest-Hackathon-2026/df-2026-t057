@@ -52,6 +52,8 @@ export function retryDelayMs(failures: number): number {
 
 export class ViewingMeter {
   #unreported = 0;
+  #measured = 0;
+  #acknowledged = 0;
   #wasPlaying = false;
   #receipt: Receipt | undefined;
   #inFlight = false;
@@ -61,6 +63,30 @@ export class ViewingMeter {
   /** まだ受理されていない視聴の秒数（小数を含む）。 */
   get unreportedSeconds(): number {
     return this.#unreported;
+  }
+
+  /** ページ内の計測開始からの累積整数秒。保存済み応答が遅れても巻き戻さない。 */
+  get measuredSeconds(): number {
+    return Math.floor(this.#measured);
+  }
+
+  /** 旧APIから切り替えるとき、既に受付済みの秒数を新しい累積値へ混ぜない。 */
+  startCheckpoints(): void {
+    this.#measured = this.#unreported;
+    this.#acknowledged = 0;
+  }
+
+  checkpointAccepted(acknowledged: number): void {
+    this.#acknowledged = Math.max(this.#acknowledged, acknowledged);
+    this.#unreported = Math.max(0, this.#measured - this.#acknowledged);
+  }
+
+  finishCheckpoint(acknowledged: number): void {
+    this.#inFlight = false;
+    this.#receipt = undefined;
+    this.#failures = 0;
+    this.#retryAt = 0;
+    this.checkpointAccepted(acknowledged);
   }
 
   get receipt(): Receipt | undefined {
@@ -78,7 +104,9 @@ export class ViewingMeter {
   /** 前回の tick から `deltaSeconds` 秒たった。2回続けて再生中だったときだけ数える。 */
   tick(playing: boolean, deltaSeconds: number): void {
     if (playing && this.#wasPlaying) {
-      this.#unreported += Math.min(MAX_TICK_SECONDS, Math.max(0, deltaSeconds));
+      const seconds = Math.min(MAX_TICK_SECONDS, Math.max(0, deltaSeconds));
+      this.#unreported += seconds;
+      this.#measured += seconds;
     }
     this.#wasPlaying = playing;
   }
@@ -163,6 +191,8 @@ export class ViewingMeter {
   /** アカウントの切り替えや、区切りが終わったとき。 */
   reset(): void {
     this.discard();
+    this.#measured = 0;
+    this.#acknowledged = 0;
     this.#wasPlaying = false;
   }
 }
