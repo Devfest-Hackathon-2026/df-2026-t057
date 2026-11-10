@@ -4,7 +4,7 @@ import { connectionVersion, getConnection } from './connection';
 // 1つ以上つながっている間だけ変更通知（SSE）を購読し、状態が変わったら各タブへ送る。
 import { PORT_NAME, portPingSchema, type PortPush } from '../lib/protocol';
 import { getState } from './store';
-import { getOwner } from './viewing';
+import { closeViewingDocument, getOwner } from './viewing';
 
 const ports = new Set<chrome.runtime.Port>();
 const deliveries = new WeakMap<chrome.runtime.Port, number>();
@@ -32,6 +32,7 @@ async function pushTo(port: chrome.runtime.Port): Promise<void> {
     type: 'STATE',
     state: state ?? null,
     ownsViewing: owner !== undefined && owner.tabId === port.sender?.tab?.id,
+    ...(connection ? { accountId: connection.accountId } : {}),
   };
   try {
     port.postMessage(message);
@@ -55,6 +56,9 @@ export function listenPorts(countChanged: (count: number) => void): void {
     port.onDisconnect.addListener(() => {
       ports.delete(port);
       onCountChange(ports.size);
+      void closeViewingDocument(port.sender).catch(() => {
+        console.warn('DOPAGAKI: viewing checkpoint recovery will retry');
+      });
     });
     onCountChange(ports.size);
     void pushTo(port);

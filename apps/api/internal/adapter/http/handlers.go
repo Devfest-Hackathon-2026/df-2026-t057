@@ -419,7 +419,13 @@ func (s *Server) ReportViewing(ctx context.Context, req oapi.ReportViewingReques
 		}
 		sessionID = *req.Body.SessionId
 	}
-	v, err := s.Viewing.Report(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Seconds, sessionID)
+	var v viewing.View
+	var err error
+	if req.Body.FromSeconds == nil {
+		v, err = s.Viewing.Report(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Seconds, sessionID)
+	} else {
+		v, err = s.Viewing.ReportFrom(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Seconds, sessionID, *req.Body.FromSeconds)
+	}
 	if err != nil {
 		return nil, err
 	}

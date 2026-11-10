@@ -49,11 +49,15 @@ async function stateReply(
   sender: chrome.runtime.MessageSender,
   extra: Partial<OkReply> = {},
 ): Promise<OkReply> {
+  const version = connectionVersion();
+  const connection = await getConnection();
   const state = await getState();
   const owner = await getOwner();
+  if (version !== connectionVersion()) throw new ExtensionError('accountChanged');
   return {
     ok: true,
     connected: true,
+    ...(connection ? { accountId: connection.accountId } : {}),
     ...(state ? { state } : {}),
     ownsViewing: owner !== undefined && owner.tabId === sender.tab?.id,
     ...extra,
@@ -208,7 +212,13 @@ export async function handleRequest(
     case 'END_VIEWING':
     case 'REPORT_VIEWING': {
       const outcome = await handleViewing(request, sender);
-      return stateReply(sender, { ownsViewing: outcome.ownsViewing });
+      return stateReply(sender, outcome);
+    }
+    case 'CHECKPOINT_VIEWING': {
+      const outcome = await handleViewing(request, sender);
+      return request.flush
+        ? stateReply(sender, outcome)
+        : { ok: true, connected: true, ...outcome };
     }
     case 'COMPANION_LINE':
       return {
