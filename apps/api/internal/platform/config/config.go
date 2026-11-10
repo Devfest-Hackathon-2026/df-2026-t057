@@ -146,10 +146,10 @@ func Load(getenv func(string) string) (Config, error) {
 		target *int
 		def    int
 	}{
-		{"AI_USER_PER_MINUTE", &c.AI.UserPerMinute, 5},
-		{"AI_USER_PER_DAY", &c.AI.UserPerDay, 100},
-		{"AI_GLOBAL_PER_MINUTE", &c.AI.GlobalPerMinute, 30},
-		{"AI_GLOBAL_PER_DAY", &c.AI.GlobalPerDay, 300},
+		{"AI_USER_PER_MINUTE", &c.AI.UserPerMinute, 10},
+		{"AI_USER_PER_DAY", &c.AI.UserPerDay, 500},
+		{"AI_GLOBAL_PER_MINUTE", &c.AI.GlobalPerMinute, 60},
+		{"AI_GLOBAL_PER_DAY", &c.AI.GlobalPerDay, 2000},
 	}
 	for _, l := range limits {
 		n, err := strconv.Atoi(env(l.key, strconv.Itoa(l.def)))
