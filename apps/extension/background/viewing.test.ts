@@ -20,7 +20,11 @@ beforeEach(() => {
   vi.stubGlobal('chrome', {
     tabs: { get: mocks.tab },
     storage: {
-      local: { get: () => Promise.resolve({}), remove: () => Promise.resolve() },
+      local: {
+        get: () => Promise.resolve({}),
+        set: () => Promise.resolve(),
+        remove: () => Promise.resolve(),
+      },
       session: { set: () => Promise.resolve() },
     },
   });

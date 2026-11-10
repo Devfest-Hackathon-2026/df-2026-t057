@@ -13,7 +13,12 @@ import { broadcast, listenPorts } from '../background/ports';
 import { startStream, stopStream, streamHealthy } from '../background/realtime';
 import { handleRequest, syncAll } from '../background/router';
 import { getState, onStateChange } from '../background/store';
-import { forgetTab, onOwnerChange } from '../background/viewing';
+import {
+  closeViewingDocument,
+  flushPendingReports,
+  forgetTab,
+  onOwnerChange,
+} from '../background/viewing';
 import { listenWorkSites } from '../background/worksites';
 import { getConnection } from '../background/connection';
 import { requestSchema } from '../lib/protocol';
@@ -33,7 +38,9 @@ async function setup(): Promise<void> {
 
 async function periodicSync(): Promise<void> {
   if (!(await getConnection())) return;
-  if (!streamHealthy()) await syncAll();
+  // SSEが健全でも、閉じたページの未送信分は定期的に再送する。
+  if (streamHealthy()) await flushPendingReports();
+  else await syncAll();
   const state = await getState();
   await Promise.allSettled([remindBedtime(state), greetMorning(state)]);
 }
@@ -111,6 +118,9 @@ export default defineBackground(() => {
   });
   chrome.runtime.onStartup.addListener(() => {
     void setup();
+    void closeViewingDocument().catch(() => {
+      console.warn('DOPAGAKI: viewing checkpoint recovery will retry');
+    });
   });
   void setup();
 });

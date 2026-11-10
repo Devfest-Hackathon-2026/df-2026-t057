@@ -178,6 +178,8 @@ export const viewingSchema: z.ZodType<Viewing> = z.object({
   availableSeconds: signedSeconds,
   balanceSeconds: signedSeconds,
   requiresSession: z.boolean(),
+  reportCursor: z.number().int().nonnegative().exactOptional(),
+  acceptedSeconds: z.number().int().min(0).max(65).exactOptional(),
 });
 
 export const settingsSchema: z.ZodType<Settings> = z.object({

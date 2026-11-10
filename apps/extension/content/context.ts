@@ -10,6 +10,7 @@ import { keepPort, send } from './messaging';
 export class ContentContext {
   #state: ExtensionState | null = null;
   #ownsViewing = false;
+  #accountId: string | undefined;
   #updates = 0;
   readonly #listeners = new Set<() => void>();
 
@@ -23,14 +24,19 @@ export class ContentContext {
     return this.#ownsViewing;
   }
 
+  get accountId(): string | undefined {
+    return this.#accountId;
+  }
+
   onChange(listener: () => void): void {
     this.#listeners.add(listener);
   }
 
-  #set(state: ExtensionState | null, ownsViewing: boolean): void {
+  #set(state: ExtensionState | null, ownsViewing: boolean, accountId = this.#accountId): void {
     this.#updates++;
     this.#state = state;
     this.#ownsViewing = ownsViewing;
+    this.#accountId = state ? accountId : undefined;
     // 「動きを減らす」設定は、ダイアログだけでなくタイマーや読み込み中の表示にも効かせる。
     this.root.classList.toggle('reduced', state?.settings?.reducedMotion === true);
     // 文言はプロフィールの言語で出す。ページ（YouTube など）の言語と違うことがあるので、読み上げ用に lang も付ける。
@@ -45,12 +51,13 @@ export class ContentContext {
       this.#set(null, false);
       return;
     }
-    if (reply.state) this.#set(reply.state, reply.ownsViewing ?? this.#ownsViewing);
+    if (reply.state)
+      this.#set(reply.state, reply.ownsViewing ?? this.#ownsViewing, reply.accountId);
   }
 
   /** background から届いた状態。 */
   push(push: PortPush): void {
-    this.#set(push.state, push.ownsViewing);
+    this.#set(push.state, push.ownsViewing, push.accountId);
   }
 
   /** 状態を取り直す。`refresh` なら API から取り直す。成功したら true。 */

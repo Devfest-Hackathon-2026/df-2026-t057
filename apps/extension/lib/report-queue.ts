@@ -8,15 +8,17 @@ export interface PendingReport {
   readonly sessionId: string | undefined;
   /** 報告したアカウント。アカウントが変わったら送らずに捨てる。 */
   readonly accountId: string;
+  readonly fromSeconds?: number;
+  readonly meterId?: string;
 }
 
-/** 待ち行列の上限。超えた古い報告から捨てる（数え過ぎを防ぐより、溜め込み続けないことを優先する）。 */
+/** 一度に組み立てる受付の目安。超える計測分はチェックポイントに残す。 */
 export const MAX_PENDING_REPORTS = 20;
 
 /** 同じ受付の ID は一度だけ並べる。 */
 export function enqueue(queue: readonly PendingReport[], report: PendingReport): PendingReport[] {
   if (queue.some((item) => item.id === report.id)) return [...queue];
-  return [...queue, report].slice(-MAX_PENDING_REPORTS);
+  return [...queue, report];
 }
 
 export function remove(queue: readonly PendingReport[], id: string): PendingReport[] {

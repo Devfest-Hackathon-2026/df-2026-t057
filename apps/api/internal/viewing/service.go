@@ -33,6 +33,8 @@ type View struct {
 	Available       int
 	Balance         int
 	RequiresSession bool
+	ReportCursor    int
+	AcceptedSeconds *int
 }
 
 func (s *Service) load(ctx context.Context, tx *store.Tx, uid string) (State, *Session, error) {
@@ -47,15 +49,22 @@ func (s *Service) load(ctx context.Context, tx *store.Tx, uid string) (State, *S
 	return st, &x, nil
 }
 
-func view(a *wallet.Account, current *Session) View {
-	return View{Session: current, Available: a.Available(), Balance: a.Balance, RequiresSession: a.Mode.RequiresSession()}
+func view(a *wallet.Account, current *Session, st State) View {
+	cursor := st.FreeCursor
+	if a.Mode.RequiresSession() {
+		cursor = 0
+		if current != nil {
+			cursor = current.ConsumedSeconds
+		}
+	}
+	return View{Session: current, Available: a.Available(), Balance: a.Balance, RequiresSession: a.Mode.RequiresSession(), ReportCursor: cursor}
 }
 
 // Get は視聴の状態を返す。
 func (s *Service) Get(ctx context.Context, uid string) (v View, err error) {
 	err = s.wallet.Read(ctx, uid, func(ctx context.Context, tx *store.Tx, a *wallet.Account) error {
-		_, current, err := s.load(ctx, tx, uid)
-		v = view(a, current)
+		st, current, err := s.load(ctx, tx, uid)
+		v = view(a, current, st)
 		return err
 	})
 	return v, err
@@ -82,7 +91,7 @@ func (s *Service) Start(ctx context.Context, uid, id string, seconds int, extend
 			return err
 		}
 		if _, exists, err := store.Get[Session](ctx, tx, sessionRef(uid, id)); err != nil || exists {
-			v = view(a, current)
+			v = view(a, current, st)
 			return err
 		}
 		if err := CheckStart(current, extendFrom, a.Available()); err != nil {
@@ -96,7 +105,7 @@ func (s *Service) Start(ctx context.Context, uid, id string, seconds int, extend
 		if err := tx.Set(stateRef(uid), st); err != nil {
 			return err
 		}
-		v = view(a, &x)
+		v = view(a, &x, st)
 		return s.touch(ctx, tx, uid)
 	})
 	return v, err
@@ -113,7 +122,7 @@ func (s *Service) End(ctx context.Context, uid, id string, reason EndReason) (v 
 		if err != nil {
 			return err
 		}
-		_, current, err := s.load(ctx, tx, uid)
+		st, current, err := s.load(ctx, tx, uid)
 		if err != nil {
 			return err
 		}
@@ -124,7 +133,7 @@ func (s *Service) End(ctx context.Context, uid, id string, reason EndReason) (v 
 				}
 				return err
 			}
-			v = view(a, current)
+			v = view(a, current, st)
 			return nil
 		}
 		if current.Active() {
@@ -136,7 +145,7 @@ func (s *Service) End(ctx context.Context, uid, id string, reason EndReason) (v 
 				return err
 			}
 		}
-		v = view(a, current)
+		v = view(a, current, st)
 		return nil
 	})
 	return v, err
@@ -144,6 +153,18 @@ func (s *Service) End(ctx context.Context, uid, id string, reason EndReason) (v 
 
 // Report は視聴した秒数を報告する。receipt（Idempotency-Key）ごとに一度だけ減らす。
 func (s *Service) Report(ctx context.Context, uid, receipt string, seconds int, sessionID string) (v View, err error) {
+	return s.report(ctx, uid, receipt, seconds, sessionID, nil)
+}
+
+// ReportFrom は計測区間を指定する報告。従来の秒数だけの報告も引き続き受け付ける。
+func (s *Service) ReportFrom(ctx context.Context, uid, receipt string, seconds int, sessionID string, from int) (View, error) {
+	if from < 0 || from > 2147483582 {
+		return View{}, apperr.Invalid("request.invalid", apperr.Field("fromSeconds", "out_of_range"))
+	}
+	return s.report(ctx, uid, receipt, seconds, sessionID, &from)
+}
+
+func (s *Service) report(ctx context.Context, uid, receipt string, seconds int, sessionID string, from *int) (v View, err error) {
 	if seconds < 1 || seconds > MaxReportSeconds {
 		return View{}, apperr.Invalid("request.invalid", apperr.Field("seconds", "out_of_range"))
 	}
@@ -162,20 +183,47 @@ func (s *Service) Report(ctx context.Context, uid, receipt string, seconds int, 
 			return err
 		}
 		if done {
-			v = view(a, current)
+			v = view(a, current, st)
+			if from != nil {
+				cursor := v.ReportCursor
+				if a.Mode.RequiresSession() && (current == nil || current.ID != sessionID) {
+					old, _, err := store.Get[Session](ctx, tx, sessionRef(uid, sessionID))
+					if err != nil {
+						return err
+					}
+					cursor = old.ConsumedSeconds
+				}
+				accepted := min(seconds, max(0, cursor-*from))
+				v.AcceptedSeconds = &accepted
+			}
 			return nil
 		}
-		var charged int
+		var charged, accepted int
 		if a.Mode.RequiresSession() {
 			if current == nil || current.ID != sessionID || !current.Active() {
 				return apperr.Conflict("viewing.session_required")
 			}
-			charged = Charge(current, seconds, a.Available(), now)
+			if from == nil {
+				charged = Charge(current, seconds, a.Available(), now)
+			} else {
+				charged, accepted, err = ChargeRange(current, *from, seconds, a.Available(), now)
+				if err != nil {
+					return err
+				}
+			}
 			if err := tx.Set(sessionRef(uid, current.ID), current); err != nil {
 				return err
 			}
 		} else {
-			charged = ChargeFree(seconds, st.LastViewingAt, now)
+			if from == nil {
+				charged = ChargeFree(seconds, st.LastViewingAt, now)
+				st.RecordFree(charged, now)
+			} else {
+				charged, accepted, err = ChargeFreeRange(&st, *from, seconds, now)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		if _, err := s.wallet.RecordViewing(ctx, tx, uid, receipt, charged, now); err != nil {
 			return err
@@ -192,7 +240,10 @@ func (s *Service) Report(ctx context.Context, uid, receipt string, seconds int, 
 				return err
 			}
 		}
-		v = view(a, current)
+		v = view(a, current, st)
+		if from != nil {
+			v.AcceptedSeconds = &accepted
+		}
 		return s.touch(ctx, tx, uid)
 	})
 	return v, err

@@ -69,6 +69,15 @@ export const requestSchema = z.discriminatedUnion('type', [
     sessionId: idSchema.exactOptional(),
   }),
   z.object({
+    type: z.literal('CHECKPOINT_VIEWING'),
+    accountId: z.string().min(1).max(128),
+    meterId: clientKeySchema,
+    totalSeconds: z.number().int().min(0).max(2147483582),
+    sessionId: idSchema.exactOptional(),
+    flush: z.boolean(),
+    closed: z.boolean(),
+  }),
+  z.object({
     type: z.literal('COMPANION_LINE'),
     moment: z.enum(companionMoments),
     taskId: idSchema.exactOptional(),
@@ -88,6 +97,9 @@ export const replySchema = z.discriminatedUnion('ok', [
     state: extensionStateSchema.exactOptional(),
     /** 送ったタブが視聴の区切りの持ち主か。 */
     ownsViewing: z.boolean().exactOptional(),
+    checkpoint: z
+      .object({ meterId: clientKeySchema, acknowledgedSeconds: z.number().int().nonnegative() })
+      .exactOptional(),
     draft: draftSchema.exactOptional(),
     line: z.string().max(200).exactOptional(),
     work: workRecordSchema.exactOptional(),
@@ -114,6 +126,7 @@ export const portPushSchema = z.discriminatedUnion('type', [
     /** null は未接続（ログアウト・アカウントの切り替え）。content script は表示を消す。 */
     state: extensionStateSchema.nullable(),
     ownsViewing: z.boolean(),
+    accountId: z.string().exactOptional(),
   }),
 ]);
 export type PortPush = z.infer<typeof portPushSchema>;
