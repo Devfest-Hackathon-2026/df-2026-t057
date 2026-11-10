@@ -2,13 +2,13 @@
 
 YouTube Shortsから、いま始める課題へ戻るためのChrome拡張と管理画面です。締切から逆算した作業予定を通知し、取り組んだ時間を記録すると視聴できる時間が増えます。
 
-公開環境：[DOPAGAKI](https://dopagaki-1032251723022.asia-northeast1.run.app/)。Googleログインして使います。Chrome拡張は[Releases](https://github.com/Devfest-Hackathon-2026/df-2026-t057/releases/latest)から公開環境向けのZIPを取得できます。[導入手順](extension/INSTALL.txt)に従って読み込んでください。
+公開環境：[DOPAGAKI](https://dopagaki-1032251723022.asia-northeast1.run.app/)。Googleログインして使います。Chrome拡張は[Releases](https://github.com/Devfest-Hackathon-2026/df-2026-t057/releases/latest)から公開環境向けのZIPを取得できます。[導入手順](apps/extension/INSTALL.txt)に従って読み込んでください。「Source code」のZIPは導入用ではありません。
 
 課題・予定・視聴時間はGoogleアカウントごとに保存します。カレンダー連携もログイン中と同じGoogleアカウントを使い、本人の専用DOPAGAKIカレンダーへ登録します。管理画面の「相談」で会話すると、編集できる予定カードや作業傾向の記憶候補が表示されます。登録・変更・記憶は本人が確認してから確定します。Google Chat連携は廃止しました。[一般ユーザー対応の現状](engineering/public-accounts.md)を参照してください。
 
 ## 開発記録と発表用の根拠
 
-[engineering/README.md](engineering/README.md) に、設計判断、不具合の症状と原因、運用・CI/CDの現状、実サービス検証、発表用の論点と実画面をまとめています。今後の変更でも、関連する判断・知見・検証結果を併せて更新します。Terraformは未導入です。アプリの変更をmainへマージすると、検証成功後にCloud Runへ[自動配信](engineering/continuous-deployment.md)します。鍵なし認証・候補確認・切替・初回の公開先確認まで成功しています。資料だけ・拡張だけの変更ではCloud Runへの配信を省きます。
+[engineering/README.md](engineering/README.md) に、設計判断、不具合の症状と原因、運用・CI/CDの現状、実サービス検証、発表用の論点と実画面をまとめています。今後の変更でも、関連する判断・知見・検証結果を併せて更新します。Google Cloudの設定は[Terraform](deploy/terraform/README.md)で管理しています。この提出用リポジトリではCIの検証だけを実行し、Cloud Runへは配信しません。開発用リポジトリのmainでは、対象の変更を検証後に[自動配信](engineering/continuous-deployment.md)します。
 
 ## ローカルで試す
 
@@ -28,7 +28,7 @@ Chrome拡張は次のコマンドで作成します。
 pnpm --filter @dopagaki/extension build
 ```
 
-`chrome://extensions` でデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」から `apps/extension/.output/chrome-mv3` を指定します。その後、管理画面を開き直すと同じユーザーのデータに接続されます。拡張IDは manifest の `key`（[`apps/extension/buildconfig/extension-key.ts`](apps/extension/buildconfig/extension-key.ts) の公開鍵）で `egongmmfglcolkgiappacmmbiiiogpmb` に固定しており、どの端末で読み込んでも同じなので、APIの live モードではこのIDを環境変数 `EXTENSION_IDS` に設定します。
+`chrome://extensions` でデベロッパーモードを有効にし、「パッケージ化されていない拡張機能を読み込む」から `apps/extension/.output/chrome-mv3` を指定します。管理画面へGoogleログインした後、拡張のポップアップの「Googleアカウントで拡張に接続」で、同じGoogleアカウントを選びます。接続後は管理画面とYouTubeを再読み込みしてください。拡張IDは manifest の `key`（[`apps/extension/buildconfig/extension-key.ts`](apps/extension/buildconfig/extension-key.ts) の公開鍵）で `egongmmfglcolkgiappacmmbiiiogpmb` に固定しており、どの端末で読み込んでも同じなので、APIの live モードではこのIDを環境変数 `EXTENSION_IDS` に設定します。
 
 拡張のポップアップの「課題を登録」から、管理画面を開かずに課題名・締切・必要時間を入れて登録できます。
 
@@ -121,7 +121,7 @@ flowchart TD
 
 課題を初めて登録した場合に5分加算します。予定の変更・再同期・スヌーズでは加算しません。作業の傾向や課題のメモは予定作成のためGeminiへ送信します。閲覧中の動画内容や閲覧履歴は送信しません。
 
-カレンダーの利用対象は、連携時に作成する専用の `DOPAGAKI` カレンダーです。他のカレンダーの予定は変更しません。手入力は「開始＝締切−必要時間、終了＝締切」の日時付き予定で登録します。終日・繰り返し予定は対象外です。Geminiでは「DOPAGAKIカレンダーに」と明示します（[Googleの案内](https://support.google.com/gemini/answer/15305236)）。既存メモは保持し、`[DOPAGAKI]` ブロック内に確定予定を記載します。
+予定の書き込み先は、連携時に作成する専用の `DOPAGAKI` カレンダーです。読み取りを許可した主カレンダーの予定も管理画面で表示できますが、他のカレンダーの予定は変更しません。[主カレンダー表示の確認結果](engineering/calendar-primary-events.md)を参照してください。手入力は「開始＝締切−必要時間、終了＝締切」の日時付き予定で登録します。終日・繰り返し予定は対象外です。Geminiでは「DOPAGAKIカレンダーに」と明示します（[Googleの案内](https://support.google.com/gemini/answer/15305236)）。既存メモは保持し、`[DOPAGAKI]` ブロック内に確定予定を記載します。
 
 ## Google Cloudで動かすための設定
 
@@ -154,7 +154,7 @@ APP_URL=https://<管理画面のオリジン> pnpm --filter @dopagaki/extension 
 
 ## 実サービスでの確認
 
-2026年11月7日、main `b3fc7b0`と更新したChrome拡張で[新しい視聴ルールを実YouTube Shortsで確認](engineering/shorts-time-policy-verification-2026-11-07.md)しました。5分の選択、再生中の減算、一時停止中の表示保持、途中終了、管理画面の再読み込み後の記録保持を確認しています。以下の表は以前の確認時点の結果です。
+2026年11月7日、main `b3fc7b0`と更新したChrome拡張で[新しい視聴ルールを実YouTube Shortsで確認](engineering/shorts-time-policy-verification-2026-11-07.md)しました。5分の選択、再生中の減算、一時停止中の表示保持、途中終了、管理画面の再読み込み後の記録保持を確認しています。以下の表は2026年11月6日の旧仕様での検証記録です。初回60分・完了時20分の付与は当時の仕様で、現在の初回10分・作業5分につき視聴1分とは異なります。現在の仕様は上の「動作」を参照してください。
 
 2026年11月6日、架空の確認用課題を使って以下を確認しました。課題・報酬の確認履歴はテスト用です。
 
@@ -189,4 +189,4 @@ Goのテストでは、視聴時間の台帳から計算した残高とWalletの
 
 ## 提出に向けて
 
-開催条件は添付キックオフPDFの「実行基盤の必須条件」「AI・他社ツールの扱い」「その他のルール」「提出ルール」を参照しています。Cloud Runでの稼働確認、GitHubコード、説明ドキュメント、デモ動画、著作物利用シートを揃える必要があります。11月10日17:00のコードフリーズ後は提出リポジトリを変更せず、デプロイURLは11月14日まで維持します。素材・ライブラリの出典は [ASSETS.md](ASSETS.md) に記録しています。
+開催条件は添付キックオフPDFの「実行基盤の必須条件」「AI・他社ツールの扱い」「その他のルール」「提出ルール」を参照しています。Cloud Runでの稼働確認、GitHubコード、説明ドキュメント、デモ動画、著作物利用シートを揃える必要があります。2026年11月10日19:00（日本時間）のコードフリーズ後は提出リポジトリを変更せず、デプロイURLは11月14日まで維持します。素材・ライブラリの出典は [ASSETS.md](ASSETS.md) に記録しています。

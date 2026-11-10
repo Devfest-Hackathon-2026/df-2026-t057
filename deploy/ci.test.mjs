@@ -19,6 +19,7 @@ function selection(
   outcomes = {},
   current = 'true',
   redeploy = false,
+  repository = 'a-sumikawa/devfest-2026',
 ) {
   const flags = Object.fromEntries(
     Object.entries(filters).map(([key, patterns]) => [
@@ -32,7 +33,11 @@ function selection(
   );
   const needs = { changes: { outputs, result: outcomes.changes ?? 'success' } };
   const context = {
-    github: { event_name: event, ref: event === 'push' ? 'refs/heads/main' : 'refs/pull/1/merge' },
+    github: {
+      repository,
+      event_name: event,
+      ref: event === 'push' ? 'refs/heads/main' : 'refs/pull/1/merge',
+    },
     needs,
     steps: { e2e: { outcome: 'success' } },
     failure: () => false,
@@ -145,5 +150,26 @@ test('対象外の検査がskipでも合格済みの最新mainは配信する', 
     assert.equal(results.terraform, 'skipped');
     assert.equal(results.check, 'success');
     assert.equal(results.deploy, 'success');
+  }
+});
+
+test('提出用・別リポジトリからは検査に成功しても本番配信しない', () => {
+  for (const repository of ['Devfest-Hackathon-2026/df-2026-t057', 'other/fork']) {
+    const { results } = selection(
+      ['apps/web/src/app/app.ts'],
+      'push',
+      {},
+      'true',
+      false,
+      repository,
+    );
+    assert.equal(results.check, 'success');
+    assert.equal(results.deploy, 'skipped');
+    assert.equal(
+      runInNewContext(cd.jobs.deploy.if, {
+        github: { repository, event_name: 'push', ref: 'refs/heads/main' },
+      }),
+      false,
+    );
   }
 });

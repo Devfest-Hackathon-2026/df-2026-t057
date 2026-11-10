@@ -1,6 +1,12 @@
 # Cloud Runの継続的デプロイ
 
-設定日：2026-11-07。対象は `a-sumikawa/devfest-2026` と、Google Cloudプロジェクト `devfest-2026-513816`（番号 `1032251723022`）の既存サービス `dopagaki`。Terraformは追加していない。
+設定日：2026-11-07。対象は `a-sumikawa/devfest-2026` と、Google Cloudプロジェクト `devfest-2026-513816`（番号 `1032251723022`）の既存サービス `dopagaki`。当時はTerraform未導入だったが、現在は [deploy/terraform](../deploy/terraform/README.md) で管理する。
+
+## 提出用リポジトリの配信停止（2026-11-10）
+
+提出用へコピーしたワークフローも本番配信を試み、Google Cloudの認証で失敗していた。提出用では検証だけを実行するため、`check.yml` の配信呼び出しと `cd.yml` の配信ジョブの両方を、開発用 `a-sumikawa/devfest-2026` に制限した。開発用リポジトリや公開環境は変更していない。
+
+`deploy/ci.test.mjs` で提出用・別リポジトリからの配信を拒否する回帰テストを追加し、修正前の失敗と修正後の成功を確認した。イメージ受け渡しの既存テストを含め、ローカルの13件が成功した。
 
 ## 配信の流れ
 

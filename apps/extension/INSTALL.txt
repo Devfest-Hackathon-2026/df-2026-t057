@@ -8,7 +8,8 @@ GitHub ReleaseのAssetsから dopagaki-extension-vX.Y.Z.zip をダウンロー�
 2. Chromeで chrome://extensions を開き、右上の「デベロッパーモード」を有効にします。
 3. 「パッケージ化されていない拡張機能を読み込む」を押し、展開したフォルダー内の extension フォルダー（manifest.json が入っているフォルダー）を選びます。
 4. https://dopagaki-1032251723022.asia-northeast1.run.app/ を開いてGoogleログインします。既に開いている場合は再読み込みします。
-5. 拡張のポップアップで「接続済み」を確認します。YouTubeを開いていた場合も再読み込みしてください。
+5. 拡張のポップアップの「Googleアカウントで拡張に接続」を押し、管理画面と同じGoogleアカウントを選びます。
+6. ポップアップで「接続済み」を確認します。YouTubeを開いていた場合も再読み込みしてください。
 
 読み込み後も、展開したフォルダーは削除・移動せず保管してください。
 拡張IDは egongmmfglcolkgiappacmmbiiiogpmb に固定されています（どの端末・フォルダーで読み込んでも同じです）。

@@ -13,7 +13,7 @@ permissions:
   id-token: write
 jobs:
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.repository == 'a-sumikawa/devfest-2026' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
