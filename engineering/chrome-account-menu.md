@@ -24,6 +24,6 @@
 - Cloud Build `2d9aad54-b72b-4232-9c84-03d163357efe` が成功。
 - 配信イメージ：`asia-northeast1-docker.pkg.dev/devfest-2026-513816/dopagaki/app@sha256:2504be78da7fc9bb3c703c62aefb31ffd958c20c8b311b3024bbb98ae9323eb3`。
 - 東京リージョンの既存サービス `dopagaki`、リビジョン `dopagaki-00011-zj7` へ100%配信。既存の検証済みGoバイナリーと新しいAngular成果物をCloud Buildで梱包した。直前の配信は `dopagaki-00010-j6w`。
-- 本番の[未ログインメニュー](assets/chrome-account-live-signed-out.jpg)と[ログイン済みメニュー](assets/chrome-account-live-signed-in.jpg)を確認した。後者は別のChromeプロフィールに保存されていた既存の本人セッションを使った表示確認で、実際のGoogle表示名とCalendar連携状態を表示した。個人の課題が写らないようメニュー周辺のみ保存した。
+- 本番の[未ログインメニュー](assets/chrome-account-live-signed-out.jpg)とログイン済みメニュー（個人情報を含むため画像は非掲載）を確認した。後者は別のChromeプロフィールに保存されていた既存の本人セッションを使った表示確認で、実際のGoogle表示名とCalendar連携状態を表示した。個人の課題が写らないようメニュー周辺のみ保存した。
 - この回では、新たなGoogle認証・別の実アカウントへの切替・Calendarの再同意は実施していない。認証の非同期処理とキャンセルは前述のSDK fixtureによる回帰確認。本人の課題・報酬・予定は編集していない。
 - APIのGoコード・認証スコープ・IAM・課金設定の変更はない。Cloud Runはイメージだけを更新し、SA・Secret・リソース上限を維持した。

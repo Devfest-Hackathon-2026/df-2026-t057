@@ -23,16 +23,6 @@
           ]
         },
         {
-          "id": "g2",
-          "file": "gemini-calendar-detail.jpg",
-          "title": "カレンダーの詳細",
-          "cue": "元のメモ＋具体的な手順",
-          "size": [
-            496,
-            405
-          ]
-        },
-        {
           "id": "g3",
           "file": "gemini-registered.jpg",
           "title": "管理画面に登録済み",
@@ -63,16 +53,6 @@
           ]
         },
         {
-          "id": "c2",
-          "file": "calendar-manual-detail.jpg",
-          "title": "保存後の詳細欄",
-          "cue": "AIが20分を5つの手順に",
-          "size": [
-            496,
-            445
-          ]
-        },
-        {
           "id": "c3",
           "file": "calendar-manual-registered.jpg",
           "title": "自動で課題登録",
@@ -100,16 +80,6 @@
           "size": [
             840,
             215
-          ]
-        },
-        {
-          "id": "h2",
-          "file": "chat-calendar-detail.jpg",
-          "title": "カレンダーにも保存",
-          "cue": "具体的な手順を詳細欄へ",
-          "size": [
-            496,
-            425
           ]
         },
         {

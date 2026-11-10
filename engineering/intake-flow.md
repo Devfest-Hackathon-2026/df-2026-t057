@@ -32,9 +32,9 @@ Googleカレンダーの「作成」→「予定」で、タイトル、開始�
 
 | 入口 | 入力と結果 | カレンダー詳細 | 管理画面の課題 |
 |---|---|---|---|
-| Gemini | [指示・作成カード](assets/intake-flow/gemini-request-result.jpg) | [詳細欄](assets/intake-flow/gemini-calendar-detail.jpg) | [12:00開始の課題](assets/intake-flow/gemini-registered.jpg) |
-| 手入力 | [保存前のフォーム](assets/intake-flow/calendar-manual-input.jpg) | [保存後の詳細欄](assets/intake-flow/calendar-manual-detail.jpg) | [14:00開始の課題](assets/intake-flow/calendar-manual-registered.jpg) |
-| Google Chat | [送信・登録返信](assets/intake-flow/chat-request-result.jpg) | [詳細欄](assets/intake-flow/chat-calendar-detail.jpg) | [10:50開始の課題](assets/intake-flow/chat-registered.jpg) |
+| Gemini | [指示・作成カード](assets/intake-flow/gemini-request-result.jpg) | 個人情報を含むため画像は非掲載 | [12:00開始の課題](assets/intake-flow/gemini-registered.jpg) |
+| 手入力 | [保存前のフォーム](assets/intake-flow/calendar-manual-input.jpg) | 個人情報を含むため画像は非掲載 | [14:00開始の課題](assets/intake-flow/calendar-manual-registered.jpg) |
+| Google Chat | [送信・登録返信](assets/intake-flow/chat-request-result.jpg) | 個人情報を含むため画像は非掲載 | [10:50開始の課題](assets/intake-flow/chat-registered.jpg) |
 
 画像寸法、課題名、経路、再撮影と新規操作の区別は [intake-flow.json](intake-flow.json) に保存した。アカウント操作部、関係のないチャットやノートブックを図に含めていない。
 
