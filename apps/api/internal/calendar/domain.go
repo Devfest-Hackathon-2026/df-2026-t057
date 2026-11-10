@@ -75,6 +75,8 @@ type Connection struct {
 	CalendarID string `json:"calendarId" firestore:"calendarId"`
 	GoogleID   string `json:"googleId" firestore:"googleId"`
 	SyncToken  string `json:"syncToken" firestore:"syncToken"`
+	// SyncGeneration は取り込み開始ごとの世代。遅れて返った古い一覧を確定しない。
+	SyncGeneration int64 `json:"syncGeneration,omitempty" firestore:"syncGeneration,omitempty"`
 	// ChannelID・ChannelToken・ChannelResource は今の変更通知のチャンネル。ChannelResource はチャンネルを止めるときに使う。
 	ChannelID       string     `json:"channelId" firestore:"channelId"`
 	ChannelToken    string     `json:"channelToken" firestore:"channelToken"`

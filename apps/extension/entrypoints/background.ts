@@ -14,6 +14,7 @@ import { startStream, stopStream, streamHealthy } from '../background/realtime';
 import { handleRequest, syncAll } from '../background/router';
 import { getState, onStateChange } from '../background/store';
 import { forgetTab, onOwnerChange } from '../background/viewing';
+import { listenWorkSites } from '../background/worksites';
 import { getConnection } from '../background/connection';
 import { requestSchema } from '../lib/protocol';
 import { workSiteScriptId } from '../lib/urls';
@@ -74,6 +75,7 @@ export default defineBackground(() => {
     else stopStream();
   });
   listenNotificationClicks();
+  listenWorkSites();
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     const run =

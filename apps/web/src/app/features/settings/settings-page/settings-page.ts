@@ -322,13 +322,18 @@ export class SettingsPage {
 
   private syncProfile(saved: Profile): void {
     const current = this.mainForm.getRawValue();
-    if (!this.syncedProfile || sameKeys(current, this.syncedProfile, profileKeys)) {
-      this.mainForm.patchValue(
-        { locale: saved.locale, name: saved.name, context: saved.context },
-        { emitEvent: false },
-      );
-      this.refreshMain();
-    }
+    const previous = this.syncedProfile;
+    // 編集していない項目は別タブの更新に追従する。名前の編集中に古い記憶を送り戻さない。
+    this.mainForm.patchValue(
+      {
+        locale: !previous || current.locale === previous.locale ? saved.locale : current.locale,
+        name: !previous || current.name === previous.name ? saved.name : current.name,
+        context:
+          !previous || current.context === previous.context ? saved.context : current.context,
+      },
+      { emitEvent: false },
+    );
+    this.refreshMain();
     this.syncedProfile = saved;
   }
 

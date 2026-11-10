@@ -1064,12 +1064,9 @@ func (v syncView) needsImport(taskID string, c EventChange) bool {
 // 消された予定の課題は消す。手順の具体化（AI）は変わった予定だけに使い、使えなければ逆算だけの計画にする。
 func (s *Service) sync(ctx context.Context, job outbox.Job) error {
 	uid := job.UID
-	if err := s.claim(ctx, job, func(c *Connection) *string { return &c.SyncJob }); err != nil {
-		return err
-	}
 	var view syncView
 	var profileContext string
-	err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
+	err := s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
 		c, err := loadConnection(ctx, tx, uid)
 		if err != nil || !c.Connected {
 			view.conn = c
@@ -1083,9 +1080,16 @@ func (s *Service) sync(ctx context.Context, job outbox.Job) error {
 		if err != nil {
 			return err
 		}
+		c.SyncGeneration++
+		if c.SyncJob == job.ID {
+			c.SyncJob = ""
+		}
 		view = newSyncView(c, tasks, links)
 		profileContext, _, err = s.Profiles.Context(ctx, tx, uid)
-		return err
+		if err != nil {
+			return err
+		}
+		return saveConnection(ctx, tx, uid, c)
 	})
 	if err != nil || !view.conn.Connected {
 		return err
@@ -1112,6 +1116,10 @@ func (s *Service) sync(ctx context.Context, job outbox.Job) error {
 		c, err := loadConnection(ctx, tx, uid)
 		if err != nil || !c.Connected {
 			return err
+		}
+		// 別インスタンスで新しい取り込みや再接続が始まったら、この一覧は採用しない。
+		if c.SyncGeneration != view.conn.SyncGeneration || c.CalendarID != view.conn.CalendarID || c.ChannelID != view.conn.ChannelID {
+			return nil
 		}
 		tasks, err := s.Tasks.All(ctx, tx, uid)
 		if err != nil {

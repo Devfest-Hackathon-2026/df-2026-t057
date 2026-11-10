@@ -9,7 +9,7 @@ import { fromLocalInput, toLocalInput } from '../../lib/draft-edit';
 import { currentLocale, currentMessages, followLocale } from '../../lib/locale';
 import type { OkReply, Request } from '../../lib/protocol';
 import type { ExtensionState } from '../../lib/schemas';
-import { workSitePattern, workSiteScriptId } from '../../lib/urls';
+import { workSitePattern } from '../../lib/urls';
 import { workElapsedSeconds } from '../../lib/work-timer';
 import { runAction } from '../../ui/action';
 import { button } from '../../ui/dom';
@@ -297,22 +297,9 @@ permissionButton.addEventListener('click', () => {
         status.textContent = currentMessages().extension.popupPermissionUnchanged;
         return;
       }
-      const id = workSiteScriptId(pattern);
-      const file = 'content-scripts/worksite.js';
-      const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
-      if (registered.length === 0) {
-        await chrome.scripting.registerContentScripts([
-          {
-            id,
-            matches: [pattern],
-            js: [file],
-            runAt: 'document_idle',
-            persistAcrossSessions: true,
-          },
-        ]);
-      }
-      if (tab.id !== undefined)
-        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [file] });
+      if (tab.id === undefined) throw new Error('work site tab is missing');
+      const reply = await send({ type: 'ENABLE_WORKSITE', tabId: tab.id });
+      if (!reply.ok) throw new Error(reply.error);
       status.textContent = currentMessages().extension.popupWorkSiteEnabled;
     })
     .catch(() => {
