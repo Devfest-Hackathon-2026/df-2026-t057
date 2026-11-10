@@ -61,7 +61,8 @@ test('calendar adapts to mobile while preserving an explicit view choice', async
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('radio', { name: '日', exact: true })).toBeChecked();
-  await expect(home.calendar.getByText('レポートの構成を考える')).toBeVisible();
+  // 日をまたぐ予定は週表示で2日に分かれて出るので、最初の1つを見る。
+  await expect(home.calendar.getByText('レポートの構成を考える').first()).toBeVisible();
   await expectNoHorizontalScroll(page);
 
   // 自分で選んだ表示期間は、幅が変わっても保つ。

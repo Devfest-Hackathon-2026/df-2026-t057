@@ -17,9 +17,15 @@ func (c CompanionLines) Line(ctx context.Context, uid, moment, taskID string) (s
 	return l.Text, l.Generated, err
 }
 
-// AppOpenLine は YouTube を開いたときの一言（ショートカット用）。
-func (c CompanionLines) AppOpenLine(ctx context.Context, uid, taskID string) (string, error) {
-	l, err := c.Service.Line(ctx, uid, companion.MomentAppOpen, taskID)
+// NoticeLine は課題を始める時刻になったときの一言（ショートカット用）。
+func (c CompanionLines) NoticeLine(ctx context.Context, uid, taskID string) (string, error) {
+	l, err := c.Service.Line(ctx, uid, companion.MomentNotice, taskID)
+	return l.Text, err
+}
+
+// BalanceZeroLine は持ち時間を使い切ったときの一言（ショートカット用）。
+func (c CompanionLines) BalanceZeroLine(ctx context.Context, uid, taskID string) (string, error) {
+	l, err := c.Service.Line(ctx, uid, companion.MomentBalanceZero, taskID)
 	return l.Text, err
 }
 
@@ -44,11 +50,11 @@ func (a AssistantTurns) List(ctx context.Context, uid string) ([]oapi.AssistantT
 }
 
 // Send は相談を送る。id は Idempotency-Key（仕様の Id の形を満たす）。
-func (a AssistantTurns) Send(ctx context.Context, uid, id, text, taskID string) (oapi.AssistantTurn, error) {
+func (a AssistantTurns) Send(ctx context.Context, uid, id, text, taskID string, historyIDs *[]string) (oapi.AssistantTurn, error) {
 	if err := checkID("Idempotency-Key", id); err != nil {
 		return oapi.AssistantTurn{}, err
 	}
-	t, err := a.Service.Send(ctx, uid, id, text, taskID)
+	t, err := a.Service.Send(ctx, uid, id, text, taskID, historyIDs)
 	if err != nil {
 		return oapi.AssistantTurn{}, err
 	}

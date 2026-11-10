@@ -32,7 +32,7 @@ type Companion interface {
 // Assistant は AI 相談。
 type Assistant interface {
 	List(ctx context.Context, uid string) ([]oapi.AssistantTurn, error)
-	Send(ctx context.Context, uid, id, text, taskID string) (oapi.AssistantTurn, error)
+	Send(ctx context.Context, uid, id, text, taskID string, historyIDs *[]string) (oapi.AssistantTurn, error)
 }
 
 // Calendar は Google カレンダーとの連携。
@@ -43,6 +43,7 @@ type Calendar interface {
 	SyncNow(ctx context.Context, uid string) (oapi.CalendarStatus, error)
 	Disconnect(ctx context.Context, uid string) (oapi.CalendarStatus, error)
 	PrimaryEvents(ctx context.Context, uid string, from, to time.Time) ([]oapi.CalendarEvent, error)
+	SetReminders(ctx context.Context, uid string, minutes []int) (oapi.CalendarStatus, error)
 	Webhook(ctx context.Context, channelID, token, resourceState string) error
 	Renew(ctx context.Context) error
 }
@@ -173,6 +174,9 @@ func (calendarOff) Disconnect(context.Context, string) (oapi.CalendarStatus, err
 func (calendarOff) PrimaryEvents(context.Context, string, time.Time, time.Time) ([]oapi.CalendarEvent, error) {
 	return nil, apperr.Unavailable("calendar.unavailable")
 }
+func (calendarOff) SetReminders(context.Context, string, []int) (oapi.CalendarStatus, error) {
+	return oapi.CalendarStatus{}, apperr.Unavailable("calendar.unavailable")
+}
 func (calendarOff) Webhook(context.Context, string, string, string) error {
 	return apperr.Forbidden("not_found")
 }
@@ -192,6 +196,6 @@ func (assistantOff) List(context.Context, string) ([]oapi.AssistantTurn, error) 
 	return []oapi.AssistantTurn{}, nil
 }
 
-func (assistantOff) Send(context.Context, string, string, string, string) (oapi.AssistantTurn, error) {
+func (assistantOff) Send(context.Context, string, string, string, string, *[]string) (oapi.AssistantTurn, error) {
 	return oapi.AssistantTurn{}, apperr.Unavailable("ai.unavailable")
 }

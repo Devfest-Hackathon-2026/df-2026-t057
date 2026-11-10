@@ -295,6 +295,19 @@ func (c *client) DeleteEvent(ctx context.Context, calendarID, eventID string) er
 	return nil
 }
 
+// SetDefaultReminders はカレンダーの一覧の項目の既定の通知（ポップアップ）を置き換える。空の一覧も送り、通知を無くす。
+func (c *client) SetDefaultReminders(ctx context.Context, calendarID string, minutes []int) error {
+	reminders := make([]*calendarapi.EventReminder, 0, len(minutes))
+	for _, m := range minutes {
+		reminders = append(reminders, &calendarapi.EventReminder{Method: "popup", Minutes: int64(m), ForceSendFields: []string{"Minutes"}})
+	}
+	entry := &calendarapi.CalendarListEntry{DefaultReminders: reminders, ForceSendFields: []string{"DefaultReminders"}}
+	if _, err := c.svc.CalendarList.Patch(calendarID, entry).Context(ctx).Do(); err != nil {
+		return mapError("set default reminders", err)
+	}
+	return nil
+}
+
 func (c *client) ListEvents(ctx context.Context, calendarID, syncToken, pageToken string) (calendar.EventPage, error) {
 	call := c.svc.Events.List(calendarID).MaxResults(250).ShowDeleted(true)
 	if syncToken != "" {

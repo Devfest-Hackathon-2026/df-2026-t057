@@ -150,6 +150,28 @@ describe('SettingsPage', () => {
     expect(button('変更を保存').disabled).toBe(true);
   });
 
+  it('名前を編集中でも別タブの記憶更新を保存で巻き戻さない', async () => {
+    await render();
+    type('input[formcontrolname=name]', '新しい名前');
+    await settle();
+    TestBed.inject(ProfileStore).accept({
+      ...profile,
+      context: '別タブで更新した記憶',
+      revision: 2,
+    });
+    await settle();
+    backend.on('PUT', '/profile', ({ body }) => ({ body: { ...(body as object), revision: 3 } }));
+    button('変更を保存').click();
+    await settle();
+    expect(
+      backend.requests.find((request) => request.method === 'PUT' && request.path === '/profile')
+        ?.body,
+    ).toMatchObject({
+      name: '新しい名前',
+      context: '別タブで更新した記憶',
+    });
+  });
+
   it('範囲外のスヌーズでは保存できない', async () => {
     await render();
     type('input[formcontrolname=snoozeMinutes]', '121');

@@ -837,6 +837,8 @@ paths:
       description: |
         視聴した秒数を報告する。`Idempotency-Key` は受付の ID として使い、再送で二重に減らさない。
         減らす秒数は、報告した秒数・前回の報告からの経過時間・区切りの残り・今日の残りの最小値。
+        `fromSeconds` を指定した場合は計測済み区間の開始位置を表す。同じ区間を重ねて消費せず、
+        保留分の連続送信は区切り開始からの経過時間まで受け付ける。未指定は従来の報告方式。
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody:
         required: true
@@ -848,6 +850,13 @@ paths:
               properties:
                 seconds: { type: integer, minimum: 1, maximum: 65 }
                 sessionId: { $ref: '#/components/schemas/Id' }
+                fromSeconds:
+                  {
+                    type: integer,
+                    minimum: 0,
+                    maximum: 2147483582,
+                    description: 計測済み区間の開始位置,
+                  }
       responses:
         '200':
           description: 報告を反映した後の状態
@@ -979,14 +988,45 @@ paths:
     post:
       tags: [shortcut]
       operationId: openFromShortcut
-      description: iPhone で YouTube を開いたときにショートカットが呼ぶ。アカウントを作らない。
+      description: iPhone で YouTube アプリが前面に来たときにショートカットが呼ぶ。開いた時刻を記録するだけで、通知はしない。action が wait なら、ショートカットは waitSeconds だけ待ってから /shortcut/check を呼ぶ。アカウントを作らない。
       security: [{ shortcut: [] }]
       responses:
         '200':
-          description: 通知に表示する内容
+          description: 聞き直すまでの待ち時間
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ShortcutOpen' }
+        default: { $ref: '#/components/responses/Problem' }
+  /shortcut/check:
+    post:
+      tags: [shortcut]
+      operationId: checkFromShortcut
+      description: 待ち終わったショートカットが呼ぶ。その回がまだ開いたままで、持ち時間を使い切ったか課題を始める時刻になっていれば、通知する内容を返す。時刻が後ろにずれていれば待ち直させる。閉じた・新しく開き直した・通知済みなら何もしない。
+      security: [{ shortcut: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [openId]
+              properties:
+                openId: { type: string, maxLength: 32 }
+      responses:
+        '200':
+          description: ショートカットがすること
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShortcutCheck' }
+        default: { $ref: '#/components/responses/Problem' }
+  /shortcut/close:
+    post:
+      tags: [shortcut]
+      operationId: closeFromShortcut
+      description: iPhone で YouTube アプリが前面から外れたときにショートカットが呼ぶ。直前に開いてから使った時間を振り返り用に記録するだけで、通知はしない。視聴時間の残高は変えない。アカウントを作らない。
+      security: [{ shortcut: [] }]
+      responses:
+        '204': { description: 記録した }
         default: { $ref: '#/components/responses/Problem' }
 
   # ───────────────────────── companion ─────────────────────────
@@ -1064,6 +1104,11 @@ paths:
               type: object
               required: [text]
               properties:
+                historyTurnIds:
+                  type: array
+                  maxItems: 20
+                  description: 今回の相談で参照する本人の履歴ID。空配列は新しい相談、省略時は従来の履歴を使う。
+                  items: { $ref: '#/components/schemas/Id' }
                 text: { type: string, minLength: 1, maxLength: 2000 }
                 taskId: { $ref: '#/components/schemas/Id' }
       responses:
@@ -1190,6 +1235,35 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/CalendarEvent' }
         default: { $ref: '#/components/responses/Problem' }
+  /calendar/reminders:
+    put:
+      tags: [calendar]
+      operationId: setCalendarReminders
+      summary: DOPAGAKI のカレンダーの既定の通知を変える
+      description: |
+        予定の開始（取りかかる時刻）の何分前に通知するかを保存し、Google カレンダーの DOPAGAKI のカレンダーの
+        既定の通知へ反映するジョブを積む。DOPAGAKI が作る予定と、本人が Google カレンダーで手入力した予定の両方に効く。
+        空の一覧は通知しない。重複は除き、早い順に並べて保存する。連携していなければ 409。
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [minutes]
+              properties:
+                minutes:
+                  type: array
+                  maxItems: 5
+                  items: { type: integer, minimum: 0, maximum: 40320 }
+      responses:
+        '200':
+          description: 保存後の連携状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CalendarStatus' }
+        default: { $ref: '#/components/responses/Problem' }
   /calendar/webhook:
     post:
       tags: [calendar]
@@ -1213,12 +1287,7 @@ paths:
       description: |
         変更の通知（Server-Sent Events）。データ本体は送らない。各イベントの `data` は `ChangeEvent` の JSON。
         接続した直後に、すべてのリソースの現在の版を送る。15秒ごとにコメント行を送って接続を保つ。
-        EventSource はヘッダーを付けられないので、ブラウザーからは `token` クエリで ID トークンを渡してよい。
-      parameters:
-        - name: token
-          in: query
-          description: '`Authorization` の代わりに使う ID トークン（EventSource 用）'
-          schema: { type: string }
+        認証は Authorization ヘッダーで行う。ID トークンを URL のクエリに含めない。
       responses:
         '200':
           description: イベントの流れ
@@ -1758,6 +1827,19 @@ components:
             - { type: 'null' }
         availableSeconds: { type: integer }
         balanceSeconds: { type: integer }
+        reportCursor:
+          {
+            type: integer,
+            minimum: 0,
+            description: 受付済み区間の終端。区切りが不要な場合も単調増加する,
+          }
+        acceptedSeconds:
+          {
+            type: integer,
+            minimum: 0,
+            maximum: 65,
+            description: 今回の区間で受付済みの秒数。重複部分を含む,
+          }
         requiresSession:
           { type: boolean, description: 視聴の前に区切りを選ぶ必要がある（self 以外） }
 
@@ -1886,11 +1968,31 @@ components:
         createdAt: { type: string, format: date-time }
     ShortcutOpen:
       type: object
-      required: [title, message, url]
+      required: [openId, action, waitSeconds]
       properties:
+        openId: { type: string, description: この「開いた」の番号。/shortcut/check に渡す }
+        action:
+          type: string
+          enum: [wait, none]
+          description: ショートカットの「もし」は文字列で比べるので文字列にする。none なら待たずに終わる
+        waitSeconds:
+          { type: integer, minimum: 0, description: 聞き直すまでの秒数（60〜900）。none なら 0 }
+    ShortcutCheck:
+      type: object
+      required: [action, waitSeconds, openApp]
+      properties:
+        action:
+          type: string
+          enum: [notify, wait, none]
+          description: notify なら title・message を通知する。wait なら waitSeconds だけ待って聞き直す
+        waitSeconds: { type: integer, minimum: 0 }
         title: { type: string }
         message: { type: string }
         url: { type: string, format: uri }
+        openApp:
+          type: string
+          enum: ['yes', 'no']
+          description: yes なら通知のあとに url（DOPAGAKI）を開く。持ち時間を使い切ったとき
 
     # ── companion ──
     CompanionMoment:
@@ -2017,6 +2119,10 @@ components:
         lastSync: { type: string, format: date-time }
         conflicts: { type: integer }
         failedJobs: { type: integer, description: 再試行しても反映できなかったジョブの数 }
+        reminders:
+          type: array
+          items: { type: integer }
+          description: 本人が選んだ通知（予定の開始の何分前か、早い順）。選んでいなければ省く（Google の設定のまま）
         primaryEvents:
           type: boolean
           description: 主カレンダーの予定を読む許可がある（無ければ、同意し直すまで `GET /calendar/events` を使えない）

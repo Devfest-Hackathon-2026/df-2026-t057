@@ -7,7 +7,6 @@
   min-height: 16rem;
   max-height: 27rem;
   overflow-y: auto;
-  overscroll-behavior: contain;
   padding: 0.5rem 0.25rem 1rem 0;
 }
 
@@ -187,4 +186,24 @@ mat-form-field {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: var(--mat-sys-body-medium);
+}
+
+:host.embedded,
+:host.embedded .assistant-layout,
+:host.embedded .conversation {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+:host.embedded .thread {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+:host.embedded .composer,
+:host.embedded .selected-context {
+  flex-shrink: 0;
 }

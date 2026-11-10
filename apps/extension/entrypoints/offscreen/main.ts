@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MANAGEMENT_ORIGIN } from '../../lib/config';
 let frame: HTMLIFrameElement | undefined;
+let retry: ReturnType<typeof setInterval> | undefined;
 chrome.runtime.onMessage.addListener((raw: unknown, sender, respond) => {
   if (
     sender.id !== chrome.runtime.id ||
@@ -8,11 +9,19 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, respond) => {
       .success
   )
     return false;
+  clearInterval(retry);
   frame?.remove();
   frame = document.createElement('iframe');
   frame.src = `${MANAGEMENT_ORIGIN}/extension-auth`;
   document.body.append(frame);
-  frame.onload = () => frame?.contentWindow?.postMessage({ type: 'AUTH_START' }, MANAGEMENT_ORIGIN);
+  // ページの受信処理は読み込み完了より後に準備されることがあるので、結果が来るまで送り直す。
+  frame.onload = () => {
+    const start = () =>
+      frame?.contentWindow?.postMessage({ type: 'AUTH_START' }, MANAGEMENT_ORIGIN);
+    start();
+    clearInterval(retry);
+    retry = setInterval(start, 500);
+  };
   respond({ started: true });
   return false;
 });
@@ -28,5 +37,8 @@ window.addEventListener('message', (event: MessageEvent<unknown>) => {
       }),
     })
     .safeParse(event.data);
-  if (parsed.success) void chrome.runtime.sendMessage(parsed.data);
+  if (parsed.success) {
+    clearInterval(retry);
+    void chrome.runtime.sendMessage(parsed.data);
+  }
 });

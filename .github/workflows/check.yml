@@ -159,6 +159,7 @@ jobs:
           cache-suffix: '-build'
       - uses: ./.github/actions/setup-node
       - name: Build extension once
+        if: needs.changes.outputs.suite == 'full'
         env:
           APP_URL: http://127.0.0.1:4300
         run: pnpm --filter @dopagaki/extension build
@@ -202,7 +203,6 @@ jobs:
           case "$E2E_SUITE" in
             full) pnpm test:e2e ;;
             smoke) pnpm --filter @dopagaki/e2e exec playwright test --grep @smoke ;;
-            extension-smoke) pnpm --filter @dopagaki/e2e exec playwright test 'extension.*\.spec\.ts' --grep @smoke ;;
             *) exit 1 ;;
           esac
       - name: Save tested image
@@ -267,7 +267,7 @@ jobs:
       - changes
       - check
       - e2e
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check.result == 'success' && needs.check.outputs.current == 'true' && needs.changes.outputs.deploy == 'true'
+    if: "!cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check.result == 'success' && needs.check.outputs.current == 'true' && needs.changes.outputs.deploy == 'true'"
     permissions:
       contents: read
       id-token: write

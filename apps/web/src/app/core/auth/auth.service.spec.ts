@@ -1,10 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { messages } from '@dopagaki/messages';
-import { FakeBackend, flush } from '../../../testing/fake-backend';
+import { FakeBackend, FakeEventSource, flush } from '../../../testing/fake-backend';
 import { ConfigStore } from '../config/config.store';
 import { AccountScope } from './account-scope';
 import { AuthService } from './auth.service';
 import { FIREBASE_AUTH_LOADER, type FirebaseAuthPort, type FirebaseUser } from './firebase-auth';
+import { EVENT_SOURCE_FACTORY, RealtimeService } from '../realtime/realtime.service';
 
 function user(uid: string, token = `${uid}-token`): FirebaseUser {
   return {
@@ -50,7 +51,14 @@ describe('AuthService', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(backend.fetch);
     firebase = new FakeFirebase();
     TestBed.configureTestingModule({
-      providers: [{ provide: FIREBASE_AUTH_LOADER, useValue: () => Promise.resolve(firebase) }],
+      providers: [
+        { provide: FIREBASE_AUTH_LOADER, useValue: () => Promise.resolve(firebase) },
+        {
+          provide: EVENT_SOURCE_FACTORY,
+          useValue: (url: string, authorization?: string) =>
+            new FakeEventSource(url, authorization),
+        },
+      ],
     });
     return TestBed.inject(AuthService);
   }
@@ -112,6 +120,43 @@ describe('AuthService', () => {
     await flush();
     expect(auth.status()).toBe('signedOut');
     expect(scope.epoch()).toBe(epoch + 2);
+  });
+
+  it('Firebase のトークン更新・アカウント切替・ログアウトを通知接続へ反映する', async () => {
+    const auth = setup({
+      mode: 'live',
+      firebase: { apiKey: 'fixture' },
+      features: { ai: true, calendar: true },
+    });
+    FakeEventSource.instances = [];
+    const realtime = TestBed.inject(RealtimeService);
+    firebase.current = user('a');
+    await auth.start();
+    TestBed.tick();
+    const first = FakeEventSource.latest();
+    first.open();
+    expect(first.authorization).toBe('Bearer a-token');
+    firebase.change(user('a', 'a-refreshed'));
+    await flush();
+    TestBed.tick();
+    expect(first.closed).toBe(true);
+    expect(FakeEventSource.latest().authorization).toBe('Bearer a-refreshed');
+    const refreshed = FakeEventSource.latest();
+    refreshed.open();
+    firebase.change(user('b'));
+    await flush();
+    TestBed.tick();
+    expect(refreshed.closed).toBe(true);
+    expect(FakeEventSource.latest().authorization).toBe('Bearer b-token');
+    first.emit({ resource: 'tasks', revision: 99 });
+    expect(realtime.latestRevision('tasks')).toBeUndefined();
+    const current = FakeEventSource.latest();
+    await auth.logout();
+    await flush();
+    TestBed.tick();
+    expect(current.closed).toBe(true);
+    expect(realtime.state()).toBe('idle');
+    expect(FakeEventSource.instances.every((source) => source.url === '/api/events')).toBe(true);
   });
 
   it('ポップアップを閉じたら知らせて、ログイン前に戻す', async () => {

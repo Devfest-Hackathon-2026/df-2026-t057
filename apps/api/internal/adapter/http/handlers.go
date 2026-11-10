@@ -3,12 +3,14 @@ package http
 import (
 	"context"
 	"regexp"
+	"time"
 
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/adapter/http/oapi"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/config"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/profile"
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/shortcut"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/viewing"
@@ -417,7 +419,13 @@ func (s *Server) ReportViewing(ctx context.Context, req oapi.ReportViewingReques
 		}
 		sessionID = *req.Body.SessionId
 	}
-	v, err := s.Viewing.Report(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Seconds, sessionID)
+	var v viewing.View
+	var err error
+	if req.Body.FromSeconds == nil {
+		v, err = s.Viewing.Report(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Seconds, sessionID)
+	} else {
+		v, err = s.Viewing.ReportFrom(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Seconds, sessionID, *req.Body.FromSeconds)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -505,16 +513,60 @@ func (s *Server) RevokeShortcutKey(ctx context.Context, _ oapi.RevokeShortcutKey
 	return oapi.RevokeShortcutKey204Response{}, nil
 }
 
-func (s *Server) OpenFromShortcut(ctx context.Context, _ oapi.OpenFromShortcutRequestObject) (oapi.OpenFromShortcutResponseObject, error) {
+// shortcutKey はショートカットの Authorization ヘッダから接続キーを取り出す。
+func shortcutKey(ctx context.Context) (string, error) {
 	key, ok := cutScheme(rawAuthorization(ctx), "Shortcut ")
 	if !ok {
-		return nil, apperr.Unauthenticated("shortcut.key_malformed")
+		return "", apperr.Unauthenticated("shortcut.key_malformed")
 	}
-	n, err := s.Shortcut.Open(ctx, key)
+	return key, nil
+}
+
+func (s *Server) OpenFromShortcut(ctx context.Context, _ oapi.OpenFromShortcutRequestObject) (oapi.OpenFromShortcutResponseObject, error) {
+	key, err := shortcutKey(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return oapi.OpenFromShortcut200JSONResponse{Title: n.Title, Message: n.Message, Url: n.URL}, nil
+	o, err := s.Shortcut.Open(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	action := oapi.ShortcutOpenActionWait
+	if o.Wait == 0 {
+		action = oapi.ShortcutOpenActionNone
+	}
+	return oapi.OpenFromShortcut200JSONResponse{OpenId: o.OpenID, Action: action, WaitSeconds: int(o.Wait / time.Second)}, nil
+}
+
+func (s *Server) CheckFromShortcut(ctx context.Context, req oapi.CheckFromShortcutRequestObject) (oapi.CheckFromShortcutResponseObject, error) {
+	key, err := shortcutKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c, err := s.Shortcut.Check(ctx, key, req.Body.OpenId)
+	if err != nil {
+		return nil, err
+	}
+	out := oapi.CheckFromShortcut200JSONResponse{Action: oapi.ShortcutCheckAction(c.Action), WaitSeconds: int(c.Wait / time.Second), OpenApp: oapi.No}
+	if c.Action == shortcut.ActionNotify {
+		n := c.Notification
+		out.Title, out.Message, out.Url = &n.Title, &n.Message, &n.URL
+		if n.OpenApp {
+			out.OpenApp = oapi.Yes
+		}
+	}
+	return out, nil
+}
+
+func (s *Server) CloseFromShortcut(ctx context.Context, _ oapi.CloseFromShortcutRequestObject) (oapi.CloseFromShortcutResponseObject, error) {
+	key, err := shortcutKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Shortcut.Close(ctx, key); err != nil {
+		return nil, err
+	}
+	return oapi.CloseFromShortcut204Response{}, nil
 }
 
 // ───────── companion / assistant ─────────
@@ -553,7 +605,7 @@ func (s *Server) SendAssistantMessage(ctx context.Context, req oapi.SendAssistan
 		}
 		taskID = *req.Body.TaskId
 	}
-	turn, err := s.Assistant.Send(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Text, taskID)
+	turn, err := s.Assistant.Send(ctx, uidFrom(ctx), req.Params.IdempotencyKey, req.Body.Text, taskID, req.Body.HistoryTurnIds)
 	if err != nil {
 		return nil, err
 	}
@@ -613,6 +665,17 @@ func (s *Server) ListCalendarEvents(ctx context.Context, req oapi.ListCalendarEv
 		return nil, err
 	}
 	return oapi.ListCalendarEvents200JSONResponse(events), nil
+}
+
+func (s *Server) SetCalendarReminders(ctx context.Context, req oapi.SetCalendarRemindersRequestObject) (oapi.SetCalendarRemindersResponseObject, error) {
+	if req.Body == nil || req.Body.Minutes == nil {
+		return nil, apperr.Invalid("request.invalid", apperr.Field("minutes", "required"))
+	}
+	st, err := s.Calendar.SetReminders(ctx, uidFrom(ctx), req.Body.Minutes)
+	if err != nil {
+		return nil, err
+	}
+	return oapi.SetCalendarReminders200JSONResponse(st), nil
 }
 
 func (s *Server) CalendarWebhook(ctx context.Context, req oapi.CalendarWebhookRequestObject) (oapi.CalendarWebhookResponseObject, error) {

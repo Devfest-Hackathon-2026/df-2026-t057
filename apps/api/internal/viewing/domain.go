@@ -40,6 +40,8 @@ func (s Session) Active() bool { return s.EndedAt == nil }
 type State struct {
 	CurrentID     string     `json:"currentId,omitempty" firestore:"currentId,omitempty"`
 	LastViewingAt *time.Time `json:"lastViewingAt,omitempty" firestore:"lastViewingAt,omitempty"`
+	FreeCursor    int        `json:"freeCursor,omitempty" firestore:"freeCursor,omitempty"`
+	FreeStartedAt *time.Time `json:"freeStartedAt,omitempty" firestore:"freeStartedAt,omitempty"`
 }
 
 // ValidChoice は区切りの長さの選択肢か。
@@ -71,12 +73,62 @@ func CheckStart(current *Session, extendFrom string, available int) error {
 func Charge(s *Session, reported, available int, now time.Time) int {
 	elapsed := max(0, int(now.Sub(s.LastReportAt)/time.Second))
 	seconds := max(0, min(reported, elapsed, s.PlannedSeconds-s.ConsumedSeconds, available))
+	consume(s, seconds, available, now)
+	return seconds
+}
+
+func consume(s *Session, seconds, available int, now time.Time) {
 	s.ConsumedSeconds += seconds
 	s.LastReportAt = now
 	if s.ConsumedSeconds >= s.PlannedSeconds || available <= seconds {
 		s.EndedAt, s.EndReason = &now, EndLimit
 	}
-	return seconds
+}
+
+// ChargeRange は重複しない計測区間を、開始からの経過・区切り・残高の範囲で受け付ける。
+// accepted は既に受付済みの重複部分も含み、charged だけを新しく消費する。
+func ChargeRange(s *Session, from, reported, available int, now time.Time) (charged, accepted int, err error) {
+	charged, accepted, err = rangeSeconds(from, reported, s.ConsumedSeconds, int(now.Sub(s.StartedAt)/time.Second), min(available, s.PlannedSeconds-s.ConsumedSeconds))
+	if err == nil {
+		consume(s, charged, available, now)
+	}
+	return charged, accepted, err
+}
+
+func rangeSeconds(from, reported, cursor, elapsed, limit int) (int, int, error) {
+	if from > cursor {
+		return 0, 0, apperr.Invalid("request.invalid", apperr.Field("fromSeconds", "out_of_range"))
+	}
+	covered := min(reported, max(0, cursor-from))
+	charged := max(0, min(reported-covered, elapsed-cursor, limit))
+	return charged, covered + charged, nil
+}
+
+func (s *State) startFree(reported int, now time.Time) {
+	if s.FreeStartedAt != nil {
+		return
+	}
+	start := now.Add(-time.Duration(reported) * time.Second)
+	if s.LastViewingAt != nil && s.LastViewingAt.After(start) {
+		start = *s.LastViewingAt
+	}
+	s.FreeStartedAt = &start
+}
+
+// RecordFree は従来方式の受付も、以後の区間指定に引き継ぐ。
+func (s *State) RecordFree(charged int, now time.Time) {
+	s.startFree(charged, now)
+	s.FreeCursor += charged
+}
+
+// ChargeFreeRange は区切りのないルールでも重複・再送と正当な保留分を区別する。
+func ChargeFreeRange(s *State, from, reported int, now time.Time) (charged, accepted int, err error) {
+	s.startFree(reported, now)
+	charged, accepted, err = rangeSeconds(from, reported, s.FreeCursor, int(now.Sub(*s.FreeStartedAt)/time.Second), reported)
+	if err == nil {
+		s.FreeCursor += charged
+	}
+	return charged, accepted, err
 }
 
 // ChargeFree は区切りを使わないルール（self）での報告。前回の報告からの経過を超えない。

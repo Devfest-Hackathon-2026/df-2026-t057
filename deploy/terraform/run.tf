@@ -91,7 +91,7 @@ resource "google_cloud_run_v2_service" "app" {
       }
       env {
         name  = "AI_USER_PER_DAY"
-        value = "30"
+        value = "100"
       }
       env {
         name  = "AI_GLOBAL_PER_MINUTE"

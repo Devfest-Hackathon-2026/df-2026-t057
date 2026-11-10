@@ -68,8 +68,19 @@ export function startYouTube(ctx: ContentScriptContext, root: HTMLElement): void
   chrome.runtime.onMessage.addListener(onMessage);
 
   const disconnect = context.connect();
+  const hide = () => {
+    viewing.handoff();
+  };
+  const showPage = (event: PageTransitionEvent) => {
+    if (event.persisted) viewing.reset();
+  };
+  window.addEventListener('pagehide', hide);
+  window.addEventListener('pageshow', showPage);
   void context.refresh(false);
   ctx.onInvalidated(() => {
+    viewing.handoff();
+    window.removeEventListener('pagehide', hide);
+    window.removeEventListener('pageshow', showPage);
     chrome.runtime.onMessage.removeListener(onMessage);
     disconnect();
     host.close();

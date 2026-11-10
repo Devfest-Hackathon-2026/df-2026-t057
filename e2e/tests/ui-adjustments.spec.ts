@@ -1,6 +1,6 @@
 import { hoursFromNow } from '../support/api';
 import { expectAccessibleInBothSchemes } from '../support/a11y';
-import { expect, test, tokyoLocalInput } from '../support/fixtures';
+import { expect, test, tokyoDate, tokyoLocalInput } from '../support/fixtures';
 import { expectNoHorizontalScroll } from '../support/layout';
 import { taskAction, workspace } from '../support/pages';
 
@@ -147,12 +147,13 @@ test('structured task details and simplified page headings fit narrow and enlarg
 });
 
 test('week view shows task names instead of times', async ({ page, api }) => {
-  await api.createTask({
+  const task = await api.createTask({
     title: 'レポートの構成をまとめる',
     deadline: hoursFromNow(5),
     minutes: 30,
   });
-  await page.goto('/calendar?view=week');
+  // 日曜の夜に実行すると予定が翌週になるので、予定の日を含む週を開く。
+  await page.goto(`/calendar?view=week&date=${tokyoDate(task.plan.start)}`);
   const calendar = workspace(page).calendar;
   const name = calendar.locator('.event-name').first();
   await expect(name).toBeVisible();

@@ -1,5 +1,6 @@
 import { SetupStatus } from '../../onboarding/setup-status';
 import { CalendarConflicts } from '../../calendar/calendar-conflicts';
+import { CalendarReminders } from '../../calendar/calendar-reminders';
 import { AccountTools } from '../account-tools';
 import {
   ChangeDetectionStrategy,
@@ -95,6 +96,7 @@ function toDailyLimit(seconds: number): DailyLimit {
   imports: [
     SetupStatus,
     CalendarConflicts,
+    CalendarReminders,
     AccountTools,
     DateTimePipe,
     DurationPipe,
@@ -148,7 +150,6 @@ export class SettingsPage {
   protected readonly limits: readonly DailyLimit[] = [600, 1200, 1800];
   protected readonly locales = locales;
   protected readonly localeNames = localeNames;
-  protected readonly shortcutUrl = `${location.origin}/api/shortcut/open`;
   protected readonly browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   protected readonly mainForm = new FormGroup({
@@ -321,13 +322,18 @@ export class SettingsPage {
 
   private syncProfile(saved: Profile): void {
     const current = this.mainForm.getRawValue();
-    if (!this.syncedProfile || sameKeys(current, this.syncedProfile, profileKeys)) {
-      this.mainForm.patchValue(
-        { locale: saved.locale, name: saved.name, context: saved.context },
-        { emitEvent: false },
-      );
-      this.refreshMain();
-    }
+    const previous = this.syncedProfile;
+    // 編集していない項目は別タブの更新に追従する。名前の編集中に古い記憶を送り戻さない。
+    this.mainForm.patchValue(
+      {
+        locale: !previous || current.locale === previous.locale ? saved.locale : current.locale,
+        name: !previous || current.name === previous.name ? saved.name : current.name,
+        context:
+          !previous || current.context === previous.context ? saved.context : current.context,
+      },
+      { emitEvent: false },
+    );
+    this.refreshMain();
     this.syncedProfile = saved;
   }
 

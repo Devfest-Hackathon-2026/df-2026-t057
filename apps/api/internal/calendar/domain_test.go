@@ -3,10 +3,12 @@ package calendar
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/apperr"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/platform/locale"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/sleep"
 	"github.com/a-sumikawa/devfest-2026/apps/api/internal/task"
@@ -360,5 +362,40 @@ func TestToPrimaryEvents(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("%d: got %+v, want %+v", i, got[i], want[i])
 		}
+	}
+}
+
+func TestNormalizeReminders(t *testing.T) {
+	cases := []struct {
+		name  string
+		in    []int
+		want  []int
+		field string
+	}{
+		{"empty means no reminder", []int{}, []int{}, ""},
+		{"sorted earliest first", []int{300, 1440}, []int{1440, 300}, ""},
+		{"duplicates removed", []int{60, 60, 0}, []int{60, 0}, ""},
+		{"at event start", []int{0}, []int{0}, ""},
+		{"four weeks", []int{MaxReminderMinutes}, []int{MaxReminderMinutes}, ""},
+		{"negative", []int{-1}, nil, "out_of_range"},
+		{"beyond four weeks", []int{MaxReminderMinutes + 1}, nil, "out_of_range"},
+		{"five is the limit", []int{1, 2, 3, 4, 5}, []int{5, 4, 3, 2, 1}, ""},
+		{"six are too many", []int{1, 2, 3, 4, 5, 6}, nil, "too_long"},
+		{"duplicates do not count", []int{1, 2, 3, 4, 5, 5}, []int{5, 4, 3, 2, 1}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NormalizeReminders(tc.in)
+			if tc.field != "" {
+				e := apperr.As(err)
+				if e.Code != "request.invalid" || len(e.Fields) != 1 || e.Fields[0].Code != tc.field {
+					t.Fatalf("error: %+v", e)
+				}
+				return
+			}
+			if err != nil || !slices.Equal(got, tc.want) {
+				t.Fatalf("got %v %v, want %v", got, err, tc.want)
+			}
+		})
 	}
 }

@@ -78,6 +78,8 @@ type Status struct {
 	Conflicts  int
 	// PrimaryEvents は、主カレンダーの予定を読めるか。
 	PrimaryEvents bool
+	// Reminders は本人が選んだ通知（予定の開始の何分前か）。選んでいなければ nil。
+	Reminders []int
 }
 
 // Status は連携の状態を返す。連携を使わない環境では enabled=false、disconnected。
@@ -99,7 +101,7 @@ func (s *Service) Status(ctx context.Context, uid string) (Status, error) {
 		if err != nil {
 			return err
 		}
-		st = Status{Conflicts: len(conflicts), Enabled: true, Connected: c.Connected, Sync: DeriveSync(c.Connected, pending, failed), LastSync: c.LastSync, FailedJobs: failed, PrimaryEvents: c.Connected && c.PrimaryEvents}
+		st = Status{Conflicts: len(conflicts), Enabled: true, Connected: c.Connected, Sync: DeriveSync(c.Connected, pending, failed), LastSync: c.LastSync, FailedJobs: failed, Reminders: c.ChosenReminders(), PrimaryEvents: c.Connected && c.PrimaryEvents}
 		if c.Reauth {
 			st.Sync = SyncReauth
 		} else if st.Conflicts > 0 {
@@ -302,6 +304,12 @@ func (s *Service) finishConnect(ctx context.Context, uid string, ch newChannel, 
 		if _, err := enqueueOnce(ctx, tx, s.outbox, uid, outbox.KindExport, &c.ExportJob); err != nil {
 			return err
 		}
+		// 前に選んだ通知を、（作り直したかもしれない）カレンダーにも設定する。
+		if c.RemindersSet {
+			if _, err := enqueueOnce(ctx, tx, s.outbox, uid, outbox.KindReminders, &c.RemindersJob); err != nil {
+				return err
+			}
+		}
 		// 連携の前に登録した課題にも予定を作る。
 		for _, t := range tasks {
 			if t.Status != task.StatusCompleted && !linked[t.ID] {
@@ -434,8 +442,8 @@ func (s *Service) Disconnect(ctx context.Context, uid string) (Status, error) {
 		}
 		old := c
 		tx.AfterCommit(func() { s.teardown(context.WithoutCancel(ctx), uid, old) })
-		// つなぎ直したときに予定を結び付け直せるよう、カレンダーの ID と Google アカウントだけ残す。
-		return saveConnection(ctx, tx, uid, Connection{CalendarID: c.CalendarID, GoogleID: c.GoogleID})
+		// つなぎ直したときに予定を結び付け直せるよう、カレンダーの ID と Google アカウント、選んだ通知だけ残す。
+		return saveConnection(ctx, tx, uid, Connection{CalendarID: c.CalendarID, GoogleID: c.GoogleID, RemindersSet: c.RemindersSet, Reminders: c.Reminders})
 	})
 	if err != nil {
 		return Status{}, err
@@ -589,6 +597,58 @@ func (s *Service) Register(o *outbox.Outbox) {
 	s.handle(o, outbox.KindSleepDelete, s.reconcileSleep)
 	s.handle(o, outbox.KindExport, s.export)
 	s.handle(o, outbox.KindSync, s.sync)
+	s.handle(o, outbox.KindReminders, s.applyReminders)
+}
+
+// SetReminders は、DOPAGAKI のカレンダーで予定の開始の何分前に通知するかを保存し、Google へ反映するジョブを積む。
+func (s *Service) SetReminders(ctx context.Context, uid string, minutes []int) (Status, error) {
+	if !s.cfg.Enabled {
+		return Status{}, apperr.Unavailable("calendar.unavailable")
+	}
+	normalized, err := NormalizeReminders(minutes)
+	if err != nil {
+		return Status{}, err
+	}
+	err = s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
+		c, err := loadConnection(ctx, tx, uid)
+		if err != nil {
+			return err
+		}
+		if !c.Connected {
+			return apperr.Conflict("calendar.not_connected")
+		}
+		c.RemindersSet, c.Reminders = true, normalized
+		if _, err := enqueueOnce(ctx, tx, s.outbox, uid, outbox.KindReminders, &c.RemindersJob); err != nil {
+			return err
+		}
+		return saveConnection(ctx, tx, uid, c)
+	})
+	if err != nil {
+		return Status{}, err
+	}
+	return s.Status(ctx, uid)
+}
+
+// applyReminders は、今保存している通知を DOPAGAKI のカレンダーの既定の通知にする（何度実行しても同じ結果）。
+func (s *Service) applyReminders(ctx context.Context, job outbox.Job) error {
+	uid := job.UID
+	if err := s.claim(ctx, job, func(c *Connection) *string { return &c.RemindersJob }); err != nil {
+		return err
+	}
+	var c Connection
+	err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
+		var err error
+		c, err = loadConnection(ctx, tx, uid)
+		return err
+	})
+	if err != nil || !c.Connected || !c.RemindersSet || c.CalendarID == "" {
+		return err
+	}
+	client, err := s.Google.Client(ctx, uid)
+	if err != nil {
+		return err
+	}
+	return client.SetDefaultReminders(ctx, c.CalendarID, c.ChosenReminders())
 }
 
 // claim は、まだ始まっていないジョブの記録（slot）がこのジョブなら消す。始まった後の変更は新しいジョブで反映する。
@@ -1043,12 +1103,9 @@ func (v syncView) needsImport(taskID string, c EventChange) bool {
 // 消された予定の課題は消す。手順の具体化（AI）は変わった予定だけに使い、使えなければ逆算だけの計画にする。
 func (s *Service) sync(ctx context.Context, job outbox.Job) error {
 	uid := job.UID
-	if err := s.claim(ctx, job, func(c *Connection) *string { return &c.SyncJob }); err != nil {
-		return err
-	}
 	var view syncView
 	var profileContext string
-	err := s.runner.View(ctx, func(ctx context.Context, tx *store.Tx) error {
+	err := s.runner.Update(ctx, func(ctx context.Context, tx *store.Tx) error {
 		c, err := loadConnection(ctx, tx, uid)
 		if err != nil || !c.Connected {
 			view.conn = c
@@ -1062,9 +1119,16 @@ func (s *Service) sync(ctx context.Context, job outbox.Job) error {
 		if err != nil {
 			return err
 		}
+		c.SyncGeneration++
+		if c.SyncJob == job.ID {
+			c.SyncJob = ""
+		}
 		view = newSyncView(c, tasks, links)
 		profileContext, _, err = s.Profiles.Context(ctx, tx, uid)
-		return err
+		if err != nil {
+			return err
+		}
+		return saveConnection(ctx, tx, uid, c)
 	})
 	if err != nil || !view.conn.Connected {
 		return err
@@ -1091,6 +1155,10 @@ func (s *Service) sync(ctx context.Context, job outbox.Job) error {
 		c, err := loadConnection(ctx, tx, uid)
 		if err != nil || !c.Connected {
 			return err
+		}
+		// 別インスタンスで新しい取り込みや再接続が始まったら、この一覧は採用しない。
+		if c.SyncGeneration != view.conn.SyncGeneration || c.CalendarID != view.conn.CalendarID || c.ChannelID != view.conn.ChannelID {
+			return nil
 		}
 		tasks, err := s.Tasks.All(ctx, tx, uid)
 		if err != nil {

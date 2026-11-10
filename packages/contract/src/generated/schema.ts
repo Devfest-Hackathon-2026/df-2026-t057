@@ -649,6 +649,8 @@ export interface paths {
         /**
          * @description 視聴した秒数を報告する。`Idempotency-Key` は受付の ID として使い、再送で二重に減らさない。
          *     減らす秒数は、報告した秒数・前回の報告からの経過時間・区切りの残り・今日の残りの最小値。
+         *     `fromSeconds` を指定した場合は計測済み区間の開始位置を表す。同じ区間を重ねて消費せず、
+         *     保留分の連続送信は区切り開始からの経過時間まで受け付ける。未指定は従来の報告方式。
          */
         post: operations["reportViewing"];
         delete?: never;
@@ -751,8 +753,42 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description iPhone で YouTube を開いたときにショートカットが呼ぶ。アカウントを作らない。 */
+        /** @description iPhone で YouTube アプリが前面に来たときにショートカットが呼ぶ。開いた時刻を記録するだけで、通知はしない。action が wait なら、ショートカットは waitSeconds だけ待ってから /shortcut/check を呼ぶ。アカウントを作らない。 */
         post: operations["openFromShortcut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shortcut/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description 待ち終わったショートカットが呼ぶ。その回がまだ開いたままで、持ち時間を使い切ったか課題を始める時刻になっていれば、通知する内容を返す。時刻が後ろにずれていれば待ち直させる。閉じた・新しく開き直した・通知済みなら何もしない。 */
+        post: operations["checkFromShortcut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shortcut/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description iPhone で YouTube アプリが前面から外れたときにショートカットが呼ぶ。直前に開いてから使った時間を振り返り用に記録するだけで、通知はしない。視聴時間の残高は変えない。アカウントを作らない。 */
+        post: operations["closeFromShortcut"];
         delete?: never;
         options?: never;
         head?: never;
@@ -924,6 +960,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calendar/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * DOPAGAKI のカレンダーの既定の通知を変える
+         * @description 予定の開始（取りかかる時刻）の何分前に通知するかを保存し、Google カレンダーの DOPAGAKI のカレンダーの
+         *     既定の通知へ反映するジョブを積む。DOPAGAKI が作る予定と、本人が Google カレンダーで手入力した予定の両方に効く。
+         *     空の一覧は通知しない。重複は除き、早い順に並べて保存する。連携していなければ 409。
+         */
+        put: operations["setCalendarReminders"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/calendar/webhook": {
         parameters: {
             query?: never;
@@ -951,7 +1009,7 @@ export interface paths {
         /**
          * @description 変更の通知（Server-Sent Events）。データ本体は送らない。各イベントの `data` は `ChangeEvent` の JSON。
          *     接続した直後に、すべてのリソースの現在の版を送る。15秒ごとにコメント行を送って接続を保つ。
-         *     EventSource はヘッダーを付けられないので、ブラウザーからは `token` クエリで ID トークンを渡してよい。
+         *     認証は Authorization ヘッダーで行う。ID トークンを URL のクエリに含めない。
          */
         get: operations["subscribeEvents"];
         put?: never;
@@ -1281,6 +1339,10 @@ export interface components {
             session: components["schemas"]["ViewingSession"] | null;
             availableSeconds: number;
             balanceSeconds: number;
+            /** @description 受付済み区間の終端。区切りが不要な場合も単調増加する */
+            reportCursor?: number;
+            /** @description 今回の区間で受付済みの秒数。重複部分を含む */
+            acceptedSeconds?: number;
             /** @description 視聴の前に区切りを選ぶ必要がある（self 以外） */
             requiresSession: boolean;
         };
@@ -1362,10 +1424,32 @@ export interface components {
             createdAt?: string;
         };
         ShortcutOpen: {
-            title: string;
-            message: string;
+            /** @description この「開いた」の番号。/shortcut/check に渡す */
+            openId: string;
+            /**
+             * @description ショートカットの「もし」は文字列で比べるので文字列にする。none なら待たずに終わる
+             * @enum {string}
+             */
+            action: "wait" | "none";
+            /** @description 聞き直すまでの秒数（60〜900）。none なら 0 */
+            waitSeconds: number;
+        };
+        ShortcutCheck: {
+            /**
+             * @description notify なら title・message を通知する。wait なら waitSeconds だけ待って聞き直す
+             * @enum {string}
+             */
+            action: "notify" | "wait" | "none";
+            waitSeconds: number;
+            title?: string;
+            message?: string;
             /** Format: uri */
-            url: string;
+            url?: string;
+            /**
+             * @description yes なら通知のあとに url（DOPAGAKI）を開く。持ち時間を使い切ったとき
+             * @enum {string}
+             */
+            openApp: "yes" | "no";
         };
         /** @enum {string} */
         CompanionMoment: "notice" | "snooze" | "complete" | "balance_zero" | "app_open" | "night" | "morning";
@@ -1468,6 +1552,8 @@ export interface components {
             conflicts?: number;
             /** @description 再試行しても反映できなかったジョブの数 */
             failedJobs: number;
+            /** @description 本人が選んだ通知（予定の開始の何分前か、早い順）。選んでいなければ省く（Google の設定のまま） */
+            reminders?: number[];
             /** @description 主カレンダーの予定を読む許可がある（無ければ、同意し直すまで `GET /calendar/events` を使えない） */
             primaryEvents: boolean;
         };
@@ -2612,6 +2698,8 @@ export interface operations {
                 "application/json": {
                     seconds: number;
                     sessionId?: components["schemas"]["Id"];
+                    /** @description 計測済み区間の開始位置 */
+                    fromSeconds?: number;
                 };
             };
         };
@@ -2828,7 +2916,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 通知に表示する内容 */
+            /** @description 聞き直すまでの待ち時間 */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2836,6 +2924,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ShortcutOpen"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    checkFromShortcut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    openId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description ショートカットがすること */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortcutCheck"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    closeFromShortcut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 記録した */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };
@@ -2905,6 +3039,8 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @description 今回の相談で参照する本人の履歴ID。空配列は新しい相談、省略時は従来の履歴を使う。 */
+                    historyTurnIds?: components["schemas"]["Id"][];
                     text: string;
                     taskId?: components["schemas"]["Id"];
                 };
@@ -3116,6 +3252,35 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    setCalendarReminders: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    minutes: number[];
+                };
+            };
+        };
+        responses: {
+            /** @description 保存後の連携状態 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     calendarWebhook: {
         parameters: {
             query?: never;
@@ -3154,10 +3319,7 @@ export interface operations {
     };
     subscribeEvents: {
         parameters: {
-            query?: {
-                /** @description `Authorization` の代わりに使う ID トークン（EventSource 用） */
-                token?: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;

@@ -1,8 +1,9 @@
 import type { CalendarStatus } from '../support/api';
 import { hoursFromNow } from '../support/api';
+import { expectAccessibleInBothSchemes } from '../support/a11y';
 import { expect, test, tokyoDate } from '../support/fixtures';
 import { expectNoHorizontalScroll } from '../support/layout';
-import { taskAction, workspace } from '../support/pages';
+import { expandPanel, taskAction, workspace } from '../support/pages';
 import { enableAi, fulfillProblem, Gate, mockAssistant } from '../support/routes';
 
 test('calendar selection, routes and chat preserve the chosen task and draft', async ({
@@ -124,4 +125,74 @@ test('manual Google sync waits for confirmation and preserves events on failure'
   await expect(home.credit).toHaveText('15分');
   await expect(page.getByRole('button', { name: 'Googleと同期', exact: true })).toBeEnabled();
   expect(calls).toBe(1);
+});
+
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`calendar scrolls near now and today's shading preserves grid lines in ${colorScheme}`, async ({
+    page,
+  }) => {
+    await page.clock.setFixedTime(new Date('2026-11-09T18:45:00+09:00'));
+    await page.emulateMedia({ colorScheme });
+    await page.goto('/calendar?view=week');
+    const scroller = page.locator('.calendar-scroll');
+    await expect(scroller.locator('[data-time="18:30:00"]').first()).toBeInViewport();
+    const alphas = await scroller.locator('[data-date="2026-11-09"]').evaluateAll((elements) =>
+      elements.map((element) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('canvas unavailable');
+        context.fillStyle = getComputedStyle(element).backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        return context.getImageData(0, 0, 1, 1).data[3];
+      }),
+    );
+    expect(alphas.length).toBeGreaterThan(0);
+    expect(alphas.every((alpha) => alpha !== undefined && alpha < 255)).toBe(true);
+    await page.getByRole('button', { name: '次の期間', exact: true }).click();
+    await page.clock.setFixedTime(new Date('2026-11-09T22:45:00+09:00'));
+    await page.getByRole('button', { name: '今日', exact: true }).click();
+    await expect(scroller.locator('[data-time="22:30:00"]').first()).toBeInViewport();
+  });
+}
+
+test('Google event notifications are chosen in settings and saved for the DOPAGAKI calendar', async ({
+  page,
+}) => {
+  let status: CalendarStatus = {
+    enabled: true,
+    connected: true,
+    sync: 'synced',
+    failedJobs: 0,
+    primaryEvents: false,
+  };
+  const sent: unknown[] = [];
+  await page.route('**/api/calendar', (route) => route.fulfill({ json: status }));
+  await page.route('**/api/calendar/reminders', async (route) => {
+    expect(route.request().method()).toBe('PUT');
+    const body = route.request().postDataJSON() as { minutes: number[] };
+    sent.push(body);
+    status = { ...status, sync: 'pending', reminders: [...body.minutes].sort((a, b) => b - a) };
+    await route.fulfill({ json: status });
+  });
+  await page.goto('/settings');
+  await expandPanel(page, 'Google連携');
+  const reminders = page.getByRole('group', { name: '予定の通知' });
+  await expect(reminders).toContainText('Googleカレンダーの設定のまま');
+  await reminders.getByRole('checkbox', { name: '1日前', exact: true }).check();
+  await reminders.getByRole('checkbox', { name: '5時間前', exact: true }).check();
+  await reminders.getByRole('button', { name: '通知を保存', exact: true }).click();
+  await expect(page.getByText('通知を保存しました。Googleカレンダーへ反映します。')).toBeVisible();
+  expect(sent).toEqual([{ minutes: [1440, 300] }]);
+  await expect(reminders.getByRole('checkbox', { name: '1日前', exact: true })).toBeChecked();
+  await expect(reminders.getByRole('checkbox', { name: '5時間前', exact: true })).toBeChecked();
+  await expect(reminders).toContainText('何も選ばずに保存すると、通知しません。');
+
+  // Googleカレンダーの通知は5つまで。5つ選ぶと、残りは選べない。
+  for (const name of ['取りかかる時刻ちょうど', '10分前', '30分前']) {
+    await reminders.getByRole('checkbox', { name, exact: true }).check();
+  }
+  await expect(reminders.getByRole('checkbox', { name: '1時間前', exact: true })).toBeDisabled();
+  await expectAccessibleInBothSchemes(page);
+  await expectNoHorizontalScroll(page);
 });

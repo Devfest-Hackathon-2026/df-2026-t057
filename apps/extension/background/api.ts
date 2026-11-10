@@ -152,11 +152,20 @@ export const api = {
       return parse(viewingSchema, result.data);
     }),
   /** 視聴の報告。受付の ID を Idempotency-Key に使い、再送でも同じ ID を使う。 */
-  reportViewing: (receiptId: string, seconds: number, sessionId: string | undefined) =>
+  reportViewing: (
+    receiptId: string,
+    seconds: number,
+    sessionId: string | undefined,
+    fromSeconds?: number,
+  ) =>
     call(async (c) => {
       const result = await c.POST('/viewing/reports', {
         params: { header: { 'Idempotency-Key': receiptId } },
-        body: sessionId ? { seconds, sessionId } : { seconds },
+        body: {
+          seconds,
+          ...(sessionId ? { sessionId } : {}),
+          ...(fromSeconds !== undefined ? { fromSeconds } : {}),
+        },
       });
       return parse(viewingSchema, result.data);
     }),

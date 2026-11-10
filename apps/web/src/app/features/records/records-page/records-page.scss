@@ -247,3 +247,42 @@
     gap: 0.125rem;
   }
 }
+
+.reflection > h2,
+.weekly > h2 {
+  margin-top: 0;
+}
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 3rem;
+  margin: 1.25rem 0;
+
+  dt {
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-body-large);
+  }
+
+  dd {
+    margin: 0.5rem 0 0;
+    font: var(--mat-sys-headline-small);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.week {
+  padding: 1rem 0;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  h3 {
+    margin: 0;
+    font: var(--mat-sys-title-medium);
+  }
+}
+
+.disclosure summary {
+  min-height: 1.5rem;
+  padding-block: 0.5rem;
+  cursor: pointer;
+}

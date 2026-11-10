@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./openapi.yaml": "./openapi.yaml"
+    "./openapi.yaml": "./openapi.yaml",
+    "./sse": "./src/sse.ts"
   },
   "scripts": {
     "generate": "openapi-typescript openapi.yaml -o src/generated/schema.ts",

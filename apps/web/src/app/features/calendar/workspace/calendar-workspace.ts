@@ -95,7 +95,6 @@ export class CalendarWorkspace {
   readonly view = input<string>();
 
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
-  private scrolledToNow = false;
   protected readonly tasks = inject(TasksStore);
   protected readonly wallet = inject(WalletStore);
   protected readonly work = inject(WorkSessionStore);
@@ -241,16 +240,8 @@ export class CalendarWorkspace {
       this.title.set(info.view.title);
       this.range.set({ start: info.start, end: info.end });
       this.rendered.set(true);
-    },
-    // 開いたときは、現在時刻の1時間前あたりから表示する。
-    nowIndicatorLineDidMount: (info) => {
-      if (this.scrolledToNow) return;
-      this.scrolledToNow = true;
       requestAnimationFrame(() => {
-        const scroller = this.scroller()?.nativeElement;
-        if (!scroller) return;
-        const offset = info.el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-        scroller.scrollTop += Math.max(0, offset - scroller.clientHeight / 4);
+        this.scrollToTime(this.selected()?.plan.start);
       });
     },
   };
@@ -306,8 +297,12 @@ export class CalendarWorkspace {
   protected move(direction: -1 | 0 | 1): void {
     const api = this.fullCalendar()?.getApi();
     if (!api) return;
-    if (direction === 0) api.today();
-    else if (direction < 0) api.prev();
+    if (direction === 0) {
+      api.today();
+      requestAnimationFrame(() => {
+        this.scrollToTime();
+      });
+    } else if (direction < 0) api.prev();
     else api.next();
     this.updateQuery({ date: localDateKey(api.getDate()) });
   }
@@ -319,8 +314,9 @@ export class CalendarWorkspace {
   protected select(task: Task): void {
     const api = this.fullCalendar()?.getApi();
     api?.gotoDate(task.plan.start);
-    const start = new Date(task.plan.start);
-    api?.scrollToTime({ hours: start.getHours(), minutes: start.getMinutes() });
+    requestAnimationFrame(() => {
+      this.scrollToTime(task.plan.start);
+    });
     this.updateQuery({ task: task.id, date: localDateKey(task.plan.start) });
     this.panel.set('detail');
     this.mobilePart.set('panel');
@@ -356,6 +352,17 @@ export class CalendarWorkspace {
 
   protected sameDay(start: string, end: string): boolean {
     return localDateKey(start) === localDateKey(end);
+  }
+
+  private scrollToTime(value?: string): void {
+    const scroller = this.scroller()?.nativeElement;
+    if (!scroller) return;
+    const time = value ? new Date(value) : new Date();
+    const hour = time.getHours().toString().padStart(2, '0');
+    const slot = scroller.querySelector<HTMLElement>(`[data-time="${hour}:00:00"]`);
+    if (!slot) return;
+    const offset = slot.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    scroller.scrollTop += offset - scroller.clientHeight / 4;
   }
 
   private updateQuery(queryParams: Record<string, string | null>): void {

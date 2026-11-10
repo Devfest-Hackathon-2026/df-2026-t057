@@ -13,9 +13,9 @@ full: &full
   - 'tsconfig.base.json'
   - '.prettierrc.json'
   - '.prettierignore'
-  - '.github/**'
 code:
   - *full
+  - '.github/**'
   - 'apps/**'
   - 'packages/**'
   - 'e2e/**'

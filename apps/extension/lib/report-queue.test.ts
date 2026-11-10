@@ -24,11 +24,11 @@ describe('report queue', () => {
     expect(remove(queue, 'r1').map((item) => item.id)).toEqual(['r2']);
   });
 
-  it('drops the oldest entries beyond the limit', () => {
+  it('never drops an already persisted receipt when another is added', () => {
     let queue: PendingReport[] = [];
     for (let i = 0; i < MAX_PENDING_REPORTS + 3; i += 1) queue = enqueue(queue, report(`r${i}`));
-    expect(queue).toHaveLength(MAX_PENDING_REPORTS);
-    expect(queue[0]?.id).toBe('r3');
+    expect(queue).toHaveLength(MAX_PENDING_REPORTS + 3);
+    expect(queue[0]?.id).toBe('r0');
   });
 
   it('never sends another account’s report', () => {

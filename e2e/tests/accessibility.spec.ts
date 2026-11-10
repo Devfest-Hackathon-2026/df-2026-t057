@@ -8,7 +8,7 @@ import { expandPanel, taskAction, workspace } from '../support/pages';
 // 主な画面と、開いたダイアログを WCAG 2.2 AA で検査する（ライト・ダーク）。
 // 画面は 320px 幅（400% 拡大と同じ）と 720px 幅（200% 拡大と同じ）でも横スクロールを出さない。
 
-test('calendar before the first task', { tag: '@smoke' }, async ({ page }) => {
+test('calendar before the first task', { tag: '@detail' }, async ({ page }) => {
   await page.goto('/calendar');
   await expect(page.getByRole('heading', { name: '予定はまだありません' })).toBeVisible();
   await expectAccessibleInBothSchemes(page);
@@ -28,7 +28,8 @@ test.describe('main screens', () => {
     const [task] = (await api.tasks()).items;
     // 夜に実行すると3時間後の作業は翌日になるため、作成した予定の日を開く。
     await page.goto(`/calendar?date=${tokyoDate(task?.plan.start ?? '')}`);
-    await expect(workspace(page).calendar.getByText('検査用のレポート')).toBeVisible();
+    // 日をまたぐ予定は週表示で2日に分かれて出るので、最初の1つを見る。
+    await expect(workspace(page).calendar.getByText('検査用のレポート').first()).toBeVisible();
     await expectAccessibleInBothSchemes(page);
     await expectReflow(page);
   });
@@ -52,7 +53,10 @@ test.describe('main screens', () => {
   test('records', async ({ page }) => {
     await page.goto('/records');
     await expect(page.getByRole('group', { name: '日別の完了記録' })).toBeVisible();
-    await page.getByText('自分で区切る練習', { exact: true }).click();
+    await page
+      .getByRole('region', { name: '視聴と作業の振り返り' })
+      .getByText('詳しい記録', { exact: true })
+      .click();
     await expectAccessibleInBothSchemes(page);
     await expectReflow(page);
   });
@@ -166,8 +170,8 @@ test.describe('dialogs', () => {
 
   test('tutorial', async ({ page }) => {
     await page.goto('/calendar?tutorial');
-    await page.getByRole('button', { name: '案内を見る', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'まずは課題を1つ登録' })).toBeVisible();
+    await page.getByRole('button', { name: 'チュートリアルを開始', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Googleカレンダーを連携' })).toBeVisible();
     await expectAccessibleInBothSchemes(page);
   });
 });

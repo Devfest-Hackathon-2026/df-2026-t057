@@ -397,3 +397,32 @@ func TestSecretID(t *testing.T) {
 		t.Fatalf("secret id: %s", id)
 	}
 }
+
+func TestSetDefaultReminders(t *testing.T) {
+	status := http.StatusOK
+	c, api := newClient(t, func(w http.ResponseWriter, _ recorded) {
+		writeJSON(w, status, map[string]any{"id": "cal"})
+	})
+	if err := c.SetDefaultReminders(context.Background(), "cal", []int{1440, 0}); err != nil {
+		t.Fatal(err)
+	}
+	r := api.last()
+	if r.method != http.MethodPatch || !strings.HasSuffix(r.path, "/users/me/calendarList/cal") {
+		t.Fatalf("request: %s %s", r.method, r.path)
+	}
+	got, _ := json.Marshal(r.body["defaultReminders"])
+	if string(got) != `[{"method":"popup","minutes":1440},{"method":"popup","minutes":0}]` {
+		t.Fatalf("reminders: %s", got)
+	}
+	// 空にすると、既定の通知を無くす（項目を省かずに空の一覧を送る）。
+	if err := c.SetDefaultReminders(context.Background(), "cal", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := api.last().body["defaultReminders"].([]any); !ok || len(got) != 0 {
+		t.Fatalf("cleared reminders: %#v", api.last().body)
+	}
+	status = http.StatusNotFound
+	if err := c.SetDefaultReminders(context.Background(), "cal", []int{60}); !errors.Is(err, calendar.ErrEventGone) {
+		t.Fatalf("missing calendar: %v", err)
+	}
+}

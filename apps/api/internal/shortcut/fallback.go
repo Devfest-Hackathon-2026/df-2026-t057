@@ -12,24 +12,24 @@ var notificationTitles = map[locale.Locale]string{
 	locale.En: "DOPAGAKI · Buddy",
 }
 
-// fallbackLine は AI が使えないときの app_open の一言。
-func fallbackLine(lang locale.Locale, title, why string) string {
+// fallbackTaskLine は AI が使えないときの、課題を始める時刻になったときの一言。
+func fallbackTaskLine(lang locale.Locale, title, why string) string {
 	if lang == locale.En {
-		switch {
-		case why != "":
-			return "Remember “" + why + "”? Before you watch, just take the first step."
-		case title != "":
-			return "Before you watch, how about just the first step of “" + title + "”?"
-		default:
-			return "Take a breath before opening. Think of one thing you want to do today."
+		if why != "" {
+			return "Remember “" + why + "”? It's about time for the next step on “" + title + "”."
 		}
+		return "It's time for “" + title + "”. How about just the first step?"
 	}
-	switch {
-	case why != "":
-		return "「" + why + "」、覚えてる？ 見る前に、まず一手だけ。"
-	case title != "":
-		return "見る前に「" + title + "」の最初の一手だけ、どう？"
-	default:
-		return "開く前に一呼吸。今日やりたいこと、ひとつ思い浮かべてみよっか。"
+	if why != "" {
+		return "「" + why + "」、覚えてる？ そろそろ「" + title + "」の一手、いってみよっか。"
 	}
+	return "そろそろ「" + title + "」の時間だよ。最初の一手だけ、やってみよっか。"
+}
+
+// fallbackBalanceZeroLine は AI が使えないときの、持ち時間を使い切ったときの一言。
+func fallbackBalanceZeroLine(lang locale.Locale) string {
+	if lang == locale.En {
+		return "Let's stop watching here for today. Your next step earns more time."
+	}
+	return "今日の視聴はここで区切ろう。次の一手で、また時間が増えるよ。"
 }

@@ -328,6 +328,9 @@
               </button>
             </div>
           }
+          @if (status.connected) {
+            <app-calendar-reminders />
+          }
         }
         @if (calendar.sync.error() ?? calendar.connect.error(); as error) {
           <p class="error" role="alert">{{ error.message }}</p>
@@ -382,10 +385,10 @@
           <details class="disclosure">
             <summary>{{ t.shortcut.howTo }}</summary>
             <ol>
-              <li>{{ t.shortcut.stepAutomation }}</li>
-              <li>{{ t.shortcut.stepRunImmediately }}</li>
-              <li>{{ t.shortcut.stepRequest(shortcutUrl) }}</li>
-              <li>{{ t.shortcut.stepNotify }}</li>
+              <li>{{ t.shortcut.stepAdd }}</li>
+              <li>{{ t.shortcut.stepOpened }}</li>
+              <li>{{ t.shortcut.stepClosed }}</li>
+              <li>{{ t.shortcut.stepBlank }}</li>
             </ol>
           </details>
         } @else if (shortcut.value(); as status) {

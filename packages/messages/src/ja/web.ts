@@ -343,56 +343,95 @@ export const web = {
     overlay: {
       progress: '案内の進み具合',
       skip: 'スキップ',
-      begin: '案内を見る',
+      begin: 'チュートリアルを開始',
       close: '閉じる',
       addTask: '課題を登録する',
       end: '終了',
       back: '戻る',
       next: '次へ',
+      connect: 'Googleカレンダーを連携',
+      connecting: '連携の画面を開いています…',
+      download: '配布ページを開く',
+      opensInNewTab: '（新しいタブで開く）',
     },
     steps: {
       welcome: {
         title: 'DOPAGAKIへようこそ',
+        // 文節の折り返しが「取り｜組んだ」で切るので、間に改行させない文字（U+2060）を入れる
         body: [
-          '締切から逆算して作業の予定を作り、取り組んだぶんだけショート動画を見られる時間が増えるアプリです。',
-          '覚えることは「課題を登録する → 通知が来たら、はじめる」だけ。1分で画面を案内します。',
+          '課題を登録して、取り\u2060組んだぶんだけショート動画を見られる時間が増えるアプリです。',
         ],
       },
+      google: {
+        title: 'Googleカレンダーを連携',
+        required: [
+          '予定は専用の「DOPAGAKI」カレンダーに入ります。',
+          '連携するまで先へ進めません。',
+        ],
+        connected: ['連携できました。予定はDOPAGAKIカレンダーに入ります。'],
+        unavailable: ['この環境では連携できないので、このまま進めます。'],
+      },
       add: {
-        title: 'まずは課題を1つ登録',
-        fields:
-          '入力するのは「課題名・締切・必要時間」の3つだけ。締切はカレンダーと時刻のリストから選べます。',
-        reward: (registration: string) => `登録するだけで視聴＋${registration}。`,
+        title: 'まずは課題を登録',
+        fields: '課題名・締切・必要時間を入力します。',
+        reward: (registration: string) => `登録すると、ショート動画を＋${registration}見られます。`,
       },
       next: {
         title: '取りかかる時間は自動で決まります',
-        body: [
-          '締切から逆算した作業予定がここに出ます。',
-          '時間になると通知が届くので、「はじめる」でタイマーを開始します。',
-        ],
+        body: ['締切から逆算した作業の予定が、ここに出ます。'],
+      },
+      notify: {
+        title: '時間になったら通知が届きます',
+        body: ['ショート動画を見ていても届きます。', '「はじめる」で作業タイマーが動きます。'],
       },
       credit: {
         title: '今日、見られる時間',
         reward: (work: string, reward: string) =>
-          `作業を記録すると、${work}ごとに視聴${reward}増えます。`,
-        extension: 'YouTubeショートを見るときは、Chrome拡張がこの時間を使います。',
+          `作業${work}ごとに、見られる時間が${reward}増えます。`,
+      },
+      extension: {
+        title: 'Chrome拡張がこの時間を使います',
+        body: ['YouTubeショートを見ている間だけ、ここから減っていきます。'],
+      },
+      extensionInstall: {
+        title: 'Chrome拡張を入手',
+        missing: [
+          '配布ページからZIPを取得し、展開します。',
+          '展開したフォルダーは消さずに残します。',
+        ],
+        detected: (version: string) => [
+          `拡張 ${version} が読み込まれています。`,
+          '新しい版も配布ページから入手します。',
+        ],
+      },
+      extensionLoad: {
+        title: 'Chromeに読み込む',
+        body: [
+          'chrome://extensions でデベロッパーモードをオンにし、展開した extension フォルダーを読み込みます。',
+        ],
+      },
+      extensionConnect: {
+        title: '拡張をアカウントに接続',
+        body: [
+          '拡張のポップアップの「Googleアカウントで拡張に接続」で、この画面と同じアカウントを選びます。',
+        ],
       },
       calendar: {
         title: '予定はカレンダーで確認',
-        body: ['予定を選ぶと詳細が開き、内容の編集や時間の調整ができます。'],
+        body: ['予定を選ぶと詳細が開き、編集や時間の調整ができます。'],
       },
       assistant: {
-        title: '言葉で相談することもできます',
+        title: '言葉で相談もできます',
         body: [
-          '「金曜までにレポート、2時間くらい」のように書くと、予定の案を作ります。',
-          '確認して確定するまで、登録はされません。',
+          '「金曜までにレポート、2時間くらい」と書くと予定の案を作ります。',
+          '確定するまで登録はされません。',
         ],
       },
       settings: {
         title: '設定はあとからで大丈夫',
         body: [
-          '最初はそのままで使えます。慣れてきたら「夜の区切り（就寝時刻）」と「Google連携」だけ設定すると便利です。',
-          'この案内は、右上の「使い方」からいつでも見直せます。',
+          '慣れたら「就寝時刻」を設定すると、夜の区切りに使えます。',
+          'この案内は「使い方」から見直せます。',
         ],
       },
       ready: {
@@ -441,19 +480,24 @@ export const web = {
       selectedDay: (date: string, completed: number, earned: string) =>
         `${date} · ${completed}件完了 · 視聴時間 ＋${earned}`,
       empty: 'まだ完了した課題はありません。ひとつ終えたら、ここに一歩が残ります。',
-      practiceTitle: '自分で区切る練習',
-      practiceToday: (viewed: string, work: string) => `今日の視聴 ${viewed}・記録した作業 ${work}`,
+      practiceTitle: '視聴と作業の振り返り',
+      todayWork: '今日の作業',
+      todayViewing: '今日のShorts視聴',
+      practiceEmpty: '作業や視聴の記録ができると、ここに表示されます。',
+      noStarts: '過去7日間に開始した課題はありません。',
+      reviewTasks: '課題一覧を確認',
+      practiceDetails: '詳しい記録',
       practiceSessions: (viewing: number, ended: number) =>
         `過去7日の視聴 ${viewing}回・終了 ${ended}回`,
       practiceExtensions: (extensions: number) => `区切りで選んだ延長 ${extensions}回`,
       practiceOnTime: (onTime: number, started: number) =>
-        `予定から5分以内に開始 ${onTime}件／開始した課題 ${started}件`,
+        `過去7日間、予定から5分以内に開始 ${onTime}／${started}件（開始した課題）`,
       practiceMissed: (missed: number) => `予定開始を過ぎた未開始の課題 ${missed}件`,
       practicePrivacy: '動画の内容は保存しません。記録のない日は数えません。',
       practiceHistoryTitle: '日ごとの記録',
       practiceHistoryDay: (date: string, viewed: string, work: string) =>
         `${date}：視聴 ${viewed}、確認した作業 ${work}`,
-      practiceHistoryEmpty: '明日以降、記録のある日がここに並びます。',
+      practiceHistoryEmpty: 'まだ作業や視聴の記録はありません。',
       loading: '記録を読み込み中',
       historyHeading: '最近の積み上げ',
       historyCaption: '視聴時間の履歴',
@@ -463,9 +507,17 @@ export const web = {
       loadingMore: '読み込んでいます…',
       loadMore: 'もっと見る',
       weeklyHeading: '週ごとの振り返り',
-      weeklyLead: '記録を開始してからの操作を、本人のタイムゾーン・月曜始まりで集計します。',
-      weeklyRow: (start: string, starts: number, onTime: number, snoozes: number, work: string) =>
-        `${start}：開始 ${starts}回（予定どおり ${onTime}回）· スヌーズ ${snoozes}回 · 作業 ${work}`,
+      weeklyLead:
+        '作業時間と、予定から5分以内に始めた回数を振り返ります。月曜始まりで、記録のある週を新しい順に表示します。今週は途中経過です。',
+      weekOf: (start: string) => `${start}からの週`,
+      weeklyWork: '記録した作業',
+      weeklyOnTime: '予定から5分以内に開始',
+      startRatio: (onTime: number, starts: number) =>
+        starts > 0 ? `${onTime}／${starts}回（開始した回数）` : '開始の記録なし',
+      weeklyDetails: '予定変更の記録',
+      weeklySnoozes: (count: number) => `スヌーズ ${count}回。予定を調整した回数です。`,
+      weeklyEmpty:
+        '課題の開始や作業が記録されると、週ごとに振り返れます。記録のない週は評価しません。',
     },
   },
 
@@ -589,24 +641,40 @@ export const web = {
       unavailable: '現在の環境ではGoogle連携は未設定です。',
       privacy: 'データの取り扱い・削除の依頼',
       logout: 'ログアウト',
+      reminders: {
+        title: '予定の通知',
+        lead: '取りかかる時刻の何分前にGoogleカレンダーから通知するかを選びます。手入力した予定にも効きます。',
+        notChosen: 'まだ選んでいません。今はGoogleカレンダーの設定のまま通知します。',
+        none: '何も選ばずに保存すると、通知しません。',
+        limit: (max: number) => `${max}つまで選べます。`,
+        label: (minutes: number) => {
+          if (minutes === 0) return '取りかかる時刻ちょうど';
+          const days = Math.floor(minutes / 1440);
+          const hours = Math.floor((minutes % 1440) / 60);
+          const rest = minutes % 60;
+          return `${days > 0 ? `${days}日` : ''}${hours > 0 ? `${hours}時間` : ''}${rest > 0 ? `${rest}分` : ''}前`;
+        },
+        save: '通知を保存',
+        saving: '保存しています…',
+        saved: '通知を保存しました。Googleカレンダーへ反映します。',
+      },
     },
     shortcut: {
       title: 'iPhoneのショートカット',
       issued: '接続キー発行済み',
       description:
-        'iPhoneのYouTubeアプリを開いたときに、次の課題に触れた相棒の一言を通知で出します。止めたりはしません。',
+        'iPhoneでYouTubeアプリを開いたままにしていると、持ち時間を使い切ったときや課題を始める時刻に、相棒が通知します。YouTubeは止めません。',
       showOnce: 'この接続キーは今だけ表示します。ショートカットに貼り付けてください。',
       key: '接続キー',
       copy: 'コピー',
       copied: '接続キーをコピーしました',
       copyFailed: 'コピーできませんでした。キーを選択してコピーしてください。',
       howTo: 'ショートカットの作り方',
-      stepAutomation:
-        'ショートカットアプリ →「オートメーション」→「App」→ YouTube、「開いている」を選ぶ',
-      stepRunImmediately: '「すぐに実行」を選び、新規ショートカットを作る',
-      stepRequest: (url: string) =>
-        `「URLの内容を取得」：URL に ${url}、方法 POST、ヘッダに Authorization ＝「Shortcut 接続キー」（Shortcut <key>）`,
-      stepNotify: '「辞書の値を取得」で message を取り出し、「通知を表示」で表示する',
+      stepAdd: '配布された「DOPAGAKI」と「DOPAGAKI-close」を追加し、それぞれにこのキーを貼る',
+      stepOpened:
+        '「オートメーション」→「新規オートメーション」→「アプリ」→ YouTube・「開いている」・「すぐに実行」→ DOPAGAKI',
+      stepClosed: '同じように「閉じている」で DOPAGAKI-close を選ぶ',
+      stepBlank: '候補に出ないときは「新規の空のオートメーション」→「ショートカットを実行」で選ぶ',
       issuedAt: (date: string) =>
         `${date} に発行しました。キーをなくしたときは再発行してください（古いキーは使えなくなります）。`,
       issue: '接続キーを発行',

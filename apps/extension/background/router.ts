@@ -18,6 +18,7 @@ import { streamHealthy, restartStream } from './realtime';
 import { clearState, getState, patchState } from './store';
 import { refetch, refetchAll, tasksPatch } from './sync';
 import { clearViewing, flushPendingReports, getOwner, handleViewing } from './viewing';
+import { enableWorkSite } from './worksites';
 
 const AUTHORIZATION = /^(Bearer|Demo) \S+$/;
 
@@ -48,11 +49,15 @@ async function stateReply(
   sender: chrome.runtime.MessageSender,
   extra: Partial<OkReply> = {},
 ): Promise<OkReply> {
+  const version = connectionVersion();
+  const connection = await getConnection();
   const state = await getState();
   const owner = await getOwner();
+  if (version !== connectionVersion()) throw new ExtensionError('accountChanged');
   return {
     ok: true,
     connected: true,
+    ...(connection ? { accountId: connection.accountId } : {}),
     ...(state ? { state } : {}),
     ownsViewing: owner !== undefined && owner.tabId === sender.tab?.id,
     ...extra,
@@ -157,6 +162,12 @@ export async function handleRequest(
       await refetch(['tasks', 'wallet', 'viewing']);
       return stateReply(sender);
     }
+    case 'ENABLE_WORKSITE': {
+      if (sender.url !== chrome.runtime.getURL('popup.html'))
+        throw new ExtensionError('untrustedSender');
+      await enableWorkSite(request.tabId);
+      return { ok: true, connected: !!(await getConnection()) };
+    }
     case 'START_TASK': {
       const version = connectionVersion();
       const workSession = await api.startTask(request.taskId);
@@ -201,7 +212,13 @@ export async function handleRequest(
     case 'END_VIEWING':
     case 'REPORT_VIEWING': {
       const outcome = await handleViewing(request, sender);
-      return stateReply(sender, { ownsViewing: outcome.ownsViewing });
+      return stateReply(sender, outcome);
+    }
+    case 'CHECKPOINT_VIEWING': {
+      const outcome = await handleViewing(request, sender);
+      return request.flush
+        ? stateReply(sender, outcome)
+        : { ok: true, connected: true, ...outcome };
     }
     case 'COMPANION_LINE':
       return {

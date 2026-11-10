@@ -1,6 +1,7 @@
-import type { LedgerEntry } from '../support/api';
+import type { LedgerEntry, Records } from '../support/api';
 import { hoursFromNow } from '../support/api';
 import { expect, test } from '../support/fixtures';
+import { expectAccessibleInBothSchemes } from '../support/a11y';
 import { expectNoHorizontalScroll } from '../support/layout';
 import { expandPanel } from '../support/pages';
 import { fulfillProblem, Gate } from '../support/routes';
@@ -185,8 +186,13 @@ test('work rewards keep seconds, deferred status and the self-management records
   await expect(history.getByRole('listitem').filter({ hasText: '睡眠の報酬' })).toContainText(
     '＋5分',
   );
-  await page.getByText('自分で区切る練習', { exact: true }).click();
-  await expect(page.getByText('予定から5分以内に開始', { exact: false })).toBeVisible();
+  const review = page.getByRole('region', { name: '視聴と作業の振り返り' });
+  await expect(review).toBeVisible();
+  await expect(review.getByText('過去7日間に開始した課題はありません。')).toBeVisible();
+  await review.getByText('詳しい記録', { exact: true }).click();
+  await expect(
+    review.getByText('動画の内容は保存しません。記録のない日は数えません。'),
+  ).toBeVisible();
 });
 
 test('sleep settings remain editable from the compact list', async ({ page, api }) => {
@@ -204,4 +210,63 @@ test('sleep settings remain editable from the compact list', async ({ page, api 
   await page.getByRole('button', { name: '外す', exact: true }).click();
   await expect(page.getByText('就寝の予定を外しました', { exact: true })).toBeVisible();
   expect((await api.sleep()).sleep).toBeNull();
+});
+
+test('reflection highlights logged work and weekly starts with details available on demand', async ({
+  page,
+}) => {
+  await page.route('**/api/records', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as Records;
+    await route.fulfill({
+      response,
+      json: {
+        ...body,
+        practice: {
+          ...body.practice,
+          viewingSessions: 3,
+          endedSessions: 2,
+          extensions: 1,
+          startedTasks: 5,
+          onTimeStarts: 3,
+          missedStarts: 1,
+        },
+        weeks: [
+          { start: '2026-10-19', starts: 0, onTime: 0, snoozes: 0, workSeconds: 0 },
+          { start: '2026-10-26', starts: 5, onTime: 3, snoozes: 2, workSeconds: 3000 },
+          { start: '2026-11-02', starts: 2, onTime: 1, snoozes: 0, workSeconds: 1500 },
+        ],
+      },
+    });
+  });
+  await page.route('**/api/wallet', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { policy: object };
+    await route.fulfill({
+      response,
+      json: { ...body, policy: { ...body.policy, workSeconds: 1500, viewedSeconds: 600 } },
+    });
+  });
+  await page.goto('/records');
+  const review = page.getByRole('region', { name: '視聴と作業の振り返り' });
+  const weekly = page.getByRole('region', { name: '週ごとの振り返り' });
+  await expect(review).toContainText('25分');
+  await expect(review).toContainText('10分');
+  await expect(review).toContainText('3／5件');
+  await expect(review.getByText('区切りで選んだ延長 1回')).not.toBeVisible();
+  await expect(weekly.getByRole('article')).toHaveCount(2);
+  await expect(weekly.getByRole('article').first()).toContainText('11月2日からの週');
+  await expect(weekly.getByRole('article').first()).toContainText('1／2回');
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expectNoHorizontalScroll(page);
+    await page.screenshot({ path: `test-results/records-reflection-${width}.png`, fullPage: true });
+  }
+  await review.getByText('詳しい記録', { exact: true }).click();
+  await expect(review.getByText('区切りで選んだ延長 1回')).toBeVisible();
+  await weekly.getByRole('article').last().getByText('予定変更の記録', { exact: true }).click();
+  await expect(weekly.getByText('スヌーズ 2回。予定を調整した回数です。')).toBeVisible();
+  await expectAccessibleInBothSchemes(page);
+  await review.getByRole('link', { name: '課題一覧を確認' }).click();
+  await expect(page).toHaveURL(/\/tasks$/);
 });

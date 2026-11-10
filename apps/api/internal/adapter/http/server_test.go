@@ -187,10 +187,58 @@ func TestAuthAndOrigin(t *testing.T) {
 	}
 }
 
+// URL に載ったトークンを認証に使わない。期限内の架空トークンでも拒否する。
+func TestEventsRejectsQueryToken(t *testing.T) {
+	srv, _ := newServer(t, config.ModeLive)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/api/events?token=good", nil)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	if res.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("query token accepted: %d", res.StatusCode)
+	}
+}
+
+func TestEventsHeaderAndCookieAuthentication(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		mode          config.Mode
+		header, value string
+	}{
+		{"live bearer", config.ModeLive, "Authorization", "Bearer good"},
+		{"demo cookie", config.ModeDemo, "Cookie", "dopagaki_demo=0123456789abcdef0123456789abcdef"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv, _ := newServer(t, tc.mode)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/api/events", nil)
+			req.Header.Set(tc.header, tc.value)
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = res.Body.Close() }()
+			if res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "text/event-stream" {
+				t.Fatalf("events: %d %v", res.StatusCode, res.Header)
+			}
+			line, err := bufio.NewReader(res.Body).ReadString('\n')
+			if err != nil || !strings.HasPrefix(line, "data: ") {
+				t.Fatalf("initial event: %q %v", line, err)
+			}
+		})
+	}
+}
+
 func TestEventsStreamSendsInitialRevisions(t *testing.T) {
 	srv, w := newServer(t, config.ModeDemo)
 	call(t, srv, "POST", "/api/tasks", taskBody, "Idempotency-Key", "events-001")
-	req, _ := http.NewRequestWithContext(context.Background(), "GET", srv.URL+"/api/events?token="+strings.TrimPrefix(demoAuth, "Demo "), nil)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", srv.URL+"/api/events", nil)
+	req.Header.Set("Authorization", demoAuth)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	res, err := http.DefaultClient.Do(req.WithContext(ctx))
@@ -238,6 +286,7 @@ type fakeCalendar struct {
 	connected   bool
 	disconnects int
 	ranges      [][2]time.Time
+	reminders   []int
 }
 
 func (f *fakeCalendar) status() oapi.CalendarStatus {
@@ -245,7 +294,11 @@ func (f *fakeCalendar) status() oapi.CalendarStatus {
 	if f.connected {
 		sync = oapi.CalendarStatusSyncSynced
 	}
-	return oapi.CalendarStatus{Enabled: true, Connected: f.connected, Sync: sync}
+	st := oapi.CalendarStatus{Enabled: true, Connected: f.connected, Sync: sync}
+	if f.reminders != nil {
+		st.Reminders = &f.reminders
+	}
+	return st
 }
 
 func (f *fakeCalendar) Status(context.Context, string) (oapi.CalendarStatus, error) {
@@ -270,6 +323,10 @@ func (f *fakeCalendar) PrimaryEvents(_ context.Context, _ string, from, to time.
 		{Id: "timed", Title: "ゼミ", Start: &start, End: &end},
 		{Id: "all-day", Title: "学園祭", AllDay: true, StartDate: &openapi_types.Date{Time: time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)}, EndDate: &openapi_types.Date{Time: time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)}},
 	}, nil
+}
+func (f *fakeCalendar) SetReminders(_ context.Context, _ string, minutes []int) (oapi.CalendarStatus, error) {
+	f.reminders = minutes
+	return f.status(), nil
 }
 func (f *fakeCalendar) Webhook(context.Context, string, string, string) error { return nil }
 func (f *fakeCalendar) Renew(context.Context) error                           { return nil }
@@ -333,6 +390,30 @@ func TestListCalendarEvents(t *testing.T) {
 	if len(cal.ranges) != 1 || !cal.ranges[0][0].Equal(time.Date(2026, 11, 8, 15, 0, 0, 0, time.UTC)) {
 		t.Fatalf("range: %v", cal.ranges)
 	}
+}
+
+func TestSetCalendarReminders(t *testing.T) {
+	off, _ := newServer(t, config.ModeDemo)
+	expectProblem(t, call(t, off, "PUT", "/api/calendar/reminders", `{"minutes":[1440]}`, "Idempotency-Key", "rem-0001"), 503, "calendar.unavailable")
+
+	w := testkit.New(t, time.Date(2026, 11, 8, 12, 0, 0, 0, testkit.JST))
+	cal := &fakeCalendar{connected: true}
+	api, err := apihttp.NewAPI(apihttp.Deps{
+		Config: config.Config{Mode: config.ModeDemo, AppURL: "http://app.test"}, Clock: w.Clock, Log: w.Log, Idempotency: w.Idempotency,
+		Profiles: w.Profiles, Tasks: w.Tasks, Work: w.Work, Wallet: w.Wallet, Viewing: w.Viewing, Sleep: w.Sleep,
+		Records: w.Records, Shortcut: w.Shortcut, Events: realtime.NewHub(w.Store, w.Log), Calendar: cal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(apihttp.APIOnly(api))
+	t.Cleanup(srv.Close)
+	expectProblem(t, call(t, srv, "PUT", "/api/calendar/reminders", `{"minutes":[1440]}`), 400, "idempotency.key_required")
+	r := call(t, srv, "PUT", "/api/calendar/reminders", `{"minutes":[1440,300]}`, "Idempotency-Key", "rem-0002")
+	if r.status != 200 || !strings.Contains(r.raw, `"reminders":[1440,300]`) {
+		t.Fatalf("set reminders: %d %s", r.status, r.raw)
+	}
+	expectProblem(t, call(t, srv, "PUT", "/api/calendar/reminders", `{}`, "Idempotency-Key", "rem-0003"), 400, "request.invalid")
 }
 
 func TestDeletionResponseReplayAfterFence(t *testing.T) {

@@ -31,6 +31,7 @@ export class CalendarStore extends ResourceStore<CalendarStatus> {
   readonly connect = new Operation(this.scope);
   readonly sync = new Operation(this.scope);
   readonly disconnect = new Operation(this.scope);
+  readonly reminders = new Operation(this.scope);
   readonly loadPrimary = new Operation(this.scope);
 
   readonly layers = signal<CalendarLayers>(readLayers());
@@ -94,6 +95,22 @@ export class CalendarStore extends ResourceStore<CalendarStatus> {
   syncNow(): Promise<Outcome<CalendarStatus>> {
     return this.sync.run(
       () => requireData(this.api.POST('/calendar/sync', { params: { header: idempotent() } })),
+      (status) => {
+        this.accept(status);
+      },
+    );
+  }
+
+  /** DOPAGAKI のカレンダーで、予定の開始の何分前に通知するかを保存する。 */
+  saveReminders(minutes: readonly number[]): Promise<Outcome<CalendarStatus>> {
+    return this.reminders.run(
+      () =>
+        requireData(
+          this.api.PUT('/calendar/reminders', {
+            params: { header: idempotent() },
+            body: { minutes: [...minutes] },
+          }),
+        ),
       (status) => {
         this.accept(status);
       },

@@ -21,33 +21,6 @@ const ciRuntime = new Set([
   'deploy/save-image.sh',
   'deploy/load-image.sh',
 ]);
-const criticalPrefixes = [
-  'apps/api/internal/account/',
-  'apps/api/internal/wallet/',
-  'apps/api/internal/worksession/',
-  'apps/api/internal/viewing/',
-  'apps/api/internal/platform/',
-  'apps/api/internal/adapter/http/',
-  'apps/api/internal/adapter/firestore/',
-  'apps/api/internal/adapter/firebaseauth/',
-  'apps/api/cmd/',
-  'apps/web/src/app/core/auth/',
-  'apps/web/src/app/core/http/',
-  'apps/web/src/app/core/extension/',
-  'apps/web/src/app/features/onboarding/',
-  'apps/web/src/app/features/settings/account-',
-  'apps/extension/background/auth',
-  'apps/extension/background/ports',
-  'apps/extension/background/connection',
-  'apps/extension/background/router',
-  'apps/extension/background/api',
-  'apps/extension/entrypoints/offscreen/',
-  'apps/extension/entrypoints/management.content',
-  'apps/extension/lib/report-queue',
-  'packages/contract/',
-  'packages/bridge/',
-  'packages/tokens/',
-];
 
 function testOrDocumentation(path) {
   return (
@@ -86,6 +59,18 @@ export function planChecks(files, flags, event = 'pull_request', requestDeploy =
   const ciChanged = files.some(
     (path) => ciRuntime.has(path) || path.startsWith('.github/actions/'),
   );
+  const ciOnly =
+    !manual &&
+    !redeploy &&
+    ciChanged &&
+    !files.some((path) => productionControls.has(path)) &&
+    files.every(
+      (path) =>
+        ciRuntime.has(path) ||
+        path.startsWith('.github/') ||
+        (path.startsWith('deploy/') && testOrDocumentation(path)) ||
+        path.endsWith('.md'),
+    );
   const validateImage =
     buildChanged ||
     files.some(
@@ -94,28 +79,16 @@ export function planChecks(files, flags, event = 'pull_request', requestDeploy =
         path === '.github/workflows/cd.yml' ||
         path === 'e2e/playwright.config.ts',
     );
-  const docker = event === 'pull_request' && validateImage;
+  const docker = event === 'pull_request' && validateImage && !ciOnly;
   const browser =
-    manual ||
-    runtime.length > 0 ||
-    buildChanged ||
-    (event === 'pull_request' && (ciChanged || docker)) ||
-    files.some((path) => path.startsWith('e2e/')) ||
-    (event === 'push' && deploy);
-  const critical =
-    buildChanged ||
-    ciChanged ||
-    docker ||
-    runtime.some((path) => criticalPrefixes.some((prefix) => path.startsWith(prefix))) ||
-    files.some((path) => path.startsWith('e2e/'));
-  const extensionOnly = result.extension && !result.api && !result.web;
-  const suite = !browser
-    ? 'none'
-    : event === 'push' || manual || critical
-      ? 'full'
-      : extensionOnly
-        ? 'extension-smoke'
-        : 'smoke';
+    !ciOnly &&
+    (manual ||
+      runtime.length > 0 ||
+      buildChanged ||
+      (event === 'pull_request' && (ciChanged || docker)) ||
+      files.some((path) => path.startsWith('e2e/')) ||
+      (event === 'push' && deploy));
+  const suite = !browser ? 'none' : manual ? 'full' : 'smoke';
   const generate = files.some(
     (path) =>
       [
@@ -137,6 +110,9 @@ export function planChecks(files, flags, event = 'pull_request', requestDeploy =
   if (manual || redeploy) {
     for (const key of ['code', 'api', 'web', 'extension', 'shared', 'terraform'])
       result[key] = true;
+  }
+  if (ciOnly) {
+    for (const key of ['api', 'web', 'extension', 'shared', 'terraform']) result[key] = false;
   }
   return {
     ...result,

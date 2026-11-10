@@ -150,7 +150,7 @@ func viewingSessionOut(x viewing.Session) oapi.ViewingSession {
 }
 
 func viewingOut(v viewing.View) oapi.Viewing {
-	out := oapi.Viewing{AvailableSeconds: v.Available, BalanceSeconds: v.Balance, RequiresSession: v.RequiresSession}
+	out := oapi.Viewing{AvailableSeconds: v.Available, BalanceSeconds: v.Balance, RequiresSession: v.RequiresSession, ReportCursor: ptr(v.ReportCursor), AcceptedSeconds: v.AcceptedSeconds}
 	if v.Session != nil {
 		out.Session = ptr(viewingSessionOut(*v.Session))
 	}
