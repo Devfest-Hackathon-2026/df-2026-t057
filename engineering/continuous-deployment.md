@@ -114,3 +114,7 @@ PR #6をmainへマージし、そのpushで初回のGitHub発配信が成功し�
 - 公開URLのhealthは200、未認証stateは401。新UIのJS・CSS・アイコンフォントは以前検証した成果物とSHA-256が一致し、CSP nonce・HTMLのno-store・privacyの制限も維持されている。
 
 [機械可読な確認記録](evidence/cd-first-deployment-2026-11-07.json)には秘密値や本人のデータを含めない。失敗時の無切替・復旧は模擬テストで確認しており、本番では正常系の配信とHTTP確認を行った。
+
+## スキップされた検査による配信停止（2026-11-10）
+
+mainへのPR #66ではAPI・フロント・E2E・集約checkが成功し、検査済みイメージも保存されたが、対象外のTerraform検査がskipされた影響で配信ジョブまでskipされた。GitHub Actionsの暗黙の`success()`を避けるため、配信条件へ`!cancelled()`を明示した。集約checkの成功、最新main、配信対象の判定は引き続き必須とし、失敗・取消・古いmainからは配信しない。祖先ジョブのskipを再現する回帰テストを追加した。
