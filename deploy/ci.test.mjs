@@ -40,11 +40,18 @@ function selection(
     always: () => true,
   };
   const selected = [];
+  // GitHubの暗黙のsuccess()は、直接のneedsだけでなく祖先ジョブのskipも見る。
+  function ancestors(job) {
+    return [job.needs]
+      .flat()
+      .filter(Boolean)
+      .flatMap((name) => [name, ...ancestors(workflow.jobs[name])]);
+  }
   for (const [id, job] of Object.entries(workflow.jobs)) {
     if (id === 'changes') continue;
     const implicitSuccess =
       /(?:always|cancelled|failure|success)\(/.test(job.if ?? '') ||
-      [job.needs].flat().every((name) => needs[name].result === 'success');
+      ancestors(job).every((name) => needs[name].result === 'success');
     if (!implicitSuccess || (job.if && !runInNewContext(job.if, context))) {
       needs[id] = { result: 'skipped' };
       continue;
@@ -130,4 +137,13 @@ test('配信対象はmainだけで、検査済みイメージを引き渡す', (
   const steps = workflow.jobs.e2e.steps;
   assert.ok(steps.findIndex((s) => s.id === 'handoff') > steps.findIndex((s) => s.id === 'e2e'));
   assert.equal(cd.jobs.deploy.concurrency['cancel-in-progress'], false);
+});
+
+test('対象外の検査がskipでも合格済みの最新mainは配信する', () => {
+  for (const path of ['apps/api/internal/viewing/service.go', 'apps/web/src/app/app.ts']) {
+    const { results } = selection([path], 'push');
+    assert.equal(results.terraform, 'skipped');
+    assert.equal(results.check, 'success');
+    assert.equal(results.deploy, 'success');
+  }
 });
