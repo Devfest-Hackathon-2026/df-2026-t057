@@ -124,6 +124,7 @@ describe('TutorialOverlay with Google Calendar available', () => {
     connected: false,
     sync: 'disconnected',
     failedJobs: 0,
+    primaryEvents: false,
   };
 
   beforeEach(() => {

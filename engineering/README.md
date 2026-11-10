@@ -30,6 +30,7 @@
 | [実Shortsの持ち時間計測](shorts-verification-2026-11-07.md) | PR #7の配信、実ChromeとShortsによる消費・停止・再読み込みの実測 |
 | [文字を減らした管理画面](simple-ui.md) | 日本語表記、＋からの追加と詳細表示、画面幅変更時の日表示、ローカル検証 |
 | [カレンダーの左右カード](calendar-cards.md) | 選択した上部2カード、登録ダイアログ、視聴時間の説明、表示・操作の回帰確認 |
+| [Googleカレンダーの予定の表示](calendar-primary-events.md) | 主カレンダーを表示だけのために読むスコープ、許可の記録、表示の切り替え、未確認の範囲 |
 | [カレンダー中心の管理画面](calendar-workspace.md) | 採用した③の実装、日・週表示と相談パネル、URL、選択対象の分離、実画面 |
 | [課題の登録と内容調整](task-registration-and-editing.md) | 登録・編集のAI／手入力、変更前後の確認、報酬・権限・Google同期の検証 |
 | [管理画面のAI相談](assistant.md) | 編集できる予定カード、会話の保存、確認して覚える作業傾向、Google Chatの廃止 |

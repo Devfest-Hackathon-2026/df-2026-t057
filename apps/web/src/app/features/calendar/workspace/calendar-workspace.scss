@@ -191,6 +191,20 @@
   margin-bottom: 1rem;
 }
 
+.calendar-layers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.layer-hint {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
 .calendar-navigation {
   display: flex;
   align-items: center;

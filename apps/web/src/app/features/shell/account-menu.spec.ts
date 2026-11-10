@@ -59,7 +59,7 @@ describe('AccountMenu', () => {
     login.mockReset();
     logout.mockReset();
     const backend = new FakeBackend().on('GET', '/calendar', {
-      body: { enabled: true, connected: true, sync: 'synced', failedJobs: 0 },
+      body: { enabled: true, connected: true, sync: 'synced', failedJobs: 0, primaryEvents: false },
     });
     TestBed.configureTestingModule({
       providers: [

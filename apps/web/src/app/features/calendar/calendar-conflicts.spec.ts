@@ -11,7 +11,13 @@ describe('CalendarConflicts', () => {
         body: { type: 'about:blank', status: 503, code: 'calendar.unavailable' },
       })
       .on('GET', '/calendar', {
-        body: { enabled: true, connected: true, sync: 'pending', failedJobs: 1 },
+        body: {
+          enabled: true,
+          connected: true,
+          sync: 'pending',
+          failedJobs: 1,
+          primaryEvents: false,
+        },
       });
     TestBed.configureTestingModule({ providers: provideFakeBackend(backend) });
     const fixture = TestBed.createComponent(CalendarConflicts);

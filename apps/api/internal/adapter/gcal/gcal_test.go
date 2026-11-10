@@ -133,7 +133,7 @@ func TestAuthURL(t *testing.T) {
 		q.Get("login_hint") != "user@example.com" || q.Get("redirect_uri") != "https://app.example/api/calendar/callback" {
 		t.Fatalf("auth url: %v", q)
 	}
-	for _, scope := range []string{"openid", "email", "https://www.googleapis.com/auth/calendar.app.created"} {
+	for _, scope := range []string{"openid", "email", "https://www.googleapis.com/auth/calendar.app.created", "https://www.googleapis.com/auth/calendar.events.owned.readonly"} {
 		if !strings.Contains(q.Get("scope"), scope) {
 			t.Errorf("missing scope %s", scope)
 		}
@@ -143,16 +143,22 @@ func TestAuthURL(t *testing.T) {
 func TestExchange(t *testing.T) {
 	idToken := "valid-id-token"
 	refresh := "refresh"
+	scope := "openid https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.events.owned.readonly"
 	g, _, _ := setup(t, func(w http.ResponseWriter, r recorded) {
 		if r.query.Get("code") == "bad" {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid_grant", "error_description": "secret upstream detail"})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"access_token": "access", "token_type": "Bearer", "expires_in": 3600, "refresh_token": refresh, "id_token": idToken})
+		writeJSON(w, http.StatusOK, map[string]any{"access_token": "access", "token_type": "Bearer", "expires_in": 3600, "refresh_token": refresh, "id_token": idToken, "scope": scope})
 	})
 	grant, err := g.Exchange(context.Background(), "code")
-	if err != nil || grant.Subject != "google-1" || !grant.HasRefreshToken {
+	if err != nil || grant.Subject != "google-1" || !grant.HasRefreshToken || !grant.PrimaryEvents {
 		t.Fatalf("grant: %+v %v", grant, err)
+	}
+	// 同意画面で主カレンダーの読み取りを外された。
+	scope = "openid https://www.googleapis.com/auth/calendar.app.created"
+	if grant, err := g.Exchange(context.Background(), "code"); err != nil || grant.PrimaryEvents {
+		t.Fatalf("without the read scope: %+v %v", grant, err)
 	}
 	if _, err := g.ClientFor(context.Background(), grant.Token); err != nil {
 		t.Fatalf("token not reusable: %v", err)
@@ -310,6 +316,27 @@ func TestListPagingAndExpiredToken(t *testing.T) {
 	}
 	if _, err := c.ListEvents(context.Background(), "cal", "expired", ""); !errors.Is(err, calendar.ErrSyncTokenExpired) {
 		t.Fatalf("410: %v", err)
+	}
+}
+
+func TestListRange(t *testing.T) {
+	c, api := newClient(t, func(w http.ResponseWriter, r recorded) {
+		if r.query.Get("pageToken") == "" {
+			writeJSON(w, http.StatusOK, map[string]any{"items": []any{eventJSON("a", "1")}, "nextPageToken": "p2"})
+			return
+		}
+		allDay := map[string]any{"id": "b", "status": "confirmed", "start": map[string]any{"date": "2026-12-02"}, "end": map[string]any{"date": "2026-12-03"}}
+		writeJSON(w, http.StatusOK, map[string]any{"items": []any{allDay}})
+	})
+	from := time.Date(2026, 11, 30, 15, 0, 0, 0, time.UTC)
+	events, err := c.ListRange(context.Background(), "primary", from, from.Add(7*24*time.Hour))
+	if err != nil || len(events) != 2 || events[0].Start.DateTime != "2026-12-01T09:00:00+09:00" || events[1].Start.Date != "2026-12-02" {
+		t.Fatalf("events: %+v %v", events, err)
+	}
+	r := api.last()
+	if r.path != "/calendar/v3/calendars/primary/events" || r.query.Get("timeMin") != "2026-11-30T15:00:00Z" || r.query.Get("timeMax") != "2026-12-07T15:00:00Z" ||
+		r.query.Get("singleEvents") != "true" || r.query.Get("orderBy") != "startTime" || r.query.Get("pageToken") != "p2" {
+		t.Fatalf("list query: %s %v", r.path, r.query)
 	}
 }
 

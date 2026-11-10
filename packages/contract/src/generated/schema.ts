@@ -939,6 +939,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calendar/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Google カレンダーの主カレンダー（primary）の予定を、表示のために読む。保存も AI への送信もしない。
+         *     `to` より前に始まり、`from` より後に終わる予定を返す。期間は 42 日まで。
+         *     連携していなければ 409（`calendar.not_connected`）、主カレンダーを読む許可が無ければ 403（`calendar.reauth_required`）。
+         */
+        get: operations["listCalendarEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/calendar/reminders": {
         parameters: {
             query?: never;
@@ -1533,6 +1554,26 @@ export interface components {
             failedJobs: number;
             /** @description 本人が選んだ通知（予定の開始の何分前か、早い順）。選んでいなければ省く（Google の設定のまま） */
             reminders?: number[];
+            /** @description 主カレンダーの予定を読む許可がある（無ければ、同意し直すまで `GET /calendar/events` を使えない） */
+            primaryEvents: boolean;
+        };
+        /** @description 主カレンダーの予定。終日の予定は `startDate`・`endDate`、時刻のある予定は `start`・`end` を持つ。 */
+        CalendarEvent: {
+            id: string;
+            /** @description 題名。無ければ空 */
+            title: string;
+            allDay: boolean;
+            /** Format: date-time */
+            start?: string;
+            /** Format: date-time */
+            end?: string;
+            /** Format: date */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description 終日の予定の最後の日の翌日
+             */
+            endDate?: string;
         };
         /** @enum {string} */
         Resource: "profile" | "settings" | "tasks" | "workSession" | "wallet" | "viewing" | "sleep" | "shortcut" | "assistant" | "calendar";
@@ -3182,6 +3223,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CalendarStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listCalendarEvents: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 期間の予定（開始の早い順） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarEvent"][];
                 };
             };
             default: components["responses"]["Problem"];

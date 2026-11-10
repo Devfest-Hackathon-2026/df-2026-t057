@@ -104,7 +104,7 @@ resource.name.startsWith('projects/1032251723022/secrets/dopagaki-')
 
 | 設定 | 扱い |
 |---|---|
-| Calendarスコープ | `openid`、`email`、`https://www.googleapis.com/auth/calendar.app.created` |
+| Calendarスコープ | `openid`、`email`、`https://www.googleapis.com/auth/calendar.app.created`、`https://www.googleapis.com/auth/calendar.events.owned.readonly`（主カレンダーの予定の表示） |
 | Calendarコールバック | 公開URLの `/api/calendar/callback` |
 | OAuth client secret | `dopagaki-calendar-oauth` をSecret参照で注入 |
 | ユーザー別OAuthトークン | `dopagaki-calendar-` で始まるSecret。実値は記録しない |

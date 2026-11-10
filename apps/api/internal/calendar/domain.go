@@ -87,6 +87,8 @@ type Connection struct {
 	// ContentSeq は課題ごとの内容の変更の連番。予定に反映した連番（Link.ContentSeq）より大きければ、
 	// 題名・メモ・時刻を予定に書き直す必要がある。
 	ContentSeq map[string]int64 `json:"contentSeq,omitempty" firestore:"contentSeq,omitempty"`
+	// PrimaryEvents は、主カレンダーの予定を読む許可を同意画面で得たか（本人が外すこともある）。
+	PrimaryEvents bool `json:"primaryEvents" firestore:"primaryEvents"`
 	// ExportJob・SyncJob は、まだ始まっていない書き直し・取り込みのジョブ（同じジョブを重ねて積まないため）。
 	// ジョブは始まるときにこの値を消す（始まった後の変更は新しいジョブで反映する）。
 	ExportJob string `json:"exportJob,omitempty" firestore:"exportJob,omitempty"`
@@ -168,6 +170,49 @@ type EventPatch struct {
 	Description string
 	Start       *EventTime
 	End         *EventTime
+}
+
+// maxPrimaryRange は主カレンダーの予定を一度に読める期間。画面は日か週の表示なので、前後を含めても足りる長さにする。
+const maxPrimaryRange = 42 * 24 * time.Hour
+
+// PrimaryEvent は主カレンダーの予定を表示するための形。保存も AI への送信もしない。
+// 終日の予定は Start・End が日付（UTC の0時。End は最後の日の翌日）になる。
+type PrimaryEvent struct {
+	ID     string
+	Title  string
+	AllDay bool
+	Start  time.Time
+	End    time.Time
+}
+
+// CheckPrimaryRange は予定を読む期間を確かめる。to は from より後で、maxPrimaryRange 以内。
+func CheckPrimaryRange(from, to time.Time) error {
+	if !to.After(from) || to.Sub(from) > maxPrimaryRange {
+		return apperr.Invalid("request.invalid", apperr.Field("to", "out_of_range"))
+	}
+	return nil
+}
+
+// ToPrimaryEvents は Google の予定を表示用に変える。取り消された予定と、日時を読めない予定は除く。
+func ToPrimaryEvents(events []Event) []PrimaryEvent {
+	out := make([]PrimaryEvent, 0, len(events))
+	for _, e := range events {
+		if e.Status == EventCancelled {
+			continue
+		}
+		layout, start, end := time.RFC3339, e.Start.DateTime, e.End.DateTime
+		allDay := e.Start.Date != ""
+		if allDay {
+			layout, start, end = time.DateOnly, e.Start.Date, e.End.Date
+		}
+		s, err1 := time.Parse(layout, start)
+		t, err2 := time.Parse(layout, end)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		out = append(out, PrimaryEvent{ID: e.ID, Title: e.Summary, AllDay: allDay, Start: s.UTC(), End: t.UTC()})
+	}
+	return out
 }
 
 var tokenPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)

@@ -138,6 +138,7 @@ test('the tutorial cannot be finished until Google Calendar is connected', async
     connected: false,
     sync: 'disconnected',
     failedJobs: 0,
+    primaryEvents: false,
   };
   await page.route('**/api/config', (route) => route.fulfill({ json: config }));
   await page.route('**/api/calendar', (route) => route.fulfill({ json: status }));

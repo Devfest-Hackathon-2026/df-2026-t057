@@ -42,7 +42,13 @@ describe('CalendarWorkspace', () => {
       .on('GET', '/wallet', { body: wallet({ availableSeconds: 90 }) })
       .on('GET', '/assistant/turns', { body: { turns: [] } })
       .on('GET', '/calendar', {
-        body: { enabled: false, connected: false, sync: 'disconnected', failedJobs: 0 },
+        body: {
+          enabled: false,
+          connected: false,
+          sync: 'disconnected',
+          failedJobs: 0,
+          primaryEvents: false,
+        },
       });
     TestBed.configureTestingModule({
       providers: [...provideFakeBackend(backend), provideRouter([])],

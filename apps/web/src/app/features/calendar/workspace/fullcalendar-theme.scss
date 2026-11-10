@@ -65,6 +65,16 @@
     outline-offset: 2px;
   }
 
+  // Google カレンダーの予定は表示だけ。課題と見分けられるよう、塗りを弱くする。
+  .google-event {
+    --fc-event-color: var(--mat-sys-secondary-container);
+    --fc-event-contrast-color: var(--mat-sys-on-secondary-container);
+
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+    border-color: var(--mat-sys-outline-variant);
+  }
+
   .event-name {
     display: block;
     overflow: hidden;

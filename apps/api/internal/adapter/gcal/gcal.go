@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -72,7 +73,8 @@ func New(cfg Config, tokens TokenStore, validate IDTokenValidator) *Google {
 		oauth: oauth2.Config{
 			ClientID: cfg.ClientID, ClientSecret: cfg.ClientSecret, Endpoint: endpoint,
 			RedirectURL: strings.TrimRight(cfg.AppURL, "/") + "/api/calendar/callback",
-			Scopes:      []string{"openid", "email", calendarapi.CalendarAppCreatedScope},
+			// events.owned.readonly は、主カレンダーの予定を DOPAGAKI のカレンダー画面に表示するためだけに使う。
+			Scopes: []string{"openid", "email", calendarapi.CalendarAppCreatedScope, calendarapi.CalendarEventsOwnedReadonlyScope},
 		},
 		tokens: tokens, validate: validate, endpoint: cfg.CalendarEndpoint, base: cfg.HTTPClient,
 	}
@@ -109,7 +111,13 @@ func (g *Google) Exchange(ctx context.Context, code string) (calendar.Grant, err
 	if err != nil {
 		return calendar.Grant{}, apperr.Internal(fmt.Errorf("gcal: encode token: %w", err))
 	}
-	return calendar.Grant{Subject: payload.Subject, HasRefreshToken: token.RefreshToken != "", Token: raw}, nil
+	return calendar.Grant{Subject: payload.Subject, HasRefreshToken: token.RefreshToken != "", PrimaryEvents: granted(token, calendarapi.CalendarEventsOwnedReadonlyScope), Token: raw}, nil
+}
+
+// granted は、トークンの応答の scope（空白区切り）に scope が含まれるか。同意画面で本人が一部のスコープを外すことがある。
+func granted(token *oauth2.Token, scope string) bool {
+	scopes, _ := token.Extra("scope").(string)
+	return slices.Contains(strings.Fields(scopes), scope)
 }
 
 // oauthStatus は OAuth の失敗の HTTP ステータスだけを返す（本文を含めない）。
@@ -323,6 +331,25 @@ func (c *client) ListEvents(ctx context.Context, calendarID, syncToken, pageToke
 		}
 	}
 	return page, nil
+}
+
+func (c *client) ListRange(ctx context.Context, calendarID string, from, to time.Time) ([]calendar.Event, error) {
+	var out []calendar.Event
+	call := c.svc.Events.List(calendarID).TimeMin(from.Format(time.RFC3339)).TimeMax(to.Format(time.RFC3339)).
+		SingleEvents(true).OrderBy("startTime").MaxResults(2500).
+		Fields("nextPageToken", "items(id,status,summary,start,end)")
+	err := call.Pages(ctx, func(res *calendarapi.Events) error {
+		for _, e := range res.Items {
+			if e != nil {
+				out = append(out, fromAPI(e))
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, mapError("list range", err)
+	}
+	return out, nil
 }
 
 func (c *client) Watch(ctx context.Context, calendarID string, req calendar.WatchRequest) (calendar.Watch, error) {

@@ -103,6 +103,7 @@ test('manual Google sync waits for confirmation and preserves events on failure'
     connected: true,
     sync: 'synced',
     failedJobs: 0,
+    primaryEvents: false,
   };
   await page.route('**/api/calendar', (route) => route.fulfill({ json: connected }));
   const gate = new Gate();
@@ -158,7 +159,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
 test('Google event notifications are chosen in settings and saved for the DOPAGAKI calendar', async ({
   page,
 }) => {
-  let status: CalendarStatus = { enabled: true, connected: true, sync: 'synced', failedJobs: 0 };
+  let status: CalendarStatus = {
+    enabled: true,
+    connected: true,
+    sync: 'synced',
+    failedJobs: 0,
+    primaryEvents: false,
+  };
   const sent: unknown[] = [];
   await page.route('**/api/calendar', (route) => route.fulfill({ json: status }));
   await page.route('**/api/calendar/reminders', async (route) => {

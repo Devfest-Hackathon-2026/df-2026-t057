@@ -18,7 +18,13 @@ describe('TaskChange', () => {
     const backend = new FakeBackend()
       .on('GET', '/tasks', { body: taskList([task()], 5) })
       .on('GET', '/calendar', {
-        body: { enabled: false, connected: false, sync: 'disconnected', failedJobs: 0 },
+        body: {
+          enabled: false,
+          connected: false,
+          sync: 'disconnected',
+          failedJobs: 0,
+          primaryEvents: false,
+        },
       })
       .on('POST', '/tasks/t1/edit-preview', { body: draft({ kind: 'edit', baseRevision: 5 }) })
       .on('PUT', '/tasks/t1', { body: task({ title: '直したレポート' }) });
@@ -52,7 +58,13 @@ describe('TaskChange', () => {
     const backend = new FakeBackend()
       .on('GET', '/tasks', { body: taskList([task()], 4) })
       .on('GET', '/calendar', {
-        body: { enabled: true, connected: true, sync: 'pending', failedJobs: 0 },
+        body: {
+          enabled: true,
+          connected: true,
+          sync: 'pending',
+          failedJobs: 0,
+          primaryEvents: false,
+        },
       })
       .on('PUT', '/tasks/t1', {
         status: 412,
