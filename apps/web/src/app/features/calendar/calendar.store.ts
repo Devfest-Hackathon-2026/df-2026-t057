@@ -1,6 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
 import type { CalendarEvent, CalendarStatus, Resource } from '@dopagaki/contract';
-import { z } from 'zod';
 import { idempotent, requireData } from '../../core/http/api-client';
 import { Operation, type Outcome } from '../../core/http/operation';
 import { ResourceStore } from '../../core/store/resource-store';
@@ -12,16 +11,26 @@ export interface CalendarLayers {
 }
 
 const layersKey = 'dopagaki.calendarLayers';
-const layersSchema = z.object({ tasks: z.boolean(), google: z.boolean() });
 
 /** 表示の好みなので、ブラウザーごとに覚える。読めなければ両方とも表示する。 */
 function readLayers(): CalendarLayers {
+  // このストアは最初に読み込むシェルが使う。zod を使うと初期バンドルが約430kB増えて上限を超えるので、手で確かめる。
   try {
     const stored: unknown = JSON.parse(localStorage.getItem(layersKey) ?? 'null');
-    return layersSchema.parse(stored);
+    if (
+      typeof stored === 'object' &&
+      stored !== null &&
+      'tasks' in stored &&
+      'google' in stored &&
+      typeof stored.tasks === 'boolean' &&
+      typeof stored.google === 'boolean'
+    ) {
+      return { tasks: stored.tasks, google: stored.google };
+    }
   } catch {
-    return { tasks: true, google: true };
+    // 壊れた値は、既定の表示に戻す。
   }
+  return { tasks: true, google: true };
 }
 
 /** Google カレンダーとの連携状態と、主カレンダーの予定（表示だけ。保存しない）。 */
