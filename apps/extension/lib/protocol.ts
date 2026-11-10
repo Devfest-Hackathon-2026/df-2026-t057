@@ -33,6 +33,7 @@ export const requestSchema = z.discriminatedUnion('type', [
     refresh: z.boolean(),
   }),
   z.object({ type: z.literal('CREATE_TASK'), input: taskCreateInputSchema }),
+  z.object({ type: z.literal('ENABLE_WORKSITE'), tabId: z.number().int().nonnegative() }),
   z.object({ type: z.literal('START_TASK'), taskId: idSchema }),
   z.object({ type: z.literal('COMPLETE_TASK'), taskId: idSchema }),
   z.object({ type: z.literal('PAUSE_WORK') }),

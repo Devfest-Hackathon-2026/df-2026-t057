@@ -18,6 +18,7 @@ import { streamHealthy, restartStream } from './realtime';
 import { clearState, getState, patchState } from './store';
 import { refetch, refetchAll, tasksPatch } from './sync';
 import { clearViewing, flushPendingReports, getOwner, handleViewing } from './viewing';
+import { enableWorkSite } from './worksites';
 
 const AUTHORIZATION = /^(Bearer|Demo) \S+$/;
 
@@ -156,6 +157,12 @@ export async function handleRequest(
       // 登録の報酬で視聴時間が増えるので、残高も取り直す。
       await refetch(['tasks', 'wallet', 'viewing']);
       return stateReply(sender);
+    }
+    case 'ENABLE_WORKSITE': {
+      if (sender.url !== chrome.runtime.getURL('popup.html'))
+        throw new ExtensionError('untrustedSender');
+      await enableWorkSite(request.tabId);
+      return { ok: true, connected: !!(await getConnection()) };
     }
     case 'START_TASK': {
       const version = connectionVersion();
