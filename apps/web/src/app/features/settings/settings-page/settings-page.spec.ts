@@ -31,12 +31,14 @@ const connectedCalendar: CalendarStatus = {
   sync: 'synced',
   failedJobs: 0,
   lastSync: '2026-11-08T01:00:00Z',
+  primaryEvents: true,
 };
 const disconnectedCalendar: CalendarStatus = {
   enabled: true,
   connected: false,
   sync: 'disconnected',
   failedJobs: 0,
+  primaryEvents: false,
 };
 const problem = (status: number, code: string) => ({
   status,
@@ -109,7 +111,13 @@ describe('SettingsPage', () => {
       .on('GET', '/shortcut', { body: { configured: false } })
       .on('GET', '/tasks', { body: taskList() })
       .on('GET', '/calendar', {
-        body: { enabled: false, connected: false, sync: 'disconnected', failedJobs: 0 },
+        body: {
+          enabled: false,
+          connected: false,
+          sync: 'disconnected',
+          failedJobs: 0,
+          primaryEvents: false,
+        },
       });
     TestBed.configureTestingModule({
       providers: [

@@ -42,6 +42,7 @@ export type CompanionLine = Schemas['CompanionLine'];
 export type AssistantTurn = Schemas['AssistantTurn'];
 export type AssistantCard = Schemas['AssistantCard'];
 export type CalendarStatus = Schemas['CalendarStatus'];
+export type CalendarEvent = Schemas['CalendarEvent'];
 export type Resource = Schemas['Resource'];
 export type ChangeEvent = Schemas['ChangeEvent'];
 export type Problem = Schemas['Problem'];
