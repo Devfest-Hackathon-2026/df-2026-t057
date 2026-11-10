@@ -127,7 +127,7 @@ flowchart TD
 
 ## Google Cloudで動かすための設定
 
-AIは初期値で1人10回/分・500回/日、全体60回/分・2000回/日に制限します。失敗も回数に含み、日次はUTC 00:00（日本時間09:00）に切り替わります。上限時も手入力とCalendar同期は基本の時間割で続けられます。この上限への変更は、本番への反映をまだ確認していません。本番では `deploy/terraform/run.tf` の設定を `terraform apply` し、その後の配信でトラフィックを切り替える必要があります。[利用上限・CSP・追加監査](engineering/security-hardening-2026-11-07.md)、[本番での確認結果](engineering/security-rollout-2026-11-07.md)を参照してください。
+AIは初期値で1人10回/分・500回/日、全体60回/分・2000回/日に制限します。失敗も回数に含み、日次はUTC 00:00（日本時間09:00）に切り替わります。上限時も手入力とCalendar同期は基本の時間割で続けられます。本番への反映と確認結果は、[2026-11-10の記録](engineering/ai-quota-rollout-2026-11-10.md)を参照してください。本番では `deploy/terraform/run.tf` の設定を `terraform apply` し、その後の配信でトラフィックを切り替える必要があります。[利用上限・CSP・追加監査](engineering/security-hardening-2026-11-07.md)、[本番での確認結果](engineering/security-rollout-2026-11-07.md)を参照してください。
 
 対象プロジェクトは `devfest-2026-513816`（番号 `1032251723022`）です。課金アカウントと予算はユーザー設定済みのものを使います。
 

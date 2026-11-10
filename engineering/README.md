@@ -12,6 +12,7 @@
 
 | 文書 | 内容 |
 |---|---|
+| [AI利用上限の本番反映](ai-quota-rollout-2026-11-10.md) | 上限値の統一、Cloud Run限定のTerraform適用、対象外のFirestore差分、mainの配信と実設定の確認 |
 | [視聴区間の保存と再送](viewing-durable-accounting-2026-11-10.md) | 保留分の受付位置、ページ終了前の保存、二重計上防止と互換性 |
 | [監査後の内部修正](audit-internal-fixes-2026-11-10.md) | 現行developで再現した同期・設定・拡張の内部修正と、旧監査から残る範囲 |
 | [変更通知のヘッダー認証](sse-header-auth.md) | URLへのトークン付与を廃止、再接続・トークン更新・ログアウトの回帰確認 |

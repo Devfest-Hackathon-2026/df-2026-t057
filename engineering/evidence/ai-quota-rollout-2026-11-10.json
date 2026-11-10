@@ -1,0 +1,48 @@
+{
+  "revision": "dopagaki-00071-das",
+  "traffic_percent": 100,
+  "quotas": {
+    "AI_USER_PER_MINUTE": "10",
+    "AI_USER_PER_DAY": "500",
+    "AI_GLOBAL_PER_MINUTE": "60",
+    "AI_GLOBAL_PER_DAY": "2000"
+  },
+  "digest": "sha256:2ac17214ab5e2f9b032aa18c76b32d757327b5c9edd32b75f84433deff2ef1dc",
+  "main_commit": "8a6c5b05b6ff14d1e221082fe0168ea9f64d4f33",
+  "firestore_pitr": "POINT_IN_TIME_RECOVERY_ENABLED",
+  "checked_at": "2026-11-10T14:04:19.802475+09:00",
+  "checks": [
+    {
+      "url": "https://dopagaki-1032251723022.asia-northeast1.run.app/api/health",
+      "status": 200
+    },
+    {
+      "url": "https://dopagaki-1032251723022.asia-northeast1.run.app/api/profile",
+      "status": 401
+    },
+    {
+      "url": "https://dopagaki-auqpl4ga4q-an.a.run.app/api/health",
+      "status": 200
+    },
+    {
+      "url": "https://dopagaki-auqpl4ga4q-an.a.run.app/api/profile",
+      "status": 401
+    }
+  ],
+  "terraform": {
+    "version": "1.17.1",
+    "google_provider": "8.10.0",
+    "target": "google_cloud_run_v2_service.app",
+    "apply": {
+      "added": 0,
+      "changed": 1,
+      "destroyed": 0
+    },
+    "excluded_full_plan_change": "Firestore point-in-time recovery disablement was not applied"
+  },
+  "ci": {
+    "pull_request": "https://github.com/a-sumikawa/devfest-2026/actions/runs/42758399370",
+    "production": "https://github.com/a-sumikawa/devfest-2026/actions/runs/42758849750",
+    "conclusion": "success"
+  }
+}
