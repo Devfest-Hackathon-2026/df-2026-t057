@@ -5,7 +5,7 @@
 | 対象 | 出典 | 利用方法・ライセンス |
 |---|---|---|
 | DOPAGAKIロゴ | ユーザー提供画像（2026-11-05の会話） | 原画像を切り抜き、配置・縮小。`web/public/logo.png`、拡張アイコン。権利の帰属・提出時の表記は提供者に確認する |
-| 金色の光 | ユーザー提供参考画像（同会話） | 通知背景へ利用。`web/public/gold-light.png`。再配布可否は提供者に確認する |
+| 金色の放射光背景 | ユーザーが自作した画像（2026-11-10提供） | 通知背景へ利用。`apps/web/public/gold-light.png`、`apps/extension/public/gold-light.png`。提供されたPNGを無加工で配置。ユーザーから自作との申告を受け、従来のiStock素材から差し替え |
 | ハンバーガーメニューのアイコン | ユーザー提供画像（2026-11-08の会話。原画像は `picture/humburgur.png`、リポジトリには入れない） | 余白を切り抜き、線の部分だけを残した透過画像に変換して96pxへ縮小。`apps/web/public/hamburger.png`。色はCSSのマスクでトークンから塗る。権利の帰属は提供者に確認する |
 | Material Symbols Rounded | Google / [Material Symbols](https://fonts.google.com/icons) | Apache-2.0。`material-symbols` パッケージから使用するアイコンを抽出し自己ホスト。ライセンスは `web/public/material-symbols-LICENSE.txt` |
 | Google Gロゴ | Google / [ログインボタンの公式ガイド](https://developers.google.com/identity/branding-guidelines)、[公式PNG](https://developers.google.com/static/identity/images/g-logo.png) | `web/public/google-g.png`。Googleログインボタン内に使用。Googleのブランドガイドに従い、画像生成案のロゴは転用しない |
